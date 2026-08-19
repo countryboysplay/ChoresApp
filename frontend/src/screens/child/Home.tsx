@@ -1,21 +1,50 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Avatar } from '../../design/Avatar';
-import { Icon } from '../../design/icons';
+import type { AvatarConfig } from '../../design/Avatar';
+import { Avatar, DEFAULT_AVATAR } from '../../design/Avatar';
+import { Icon, type IconName } from '../../design/icons';
 import { Badge, Button, LevelBar, Meter, PointsPill, Ring } from '../../design/primitives';
 import { levelForLifetimePoints } from '../../config/levels';
-import { bonusChores, children, coreChores } from '../../mock/data';
+import { useAuth } from '../../lib/auth';
+import { useChildDay } from '../../lib/childDay';
 import { StatusBadge } from './choreStatus';
-
-const me = children[0]!;
 
 export function ChildHome() {
   const navigate = useNavigate();
-  const level = levelForLifetimePoints(me.lifetimePoints);
-  const chore = coreChores.find((entry) => entry.id === me.todayChoreId)!;
-  const doneCount = chore.subtasks.filter((task) => task.done).length;
-  const nextBonus = [...bonusChores]
-    .filter((bonus) => !bonus.claimedBy)
-    .sort((a, b) => b.points - a.points)[0]!;
+  const { user } = useAuth();
+  const { day, loading, error } = useChildDay();
+
+  if (loading && !day) {
+    return (
+      <main className="screen">
+        <p aria-live="polite" style={{ textAlign: 'center', marginTop: 'var(--space-7)' }}>
+          Loading today&hellip;
+        </p>
+      </main>
+    );
+  }
+
+  if (!day) {
+    return (
+      <main className="screen">
+        <div className="card card--status is-late" style={{ marginTop: 'var(--space-6)' }}>
+          <p style={{ fontWeight: 700 }}>{error ?? 'Could not load today.'}</p>
+        </div>
+      </main>
+    );
+  }
+
+  const { summary } = day;
+  const level = levelForLifetimePoints(summary.lifetimePoints);
+  // The required chore is the first core one still outstanding, falling back to
+  // the last of the day so a finished day still shows what was done.
+  const chore =
+    day.core.find((entry) => entry.status !== 'approved') ?? day.core[day.core.length - 1] ?? null;
+  const doneCount = chore ? chore.subtasks.filter((task) => task.done).length : 0;
+  const totalCount = chore ? chore.subtasks.length : 0;
+  const nextBonus = [...day.availableBonus].sort((a, b) => b.points - a.points)[0] ?? null;
+
+  const name = user?.displayName ?? 'Player';
+  const avatar = (user?.avatar as AvatarConfig | null) ?? DEFAULT_AVATAR;
 
   return (
     <main className="screen">
@@ -34,11 +63,11 @@ export function ChildHome() {
               display: 'grid',
             }}
           >
-            <Avatar config={me.avatar} size={48} label={`${me.name} avatar`} />
+            <Avatar config={avatar} size={48} label={`${name} avatar`} />
           </span>
-          <span className="subtitle">{me.name}</span>
+          <span className="subtitle">{name}</span>
         </Link>
-        <PointsPill value={me.spendablePoints} />
+        <PointsPill value={summary.spendablePoints} />
       </div>
 
       <div className="row" style={{ gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
@@ -65,7 +94,7 @@ export function ChildHome() {
           <Icon name="arrow" size={20} />
         </div>
         <div className="row" style={{ gap: 'var(--space-4)' }}>
-          <Ring value={doneCount} max={chore.subtasks.length} size={104} label="Steps finished today">
+          <Ring value={doneCount} max={Math.max(totalCount, 1)} size={104} label="Steps finished today">
             <span style={{ lineHeight: 1 }}>
               <span
                 className="numeric"
@@ -74,7 +103,7 @@ export function ChildHome() {
                 {doneCount}
               </span>
               <span style={{ display: 'block', fontSize: 'var(--text-xs)', fontWeight: 700 }}>
-                of {chore.subtasks.length}
+                of {totalCount}
               </span>
             </span>
           </Ring>
@@ -85,69 +114,82 @@ export function ChildHome() {
       </button>
 
       {/* Today's required chore */}
-      <section className="card card--status is-info" style={{ marginTop: 'var(--space-4)', padding: 'var(--space-5)' }}>
-        <div className="row row--between" style={{ marginBottom: 'var(--space-3)' }}>
-          <span className="eyebrow">Today&apos;s required chore</span>
-          <StatusBadge status={chore.status} />
-        </div>
+      {chore ? (
+        <section className="card card--status is-info" style={{ marginTop: 'var(--space-4)', padding: 'var(--space-5)' }}>
+          <div className="row row--between" style={{ marginBottom: 'var(--space-3)' }}>
+            <span className="eyebrow">Today&apos;s required chore</span>
+            <StatusBadge status={chore.status} />
+          </div>
 
-        <div className="row" style={{ gap: 'var(--space-3)' }}>
-          <span className="tile-icon tile-icon--gold">
-            <Icon name={chore.icon} size={24} />
-          </span>
-          <div style={{ flex: 1 }}>
-            <h2 className="subtitle" style={{ marginBottom: 4 }}>
-              {chore.name}
-            </h2>
-            <div className="row" style={{ gap: 'var(--space-2)' }}>
-              <PointsPill value={chore.points} small />
-              <span className="muted numeric" style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-                {doneCount} of {chore.subtasks.length} done
-              </span>
+          <div className="row" style={{ gap: 'var(--space-3)' }}>
+            <span className="tile-icon tile-icon--gold">
+              <Icon name={chore.icon as IconName} size={24} />
+            </span>
+            <div style={{ flex: 1 }}>
+              <h2 className="subtitle" style={{ marginBottom: 4 }}>
+                {chore.name}
+              </h2>
+              <div className="row" style={{ gap: 'var(--space-2)' }}>
+                <PointsPill value={chore.points} small />
+                <span className="muted numeric" style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+                  {doneCount} of {totalCount} done
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div style={{ margin: 'var(--space-4) 0' }}>
-          <Meter value={doneCount} max={chore.subtasks.length} tone="green" />
-        </div>
+          <div style={{ margin: 'var(--space-4) 0' }}>
+            <Meter value={doneCount} max={Math.max(totalCount, 1)} tone="green" />
+          </div>
 
-        <Button
-          tone="purple"
-          size="lg"
-          block
-          sound="tap"
-          icon="target"
-          onClick={() => navigate(`/child/chore/${chore.id}`)}
+          <Button
+            tone="purple"
+            size="lg"
+            block
+            sound="tap"
+            icon="target"
+            onClick={() => navigate(`/child/chore/${chore.id}`)}
+          >
+            {doneCount === 0 ? 'Start chore' : 'Continue chore'}
+          </Button>
+        </section>
+      ) : (
+        // A real state, not an error: a day off, or nobody has set up a
+        // schedule for this child yet.
+        <section className="card" style={{ marginTop: 'var(--space-4)', textAlign: 'center' }}>
+          <span className="eyebrow">Today&apos;s required chore</span>
+          <p style={{ fontWeight: 700, margin: 'var(--space-3) 0 0' }}>Nothing due today</p>
+          <p className="muted" style={{ margin: '4px 0 0' }}>Enjoy the day off.</p>
+        </section>
+      )}
+
+      {/* Next bonus chore. Hidden entirely when the board is empty rather than
+          showing a panel that promises points nobody can claim. */}
+      {nextBonus && (
+        <button
+          type="button"
+          className="panel panel--purple card--interactive"
+          style={{ marginTop: 'var(--space-4)', display: 'block' }}
+          onClick={() => navigate('/child/missions')}
         >
-          {doneCount === 0 ? 'Start chore' : 'Continue chore'}
-        </Button>
-      </section>
-
-      {/* Next bonus chore */}
-      <button
-        type="button"
-        className="panel panel--purple card--interactive"
-        style={{ marginTop: 'var(--space-4)', display: 'block' }}
-        onClick={() => navigate('/child/missions')}
-      >
-        <div className="row row--between" style={{ marginBottom: 'var(--space-2)' }}>
-          <span className="eyebrow">Next bonus chore</span>
-          <Icon name="arrow" size={20} />
-        </div>
-        <div className="row" style={{ gap: 'var(--space-3)' }}>
-          <span className="tile-icon tile-icon--gold">
-            <Icon name="target" size={24} />
-          </span>
-          <span style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontWeight: 800 }}>{nextBonus.name}</span>
-            <span style={{ fontSize: 'var(--text-sm)', opacity: 0.85 }}>Claim it before it expires</span>
-          </span>
-          <strong className="numeric" style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-lg)' }}>
-            +{nextBonus.points} pts
-          </strong>
-        </div>
-      </button>
+          <div className="row row--between" style={{ marginBottom: 'var(--space-2)' }}>
+            <span className="eyebrow">Next bonus chore</span>
+            <Icon name="arrow" size={20} />
+          </div>
+          <div className="row" style={{ gap: 'var(--space-3)' }}>
+            <span className="tile-icon tile-icon--gold">
+              <Icon name="target" size={24} />
+            </span>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: 'block', fontWeight: 800 }}>{nextBonus.name}</span>
+              <span style={{ fontSize: 'var(--text-sm)', opacity: 0.85 }}>Claim it before it expires</span>
+            </span>
+            <strong className="numeric" style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-lg)' }}>
+              +{nextBonus.points} pts
+            </strong>
+          </div>
+        </button>
+      )}
 
       {/* Streak */}
       <Link
@@ -165,23 +207,25 @@ export function ChildHome() {
           <span
             style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', fontWeight: 600 }}
           >
-            {me.streakDays} days
+            {summary.streakDays} {summary.streakDays === 1 ? 'day' : 'days'}
           </span>
         </span>
         <Icon name="tree" size={34} style={{ color: '#2e7d32' }} />
       </Link>
 
-      {/* Recent win */}
-      <div className="card card--status is-done row" style={{ marginTop: 'var(--space-4)' }}>
-        <Icon name="check" size={22} style={{ color: 'var(--green)' }} />
-        <div style={{ flex: 1 }}>
-          <span className="eyebrow" style={{ color: 'var(--text-muted)' }}>
-            Most recent win
-          </span>
-          <p style={{ margin: '2px 0 0', fontWeight: 700 }}>Kitchen Cleaning approved</p>
+      {/* Recent win. Nothing to celebrate yet on a brand new account. */}
+      {summary.recentWin && (
+        <div className="card card--status is-done row" style={{ marginTop: 'var(--space-4)' }}>
+          <Icon name="check" size={22} style={{ color: 'var(--green)' }} />
+          <div style={{ flex: 1 }}>
+            <span className="eyebrow" style={{ color: 'var(--text-muted)' }}>
+              Most recent win
+            </span>
+            <p style={{ margin: '2px 0 0', fontWeight: 700 }}>{summary.recentWin.label}</p>
+          </div>
+          <Badge tone="done">+{summary.recentWin.delta}</Badge>
         </div>
-        <Badge tone="done">+12</Badge>
-      </div>
+      )}
     </main>
   );
 }

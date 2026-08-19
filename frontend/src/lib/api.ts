@@ -1,5 +1,7 @@
 import type {
   ApiError,
+  ChildDayResponse,
+  ChoreResponse,
   HealthResponse,
   LoginResponse,
   MeResponse,
@@ -67,5 +69,19 @@ export const api = {
     me: () => request<MeResponse>('/api/auth/me'),
 
     logout: () => request<{ ok: true }>('/api/auth/logout', { method: 'POST' }),
+  },
+
+  chores: {
+    /** Omit the date for the household's current day. */
+    day: (date?: string) =>
+      request<ChildDayResponse>(`/api/child/day${date ? `?date=${date}` : ''}`),
+
+    get: (instanceId: string) => request<ChoreResponse>(`/api/chores/${instanceId}`),
+
+    setSubtask: (instanceId: string, subtaskId: string, done: boolean) =>
+      request<ChoreResponse>(`/api/chores/${instanceId}/subtasks/${subtaskId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ done }),
+      }),
   },
 };

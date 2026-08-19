@@ -1,28 +1,56 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Icon } from '../../design/icons';
+import { Icon, type IconName } from '../../design/icons';
 import { Badge, Button, CheckItem, Meter, PointsPill } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { playSound } from '../../design/sound';
-import { bonusChores, coreChores, type Chore } from '../../mock/data';
+import { useChildDay } from '../../lib/childDay';
 import { StatusBadge } from './choreStatus';
 
 type Phase = 'checklist' | 'camera' | 'review' | 'ready' | 'submitted';
 
-const ALL: Chore[] = [...coreChores, ...bonusChores];
-
 export function ChoreDetail() {
   const { choreId = '' } = useParams();
-  const chore = ALL.find((entry) => entry.id === choreId) ?? ALL[0]!;
-  const wasRejected = chore.status === 'rejected';
-
-  const [checked, setChecked] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(chore.subtasks.map((task) => [task.id, wasRejected ? false : task.done])),
-  );
+  const { day, loading, error, setSubtaskDone } = useChildDay();
   const [phase, setPhase] = useState<Phase>('checklist');
 
-  const doneCount = useMemo(() => Object.values(checked).filter(Boolean).length, [checked]);
-  const allDone = doneCount === chore.subtasks.length;
+  // Read from the day rather than fetching separately, so a tick here and the
+  // progress ring on the home screen cannot disagree.
+  const chore = useMemo(
+    () => [...(day?.core ?? []), ...(day?.bonus ?? [])].find((entry) => entry.id === choreId) ?? null,
+    [day, choreId],
+  );
+
+  if (loading && !chore) {
+    return (
+      <main className="screen">
+        <p aria-live="polite" style={{ textAlign: 'center', marginTop: 'var(--space-7)' }}>
+          Loading&hellip;
+        </p>
+      </main>
+    );
+  }
+
+  if (!chore) {
+    return (
+      <>
+        <ScreenTop title="Chore" back={-1} />
+        <main className="screen">
+          <div className="card card--status is-late">
+            <p style={{ fontWeight: 700, margin: 0 }}>
+              {error ?? 'That chore is not on today’s list.'}
+            </p>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  const wasRejected = chore.status === 'rejected';
+  const doneCount = chore.subtasks.filter((task) => task.done).length;
+  const allDone = chore.subtasks.length > 0 && doneCount === chore.subtasks.length;
+  // A finished chore is a record. Only a parent sending it back reopens it.
+  const locked = !['not_started', 'in_progress', 'rejected'].includes(chore.status);
 
   return (
     <>
@@ -38,7 +66,7 @@ export function ChoreDetail() {
               className="tile-icon"
               style={{ width: 68, height: 68, borderRadius: 20, background: 'rgba(255,255,255,0.22)' }}
             >
-              <Icon name={chore.icon} size={34} />
+              <Icon name={chore.icon as IconName} size={34} />
             </span>
             <div style={{ flex: 1 }}>
               <h2 className="title" style={{ fontSize: 'var(--text-xl)' }}>
@@ -73,18 +101,16 @@ export function ChoreDetail() {
                   {doneCount} of {chore.subtasks.length}
                 </span>
               </div>
-              <Meter value={doneCount} max={chore.subtasks.length} tone="green" />
+              <Meter value={doneCount} max={Math.max(chore.subtasks.length, 1)} tone="green" />
 
               {chore.subtasks.map((task) => (
                 <CheckItem
                   key={task.id}
                   title={task.title}
-                  instruction={task.instruction}
-                  checked={Boolean(checked[task.id])}
-                  disabled={phase !== 'checklist'}
-                  onToggle={() =>
-                    setChecked((current) => ({ ...current, [task.id]: !current[task.id] }))
-                  }
+                  instruction={task.instruction ?? undefined}
+                  checked={task.done}
+                  disabled={phase !== 'checklist' || locked}
+                  onToggle={() => void setSubtaskDone(chore.id, task.id, !task.done)}
                 />
               ))}
             </section>

@@ -89,6 +89,57 @@ export interface MeResponse {
   expiresAt: string;
 }
 
+export interface Subtask {
+  id: string;
+  position: number;
+  title: string;
+  instruction: string | null;
+  done: boolean;
+}
+
+export interface Chore {
+  id: string;
+  name: string;
+  /** Icon name from the frontend's code-drawn set. */
+  icon: string;
+  kind: ChoreKind;
+  category: string | null;
+  status: ChoreStatus;
+  /** Snapshotted when the chore was created, not the definition's current value. */
+  points: number;
+  /** The household day this belongs to, YYYY-MM-DD. */
+  choreDate: string;
+  rejectionNote: string | null;
+  /** Bonus chores only. ISO 8601. */
+  expiresAt: string | null;
+  claimed: boolean;
+  subtasks: Subtask[];
+}
+
+export interface ChildSummary {
+  spendablePoints: number;
+  lifetimePoints: number;
+  streakDays: number;
+  recentWin: { label: string; delta: number; at: string } | null;
+}
+
+export interface ChildDayResponse {
+  /** The day asked for. */
+  date: string;
+  /** The household's current day, which may be later than `date`. */
+  today: string;
+  summary: ChildSummary;
+  core: Chore[];
+  /** Bonus chores this child has claimed. */
+  bonus: Chore[];
+  /** Bonus chores still on offer to anyone. */
+  availableBonus: Chore[];
+}
+
+export interface ChoreResponse {
+  chore: Chore;
+}
+
 /** Error codes the PIN screen has to tell apart. */
 export const AUTH_ERROR = {
   /** Wrong PIN. `details.attemptsRemaining` counts down to the first lockout. */

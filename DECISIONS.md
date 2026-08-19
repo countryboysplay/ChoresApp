@@ -420,3 +420,47 @@ sees the household's first names, which that screen cannot function without.
 no chore history, no photos, no PIN state beyond whether one is set. If the API
 ever becomes reachable by people outside the household, revisit this first. The
 tunnel hostname is effectively the secret protecting it.
+
+---
+
+## 2026-08-19 — Chore days are materialised lazily, not on a timer
+
+**Decision.** `chore_schedules` becomes `chore_instances` the first time anyone
+opens the app on a given day. Days missed since the last visit are filled in at
+the same time, up to a 14-day limit, and never earlier than the day the child
+was added to the household.
+
+**Reason.** The backend lives on a laptop that sleeps. A job scheduled for local
+midnight simply does not run on a suspended machine, so it would have needed
+catch-up logic regardless — and then two code paths would have to agree on
+exactly what a day contains. Materialising on read has one path, and it is
+correct after an outage of any length.
+
+**Consequences.** A chore day does not exist until someone looks, which is fine
+for the child app but means anything running without a viewer — the Stage 12
+reminders, the Stage 13 push notifications — has to materialise the day itself
+before it can ask what is outstanding. Every statement is idempotent and keyed on
+the partial unique index, so concurrent requests cannot double a day. The 14-day
+limit exists so a household returning from holiday does not bury the approval
+queue; the join-date floor exists so a child added this morning does not wake up
+to two weeks of chores they never had the chance to do.
+
+---
+
+## 2026-08-19 — Frontend route guards are a convenience, not the boundary
+
+**Decision.** `RequireRole` redirects anyone who is not signed in, but the API
+re-checks every request and scopes every chore query to its owner. Guessing
+another child's chore id returns 404, not 403.
+
+**Reason.** A guard that lives in the browser can be stepped around by editing a
+URL. It exists so a signed-out visitor lands on the profile picker instead of a
+screen full of empty placeholders and failed requests — a usability feature that
+should never be mistaken for the thing keeping siblings out of each other's
+chores. 404 rather than 403 because confirming that a chore exists is itself a
+small disclosure.
+
+**Consequences.** Every new route that reads household data must scope its query
+by the session's user; adding a route to the guarded section of the router is not
+sufficient and never was. In preview mode the guard passes everything through,
+because there is no server to sign in to and no household data to reach.

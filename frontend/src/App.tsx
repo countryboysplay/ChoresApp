@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ChildShell } from './components/ChildShell';
 import { ParentShell } from './components/ParentShell';
+import { RequireRole } from './components/RequireRole';
+import { ChildDayProvider } from './lib/childDay';
 import { Splash } from './screens/child/Splash';
 import { ProfileSelect } from './screens/child/ProfileSelect';
 import { PinEntry } from './screens/child/PinEntry';
@@ -34,7 +36,14 @@ export function App() {
       <Route path="/pin/:userId" element={<PinEntry />} />
       <Route path="/health" element={<Health />} />
 
-      <Route element={<ChildShell />}>
+      <Route element={<RequireRole role="child" />}>
+        <Route
+          element={
+            <ChildDayProvider>
+              <ChildShell />
+            </ChildDayProvider>
+          }
+        >
         <Route path="/child/home" element={<ChildHome />} />
         <Route path="/child/missions" element={<Missions />} />
         <Route path="/child/chore/:choreId" element={<ChoreDetail />} />
@@ -45,8 +54,10 @@ export function App() {
         <Route path="/child/notifications" element={<Notifications />} />
         <Route path="/child/profile" element={<Profile />} />
         <Route path="/child" element={<Navigate to="/child/home" replace />} />
+        </Route>
       </Route>
 
+      <Route element={<RequireRole role="parent" />}>
       <Route element={<ParentShell />}>
         <Route path="/parent" element={<ParentDashboard />} />
         <Route path="/parent/approvals" element={<ApprovalQueue />} />
@@ -58,6 +69,7 @@ export function App() {
         <Route path="/parent/children" element={<ChildManage />} />
         <Route path="/parent/settings" element={<Settings />} />
         <Route path="/parent/system" element={<SystemStatus />} />
+      </Route>
       </Route>
 
       <Route path="*" element={<NotFound />} />

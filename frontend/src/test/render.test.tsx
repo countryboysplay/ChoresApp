@@ -2,8 +2,10 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
+import type { ReactNode } from 'react';
 import { App } from '../App';
 import { AuthProvider } from '../lib/auth';
+import { ChildDayProvider } from '../lib/childDay';
 import { ChoreDetail } from '../screens/child/ChoreDetail';
 import { ApprovalQueue } from '../screens/parent/Approvals';
 import { levelForLifetimePoints, thresholdForLevel } from '../config/levels';
@@ -13,6 +15,23 @@ function renderAt(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <AuthProvider>
         <App />
+      </AuthProvider>
+    </MemoryRouter>,
+  );
+}
+
+/**
+ * Renders one screen on its own route, with the providers the app would supply.
+ * fetch is stubbed to reject in setup.ts, so auth settles into preview mode and
+ * the screens read the Stage 2 mock day.
+ */
+function renderScreen(path: string, routes: ReactNode) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <AuthProvider>
+        <ChildDayProvider>
+          <Routes>{routes}</Routes>
+        </ChildDayProvider>
       </AuthProvider>
     </MemoryRouter>,
   );
@@ -34,15 +53,16 @@ describe('routing', () => {
     expect(screen.getByText('Parent 1')).toBeInTheDocument();
   });
 
-  it('renders the child home dashboard', () => {
+  it('renders the child home dashboard', async () => {
     renderAt('/child/home');
-    expect(screen.getByText("Today's required chore")).toBeInTheDocument();
+    // The day is fetched, so the screen paints a loading state first.
+    expect(await screen.findByText("Today's required chore")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /continue chore/i })).toBeInTheDocument();
   });
 
-  it('renders the parent dashboard with both children', () => {
+  it('renders the parent dashboard with both children', async () => {
     renderAt('/parent');
-    expect(screen.getByRole('heading', { name: 'Needs attention' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Needs attention' })).toBeInTheDocument();
     expect(screen.getByText('Pending approvals')).toBeInTheDocument();
     expect(screen.getByText('Child 1')).toBeInTheDocument();
     expect(screen.getByText('Child 2')).toBeInTheDocument();
@@ -57,15 +77,12 @@ describe('routing', () => {
 describe('chore completion flow', () => {
   it('keeps the camera locked until every subtask is checked', async () => {
     const user = userEvent.setup();
-    render(
-      <MemoryRouter initialEntries={['/child/chore/core-kitchen']}>
-        <Routes>
-          <Route path="/child/chore/:choreId" element={<ChoreDetail />} />
-        </Routes>
-      </MemoryRouter>,
+    renderScreen(
+      '/child/chore/core-kitchen',
+      <Route path="/child/chore/:choreId" element={<ChoreDetail />} />,
     );
 
-    expect(screen.getByText(/finish every step to unlock the camera/i)).toBeInTheDocument();
+    expect(await screen.findByText(/finish every step to unlock the camera/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /open camera/i })).not.toBeInTheDocument();
 
     for (const item of screen.getAllByRole('button', { pressed: false })) {
@@ -75,27 +92,22 @@ describe('chore completion flow', () => {
     expect(screen.getByRole('button', { name: /open camera/i })).toBeInTheDocument();
   });
 
-  it('never offers a gallery upload as an alternative to the live camera', () => {
-    render(
-      <MemoryRouter initialEntries={['/child/chore/core-kitchen']}>
-        <Routes>
-          <Route path="/child/chore/:choreId" element={<ChoreDetail />} />
-        </Routes>
-      </MemoryRouter>,
+  it('never offers a gallery upload as an alternative to the live camera', async () => {
+    renderScreen(
+      '/child/chore/core-kitchen',
+      <Route path="/child/chore/:choreId" element={<ChoreDetail />} />,
     );
+    await screen.findByText(/checklist/i);
     expect(screen.queryByText(/upload/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/choose from gallery/i)).not.toBeInTheDocument();
   });
 
-  it('shows the parent note when a chore was rejected', () => {
-    render(
-      <MemoryRouter initialEntries={['/child/chore/core-bathroom']}>
-        <Routes>
-          <Route path="/child/chore/:choreId" element={<ChoreDetail />} />
-        </Routes>
-      </MemoryRouter>,
+  it('shows the parent note when a chore was rejected', async () => {
+    renderScreen(
+      '/child/chore/core-bathroom',
+      <Route path="/child/chore/:choreId" element={<ChoreDetail />} />,
     );
-    expect(screen.getByText(/a parent sent this back/i)).toBeInTheDocument();
+    expect(await screen.findByText(/a parent sent this back/i)).toBeInTheDocument();
     expect(screen.getByText(/mirror still has spots/i)).toBeInTheDocument();
   });
 });
@@ -103,16 +115,15 @@ describe('chore completion flow', () => {
 describe('approval queue safety rule', () => {
   it('locks Approve All until every photo has been opened', async () => {
     const user = userEvent.setup();
-    render(
-      <MemoryRouter initialEntries={['/parent/approvals']}>
-        <Routes>
-          <Route path="/parent/approvals" element={<ApprovalQueue />} />
-          <Route path="/parent/approvals/:submissionId" element={<div>review</div>} />
-        </Routes>
-      </MemoryRouter>,
+    renderScreen(
+      '/parent/approvals',
+      <>
+        <Route path="/parent/approvals" element={<ApprovalQueue />} />
+        <Route path="/parent/approvals/:submissionId" element={<div>review</div>} />
+      </>,
     );
 
-    const bulk = screen.getByRole('button', { name: /approve all/i });
+    const bulk = await screen.findByRole('button', { name: /approve all/i });
     expect(bulk).toBeDisabled();
 
     const thumbnails = screen.getAllByRole('button', { name: /view photo for/i });
@@ -129,9 +140,9 @@ describe('approval queue safety rule', () => {
 });
 
 describe('leaderboard', () => {
-  it('ranks the kids only and never lists a parent', () => {
+  it('ranks the kids only and never lists a parent', async () => {
     renderAt('/child/leaderboard');
-    expect(screen.getAllByText('Child 1').length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Child 1')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Child 2').length).toBeGreaterThan(0);
     expect(screen.queryByText('Parent 1')).not.toBeInTheDocument();
     expect(screen.queryByText('Parent 2')).not.toBeInTheDocument();
@@ -160,15 +171,15 @@ describe('level curve', () => {
 });
 
 describe('accessibility basics', () => {
-  it('labels the bottom navigation and marks the active destination', () => {
+  it('labels the bottom navigation and marks the active destination', async () => {
     renderAt('/child/home');
-    const nav = screen.getByRole('navigation', { name: 'Main' });
+    const nav = await screen.findByRole('navigation', { name: 'Main' });
     expect(within(nav).getByRole('link', { name: /home/i })).toHaveClass('is-active');
   });
 
-  it('gives every progress meter an accessible name', () => {
+  it('gives every progress meter an accessible name', async () => {
     renderAt('/child/home');
-    for (const bar of screen.getAllByRole('progressbar')) {
+    for (const bar of await screen.findAllByRole('progressbar')) {
       expect(bar).toHaveAccessibleName();
     }
   });

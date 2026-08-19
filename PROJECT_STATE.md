@@ -4,7 +4,7 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 4 — Authentication |
+| Current stage | Stage 5 — Chore API and the child screens |
 | Stage status | Built and tested; awaiting approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
@@ -13,8 +13,8 @@ _Last updated: 2026-08-19_
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
 | Database migration status | 5 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 67 passing (52 backend, 15 frontend); typecheck, lint, and build clean; CI green |
-| Last known good commit | `619102a` — Stage 4 authentication; CI and Pages green |
+| Test status | 91 passing (76 backend, 15 frontend); typecheck, lint, and build clean; CI green |
+| Last known good commit | `97cd4e2` — Stage 4 decisions recorded; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -132,12 +132,15 @@ and `http://<laptop-ip>:5173` also works.
 
 ## Known issues
 
-- **Only the auth screens are wired to the API.** Hero select and the PIN pad talk
-  to the backend; every screen behind them still renders Stage 2 mock data. The
-  routes that read and write chores, points, and rewards are Stage 5 onward.
-- **No route guards yet.** Signing in works and is enforced by the API, but the
-  child and parent screens can still be reached by typing their hash URL, because
-  there is nothing behind them to protect. Guards land with the data in Stage 5.
+- **Three child screens are wired; the rest still run on mock data.** Home,
+  missions, and chore detail read the API. Rewards, wallet, leaderboard,
+  achievements, notifications, profile, and every parent screen are unchanged.
+- **A chore cannot be submitted yet.** The checklist persists, but the camera and
+  the submit button are still the Stage 2 placeholders. The specification
+  requires a photo, so submission lands with real capture in Stage 6.
+- **Nothing awards points.** `points_ledger` is written by no code path yet, so
+  every balance is zero and the streak is zero. Approval, which is what creates
+  those rows, is Stage 7.
 - **The household is empty.** `household_settings` has its single row with the
   money values correctly unset, and `users` has nobody in it. Create the first
   parent on the laptop:
