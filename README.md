@@ -24,9 +24,11 @@ chore-quest/
 
 ## Requirements
 
-- Node.js 20.11+ (22 LTS recommended)
+- Node.js 20.11+ (24 LTS is what the laptop runs)
 - npm 10+
-- PostgreSQL 16+ (needed from Stage 3 onward)
+- PostgreSQL 16+ (needed from Stage 3 onward). On Windows, add
+  `C:\Program Files\PostgreSQL\<version>\bin` to PATH yourself — the EnterpriseDB
+  installer does not, and `psql` is invisible until you do.
 - Git
 - Windows PowerShell 5.1+ or PowerShell 7 for the ops scripts
 

@@ -27,6 +27,9 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
+# Claude Code - per-machine permission grants, not shared config
+.claude/settings.local.json
+
 # Playwright
 test-results/
 playwright-report/

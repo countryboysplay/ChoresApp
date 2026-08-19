@@ -11,23 +11,27 @@ _Last updated: 2026-08-18_
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
 | Production URL | None yet — GitHub Pages lands in Stage 17 (repo `ChoresApp`, base `/ChoresApp/`) |
 | Database migration status | No schema yet — Stage 3 |
-| Test status | 19 passing (5 backend, 14 frontend); typecheck, lint, and production build clean |
+| Test status | 20 passing (5 backend, 15 frontend) on the laptop; typecheck clean |
 | Last known good commit | Not yet committed — repo not initialized on the Windows laptop |
 
 ## Stage 0 findings
 
-Prerequisites were verified in the build environment, not on the Windows laptop.
-Re-run `npm run preflight` there before approving Stage 1.
+Prerequisites are now installed and verified **on the Windows laptop**
+(`DESKTOP-32BP00K`), 2026-08-19. `npm run preflight` passes with no blockers.
 
 | Check | Result |
 | --- | --- |
-| Node.js | v22 LTS — meets the 20.11+ floor |
-| npm | 10.x — workspaces supported |
-| Git | Required on the laptop; verified by preflight |
-| PostgreSQL | **Not verified.** Must be installed and running before Stage 3 |
-| PowerShell | Assumed present on Windows 11; preflight reports the version |
-| Ports 4000 / 5173 | Free in the build environment; preflight rechecks locally |
+| Node.js | v24.19.0 LTS — meets the 20.11+ floor. Node 22 is no longer offered by winget; 24 is the current LTS |
+| npm | 11.17.0 — workspaces supported |
+| Git | 2.55.0.windows.4 |
+| PostgreSQL | 17.11, service `postgresql-x64-17`, Running / Automatic start |
+| PowerShell | 5.1.26100.9168 |
+| Ports 4000 / 5173 | Free |
 | Workspace writable | Yes |
+
+`C:\Program Files\PostgreSQL\17\bin` was added to the **user** PATH (the EDB
+installer does not add it), which is what puts `psql` and `pg_dump` in reach of
+preflight and the ops scripts.
 
 ## Built from the approved design board
 
@@ -53,6 +57,12 @@ completion, and every workflow state.
   and accents as the child app; the light desktop treatment in the reference
   renders is not being built. Desktop parents get a sidebar at 1000px and wider,
   in the same colors.
+
+- **PostgreSQL install method: native EDB installer, not Docker.** Chosen
+  2026-08-19. It runs as a Windows service with Automatic start, so the database
+  comes back on its own after a reboot with nothing else needing to be logged in
+  — the right shape for an always-on laptop. Docker Desktop is present but its
+  daemon is not running and is not part of the stack.
 
 - **Repository name: `ChoresApp`.** Production base path is now `/ChoresApp/`, so
   the Pages URL will be `https://<account>.github.io/ChoresApp/`. Capitalization is
@@ -119,12 +129,13 @@ and `http://<laptop-ip>:5173` also works.
    unset — the spec forbids inventing them. Wallet and cash-out currently render
    their "not configured" state, which is the correct behavior until Settings is
    filled in.
-2. PostgreSQL install method on Windows (installer service vs. Docker Desktop).
-3. Remote access approach for Stage 16 (Cloudflare Tunnel vs. Tailscale) — no
+2. Remote access approach for Stage 16 (Cloudflare Tunnel vs. Tailscale) — no
    router ports will be opened either way.
-4. Backup retention window.
+3. Backup retention window.
 
 ## Next planned work
 
-**Stage 3 — Database schema and migrations.** Blocked until Stage 2 is visually
-approved and PostgreSQL is running on the Windows laptop.
+**Stage 3 — Database schema and migrations.** PostgreSQL is now installed and
+running, and an empty `chore_quest` database owned by the `chore_quest` login
+role already exists with `DATABASE_URL` wired into `backend/.env`. Stage 3 is
+blocked only on Stage 2 visual approval.

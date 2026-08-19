@@ -1,0 +1,27 @@
+# The repository stores LF. Windows checkouts get CRLF for editor comfort, but
+# nothing in history depends on the working-copy convention, so a Windows laptop
+# and an ubuntu-latest CI runner produce identical diffs.
+* text=auto eol=lf
+
+# PowerShell tolerates LF, but leaving these CRLF in the working copy keeps
+# Notepad and the ISE from rendering them as one long line.
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary - never touch, never diff.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+
+# Generated. Collapsed in PR views; still diffable on request.
+package-lock.json linguist-generated=true

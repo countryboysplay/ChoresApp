@@ -3,7 +3,7 @@
  * Stage 0 pre-flight. Verifies the machine can actually run Chore Quest before
  * anyone waits on a confusing failure later. Safe to re-run at any time.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { createServer } from 'node:net';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -16,9 +16,23 @@ function record(name, ok, detail, fatal = true) {
   results.push({ name, ok, detail, fatal });
 }
 
+// Node >= 20.12 refuses to spawn .cmd/.bat through execFile unless a shell is
+// used (the CVE-2024-27980 fix), so Windows shims like npm.cmd need shell: true.
+const needsShell = (command) => process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
+
+function run(command, args) {
+  const options = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] };
+  // Args are concatenated rather than passed separately, because Node warns
+  // (DEP0190) about unescaped args when shell is true. Every call site below
+  // uses fixed, literal arguments, so there is nothing to escape.
+  return needsShell(command)
+    ? execSync([command, ...args].join(' '), options)
+    : execFileSync(command, args, options);
+}
+
 function tryCommand(name, command, args, parse) {
   try {
-    const raw = execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const raw = run(command, args).trim();
     const { ok, detail } = parse(raw);
     record(name, ok, detail);
   } catch {
