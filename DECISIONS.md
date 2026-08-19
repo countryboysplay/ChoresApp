@@ -593,3 +593,58 @@ record but cannot satisfy the resubmission - the submit route only counts proof
 created after `reviewed_at`. Clearing the checklist loses the record of what was
 ticked on the first attempt; the photos and the note remain as the history of
 that round.
+
+---
+
+## 2026-08-19 — Redeeming debits immediately; denial refunds with a second row
+
+**Decision.** Requesting a reward writes a negative `points_ledger` row straight
+away. Approving moves no points. Denying writes a matching positive row with
+reason `reward_refunded`.
+
+**Reason.** The redemption sheet tells a child their points are held, and a debit
+is what makes that true - otherwise the same 150 points could be requested
+against three different rewards while all three sat waiting for a parent. The
+refund is a second row rather than a deletion because the wallet should read as a
+charge and a refund; points that quietly reappear with no line are exactly the
+kind of thing that makes a child stop trusting the number.
+
+**Consequences.** A denied request leaves three rows in the history rather than
+none, which is the intent. Spending is serialised per child by locking their
+`users` row before reading the balance - Postgres refuses `FOR UPDATE` on an
+aggregate, and locking the existing ledger rows would not help anyway, since the
+race is two requests reading the same total and each inserting a new row.
+
+---
+
+## 2026-08-19 — Rewards are retired, never deleted
+
+**Decision.** `DELETE /api/parent/rewards/:id` sets `is_active = false`. Nothing
+removes a reward row.
+
+**Reason.** `reward_redemptions` points at these rows, and each redemption keeps
+the price actually paid. Deleting would take the name of what a child saved up
+for out of their own history.
+
+**Consequences.** The catalogue a parent sees includes retired entries, greyed;
+the child's screen only lists active ones. A retired reward can still be named in
+a history entry from months earlier, which is the point.
+
+---
+
+## 2026-08-19 — Cash-out reports itself unconfigured rather than hiding
+
+**Decision.** `GET /api/child/wallet` returns `cashOut.configured`, plus null
+values for the rate, the minimum, and the amount available. The wallet renders a
+plain "cash out is turned off" panel from that flag.
+
+**Reason.** Owner decision, 2026-08-19: the points-to-dollars rate and minimum
+balance stay unset. The specification forbids inventing them, and a plausible
+placeholder rate would quietly invent a household money rule that could survive
+into real use. One explicit flag is safer than leaving the screen to infer the
+state from nulls, which is how a `0` or a `NaN` ends up in front of a child.
+
+**Consequences.** The wallet, the weekly $40 cap, and the ledger all work today;
+only the conversion is inert. Setting both values in Settings turns cash-out on
+with no code change. `availableCents` is null rather than zero, so nothing can
+accidentally render "$0.00 available" as though the rate were known.

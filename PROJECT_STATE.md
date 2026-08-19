@@ -4,7 +4,7 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 7 — Parent approval |
+| Current stage | Stage 8 — Rewards and the wallet |
 | Stage status | Built and tested; awaiting approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
@@ -13,8 +13,8 @@ _Last updated: 2026-08-19_
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
 | Database migration status | 6 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 133 passing (115 backend, 18 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
-| Last known good commit | `24c14cd` — CI warnings and advisories cleared; CI and Pages green |
+| Test status | 148 passing (130 backend, 18 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
+| Last known good commit | `abf0f09` — Stage 7 parent approval; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -139,12 +139,16 @@ and `http://<laptop-ip>:5173` also works.
 - **Three child screens are wired; the rest still run on mock data.** Home,
   missions, and chore detail read the API. Rewards, wallet, leaderboard,
   achievements, notifications, profile, and every parent screen are unchanged.
-- **Only the approval screens are wired on the parent side.** The queue and the
-  review screen read real submissions; the dashboard, schedule, chore wizard,
-  bonus, rewards, children, and settings screens are all still mock data.
+- **Parent side: approvals and rewards are wired.** The dashboard, schedule,
+  chore wizard, bonus, children, and settings screens are still mock data.
+- **Cash-out is inert by design.** The points-to-dollars rate and minimum balance
+  are still unset, so the wallet renders its "turned off" panel. Setting both in
+  Settings turns it on with no code change; nothing else in the wallet is
+  waiting on them.
 - **Nothing creates chores through the app.** Chore definitions and schedules
   have to be inserted with SQL until the parent chore wizard is wired, so a real
-  household still cannot be set up without the terminal.
+  household still cannot be set up without the terminal. Rewards no longer need
+  SQL - the parent rewards screen creates them.
 - **The camera needs https or the laptop itself.** Browsers only expose
   `getUserMedia` in a secure context, so opening the dev server by its wifi
   address shows an explanation rather than a camera. Capture can be tested on the
@@ -189,28 +193,28 @@ and `http://<laptop-ip>:5173` also works.
 
 ## Next planned work
 
-**Stage 8 — Rewards and the wallet.** The ledger now has real rows in it, which
-is what the wallet and the reward catalogue read.
+**Stage 9 — Bonus chores.** The bonus board on the missions screen has nothing
+to show, because nothing publishes a bonus chore. `chore_instances` already
+supports one: an unclaimed bonus is a row with `assigned_to` null and an
+`expires_at`, and the child day query already returns them.
 
-What Stage 8 has to settle:
+What Stage 9 has to settle:
 
-- **Redeeming.** `reward_redemptions` and the ledger both exist; the flow that
-  reserves points, asks a parent, and refunds a denial does not.
-- **The points-to-dollars rate and cash-out minimum.** Still deliberately unset,
-  and the wallet still renders its "not configured" state. Cash-out cannot be
-  built past that screen until an owner supplies them.
-- **The weekly $40 cap.** `cash_out_requests.week_start` and
-  `householdWeekStart()` are both in place for it.
+- **Claiming.** First child to claim gets it, which is a race the same way
+  redemption was - the same per-child lock pattern applies, plus a check that
+  nobody has claimed it already.
+- **Expiry.** An unclaimed bonus past `expires_at` should stop being offered; a
+  claimed one that expires needs a rule of its own.
+- **Publishing.** `#/parent/bonus` is still mock data.
 
-Also outstanding, and cheap now that approval works:
+Also outstanding:
 
 - **Missed, excused, and carry-over.** The parent dashboard offers them for a
-  chore nobody finished. Nothing sets those statuses, and carry-over needs a rule
-  about what it does to the next day's list.
-- **Setting up a household through the app.** Chore definitions and schedules
-  still have to be inserted with SQL. Stage 10.
+  chore nobody finished. Nothing sets those statuses.
+- **Setting up chores through the app.** Definitions and schedules still need
+  SQL. Stage 10, and the last thing standing between this and real household use.
 
-Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:
+Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:
 
 - **Points-to-dollars rate and cash-out minimum stay NULL.** The columns exist
   with no defaults and a test asserts they are unset, so the wallet keeps

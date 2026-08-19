@@ -1,6 +1,10 @@
 import type {
   ApiError,
   ApprovalQueueResponse,
+  ChildRewardsResponse,
+  ParentRewardsResponse,
+  RedemptionQueueResponse,
+  WalletResponse,
   ApproveAllResult,
   ApproveResult,
   SubmissionDetailResponse,
@@ -143,5 +147,53 @@ export const api = {
 
     /** The photo endpoint marks a photo seen the first time a parent loads it. */
     photoUrl: (photoId: string) => `${BASE_URL}/api/photos/${photoId}`,
+  },
+
+  rewards: {
+    mine: () => request<ChildRewardsResponse>('/api/child/rewards'),
+
+    redeem: (rewardId: string) =>
+      request<{ redemption: { id: string; status: string; cost: number } }>(
+        `/api/rewards/${rewardId}/redeem`,
+        { method: 'POST' },
+      ),
+
+    setPreference: (rewardId: string, changes: { isFavorite?: boolean; isPrimaryGoal?: boolean }) =>
+      request<{ ok: true }>(`/api/child/rewards/${rewardId}/preferences`, {
+        method: 'PUT',
+        body: JSON.stringify(changes),
+      }),
+
+    catalogue: () => request<ParentRewardsResponse>('/api/parent/rewards'),
+
+    create: (reward: Record<string, unknown>) =>
+      request<{ reward: { id: string } }>('/api/parent/rewards', {
+        method: 'POST',
+        body: JSON.stringify(reward),
+      }),
+
+    update: (rewardId: string, changes: Record<string, unknown>) =>
+      request<{ ok: true }>(`/api/parent/rewards/${rewardId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(changes),
+      }),
+
+    retire: (rewardId: string) =>
+      request<{ ok: true }>(`/api/parent/rewards/${rewardId}`, { method: 'DELETE' }),
+
+    requests: () => request<RedemptionQueueResponse>('/api/parent/redemptions'),
+
+    approveRequest: (id: string) =>
+      request<{ result: unknown }>(`/api/parent/redemptions/${id}/approve`, { method: 'POST' }),
+
+    denyRequest: (id: string, note?: string) =>
+      request<{ result: unknown }>(`/api/parent/redemptions/${id}/deny`, {
+        method: 'POST',
+        body: JSON.stringify({ note }),
+      }),
+  },
+
+  wallet: {
+    mine: () => request<WalletResponse>('/api/child/wallet'),
   },
 };

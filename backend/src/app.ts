@@ -13,6 +13,8 @@ import { authRoutes } from './routes/auth.js';
 import { choreRoutes } from './routes/chores.js';
 import { photoRoutes } from './routes/photos.js';
 import { healthRoutes } from './routes/health.js';
+import { rewardRoutes } from './routes/rewards.js';
+import { walletRoutes } from './routes/wallet.js';
 
 export const APP_VERSION = '0.1.0';
 
@@ -82,6 +84,8 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(choreRoutes, { env });
   await app.register(photoRoutes, { env });
   await app.register(approvalRoutes, { env });
+  await app.register(rewardRoutes, { env });
+  await app.register(walletRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
 
   app.decorate('env', env);

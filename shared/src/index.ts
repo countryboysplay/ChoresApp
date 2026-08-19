@@ -215,3 +215,97 @@ export interface ApproveAllResult {
   approved: number;
   skipped: { id: string; reason: string }[];
 }
+
+export interface RewardItem {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  category: string;
+  icon: string;
+  needsApproval: boolean;
+  /** YYYY-MM-DD while on cooldown, otherwise null. */
+  lockedUntil: string | null;
+  isFavorite: boolean;
+  isPrimaryGoal: boolean;
+  /** True while this child already has a request waiting on a parent. */
+  requestPending: boolean;
+}
+
+export type RedemptionStatus = 'requested' | 'approved' | 'denied' | 'fulfilled' | 'cancelled';
+
+export interface Redemption {
+  id: string;
+  rewardName: string;
+  status: RedemptionStatus;
+  cost: number;
+  requestedAt: string;
+  decidedAt: string | null;
+  note: string | null;
+}
+
+export interface ChildRewardsResponse {
+  spendablePoints: number;
+  rewards: RewardItem[];
+  redemptions: Redemption[];
+}
+
+export interface LedgerEntry {
+  id: string;
+  delta: number;
+  reason: string;
+  label: string;
+  at: string;
+}
+
+export interface WalletResponse {
+  spendablePoints: number;
+  lifetimePoints: number;
+  spentPoints: number;
+  history: LedgerEntry[];
+  cashOut: {
+    /** False until an owner sets both the rate and the minimum in Settings. */
+    configured: boolean;
+    pointsPerDollar: number | null;
+    minimumPoints: number | null;
+    weeklyCapCents: number;
+    usedThisWeekCents: number;
+    weekStart: string;
+    /** Null while unconfigured; never a guessed figure. */
+    availableCents: number | null;
+  };
+}
+
+/** The catalogue as a parent manages it, including retired entries. */
+export interface ManagedReward {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  category: string;
+  icon: string;
+  needsApproval: boolean;
+  isActive: boolean;
+  lockedUntil: string | null;
+}
+
+export interface ParentRewardsResponse {
+  rewards: ManagedReward[];
+}
+
+export interface RewardRequest {
+  id: string;
+  status: RedemptionStatus;
+  cost: number;
+  rewardName: string;
+  rewardIcon: string;
+  child: { id: string; displayName: string };
+  requestedAt: string;
+  decidedAt: string | null;
+  note: string | null;
+}
+
+export interface RedemptionQueueResponse {
+  pending: RewardRequest[];
+  recent: RewardRequest[];
+}
