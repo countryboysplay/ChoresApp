@@ -1,0 +1,35 @@
+{
+  "name": "Chore Quest",
+  "short_name": "Chore Quest",
+  "description": "Daily chores, points, and rewards for the household.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "./#/",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2f92ef",
+  "theme_color": "#0a1230",
+  "categories": ["lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

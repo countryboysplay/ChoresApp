@@ -127,8 +127,13 @@ and `http://<laptop-ip>:5173` also works.
   real household data goes anywhere near the frontend.
 - Camera, photo, and pinch-zoom areas are placeholders with the correct states and
   copy; real `getUserMedia` capture is Stage 6.
-- Playwright screenshots could not be produced in the build environment (no
-  browser binary available). Visual review is by running the frontend locally.
+- ~~Playwright screenshots could not be produced in the build environment.~~
+  Resolved: `npm run screenshots` captures all 24 routes at phone and desktop
+  sizes into `screenshots/`, and fails if any screen logs a console error or
+  overflows horizontally. Needs the dev server running.
+- No service worker, so Chrome will not offer a true "Install" prompt. The
+  manifest and icons are in place, which is what Add to Home Screen needs; the
+  service worker is Stage 14 per DECISIONS.md.
 
 ## Pending owner decisions
 

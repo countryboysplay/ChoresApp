@@ -11,7 +11,41 @@
 }
 
 .screen--wide { max-width: 1120px; }
-.screen--sky { min-height: 100dvh; display: flex; flex-direction: column; }
+
+/*
+ * Pre-login screens (splash, profile select, PIN) have no bottom navigation, so
+ * the 108px the base .screen reserves for it is dead space that pushes the
+ * primary buttons up off the thumb line.
+ */
+/*
+ * Pre-login screens (splash, profile select, PIN) have no bottom navigation, so
+ * the 108px the base .screen reserves for it is dead space that pushes the
+ * primary controls up off the thumb line.
+ */
+.screen--sky {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
+}
+
+/*
+ * For the one screen whose last child paints its own ground all the way to the
+ * bottom edge. Any padding underneath it would show as a stripe of sky.
+ */
+.screen--grounded {
+  padding-bottom: 0;
+}
+
+/*
+ * Lets a child escape the screen's horizontal padding. Scenery that represents
+ * ground or sky has to touch both edges, otherwise it reads as a floating
+ * rectangle rather than a horizon.
+ */
+.bleed {
+  margin-inline: calc(var(--space-4) * -1);
+  width: calc(100% + var(--space-4) * 2);
+}
 
 .stack { display: grid; gap: var(--space-4); }
 .stack--tight { gap: var(--space-2); }

@@ -33,3 +33,6 @@ Thumbs.db
 # Playwright
 test-results/
 playwright-report/
+
+# Regenerate with "npm run screenshots" - review output, not source
+screenshots/

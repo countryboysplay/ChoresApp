@@ -57,6 +57,8 @@ npm run dev
 | `npm run lint` | ESLint across the repo |
 | `npm run build` | Production build of both apps |
 | `npm run preflight` | Checks Node, npm, Postgres, ports, and env files |
+| `npm run screenshots` | Captures every screen to `screenshots/` (needs the dev server) |
+| `npm run icons` | Regenerates the home-screen icons from code |
 
 A Windows-native equivalent is available at `scripts\preflight.ps1` if you prefer
 PowerShell output.
