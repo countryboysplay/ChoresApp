@@ -1,143 +1,248 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Icon, type IconName } from '../../design/icons';
-import { Badge, Button, Sheet } from '../../design/primitives';
+import { useCallback, useEffect, useState } from 'react';
+import type { HouseholdSettings } from '@chore-quest/shared';
+import { Icon } from '../../design/icons';
+import { Badge, Button } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
-import { settings } from '../../mock/data';
+import { api, ApiRequestError } from '../../lib/api';
 
-const SECTIONS: { id: string; label: string; icon: IconName; detail: string }[] = [
-  { id: 'household', label: 'Household & users', icon: 'user', detail: 'Accounts, PINs, roles' },
-  { id: 'chores', label: 'Chores', icon: 'missions', detail: 'Templates, schedule defaults' },
-  { id: 'points', label: 'Points & allowance', icon: 'coin', detail: 'Needs setup' },
-  { id: 'rewards', label: 'Rewards', icon: 'gift', detail: 'Store items, cooldowns' },
-  { id: 'notifications', label: 'Notifications', icon: 'bell', detail: `${settings.reminderTime} and ${settings.escalationTime}` },
-  { id: 'devices', label: 'Devices', icon: 'home', detail: 'Trusted devices, push status' },
-  { id: 'photos', label: 'Photos & storage', icon: 'camera', detail: '48-hour photo retention' },
-  { id: 'backup', label: 'Backup', icon: 'lock', detail: 'Last backup, restore' },
-  { id: 'system', label: 'App & system', icon: 'settings', detail: 'Version, connection' },
-];
-
+/**
+ * Household settings.
+ *
+ * The points-to-dollars rate and the minimum cash-out balance are the two values
+ * the app has always refused to invent. They are set here, together, and setting
+ * them is what turns the wallet's cash-out panel on.
+ */
 export function Settings() {
-  const navigate = useNavigate();
-  const [open, setOpen] = useState<string | null>(null);
+  const [settings, setSettings] = useState<HouseholdSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [working, setWorking] = useState(false);
+
+  const [corePoints, setCorePoints] = useState('');
+  const [bonusPoints, setBonusPoints] = useState('');
+  const [reminder, setReminder] = useState('');
+  const [escalation, setEscalation] = useState('');
+  const [rate, setRate] = useState('');
+  const [minimum, setMinimum] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const { settings: loaded } = await api.household.settings();
+      setSettings(loaded);
+      setCorePoints(String(loaded.corePointValue));
+      setBonusPoints(String(loaded.punctualityBonusPoints));
+      setReminder(loaded.reminderTime);
+      setEscalation(loaded.escalationTime);
+      setRate(loaded.pointsPerDollar === null ? '' : String(loaded.pointsPerDollar));
+      setMinimum(loaded.minimumCashOutPoints === null ? '' : String(loaded.minimumCashOutPoints));
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : 'Could not load settings.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const savePoints = async () => {
+    setWorking(true);
+    setError(null);
+    try {
+      await api.household.saveSettings({
+        corePointValue: Number(corePoints),
+        punctualityBonusPoints: Number(bonusPoints),
+        reminderTime: reminder,
+        escalationTime: escalation,
+      });
+      setNotice('Saved.');
+      await load();
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : 'That did not save.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const saveCashOut = async (turnOff = false) => {
+    setWorking(true);
+    setError(null);
+    try {
+      await api.household.saveSettings(
+        turnOff
+          ? { pointsPerDollar: null, minimumCashOutPoints: null }
+          : { pointsPerDollar: Number(rate), minimumCashOutPoints: Number(minimum) },
+      );
+      setNotice(turnOff ? 'Cash out turned off.' : 'Cash out is on.');
+      await load();
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : 'That did not save.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  if (loading || !settings) {
+    return (
+      <>
+        <ScreenTop title="Settings" />
+        <main className="screen screen--wide">
+          <p aria-live="polite" style={{ textAlign: 'center', marginTop: 'var(--space-6)' }}>
+            {error ?? 'Loading…'}
+          </p>
+        </main>
+      </>
+    );
+  }
+
+  const cashOutReady = Number(rate) > 0 && Number(minimum) >= 0 && minimum !== '';
 
   return (
     <>
       <ScreenTop title="Settings" />
       <main className="screen screen--wide">
-        <div className="stack stack--tight">
-          {SECTIONS.map((section) => (
-            <button
-              key={section.id}
-              type="button"
-              className="card card--interactive row"
-              onClick={() => (section.id === 'system' ? navigate('/parent/system') : setOpen(section.id))}
-            >
-              <span className="tile-icon tile-icon--sm tile-icon--blue">
-                <Icon name={section.icon} size={20} />
-              </span>
-              <span style={{ flex: 1 }}>
-                <strong style={{ display: 'block' }}>{section.label}</strong>
-                <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-                  {section.detail}
-                </span>
-              </span>
-              {section.id === 'points' ? <Badge tone="waiting" icon="alert">Setup</Badge> : null}
-              <Icon name="chevron" size={18} />
-            </button>
-          ))}
-        </div>
-      </main>
-
-      {open === 'points' && (
-        <Sheet
-          title="Points & allowance"
-          onClose={() => setOpen(null)}
-          footer={
-            <Button tone="primary" block onClick={() => setOpen(null)}>
-              Save settings
-            </Button>
-          }
-        >
-          <div className="stack">
-            <div className="row" style={{ gap: 'var(--space-3)' }}>
-              <label className="field" style={{ flex: 1 }}>
-                <span className="field__label">Points per core chore</span>
-                <input className="input numeric" type="number" defaultValue={settings.corePointValue} />
-              </label>
-              <label className="field" style={{ flex: 1 }}>
-                <span className="field__label">Punctuality bonus</span>
-                <input className="input numeric" type="number" defaultValue={settings.punctualityBonus} />
-              </label>
-            </div>
-            <label className="field">
-              <span className="field__label">Points per dollar</span>
-              <input className="input numeric" type="number" placeholder="Not set" />
-              <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-                Cash-out stays off until this is set.
-              </span>
-            </label>
-            <label className="field">
-              <span className="field__label">Minimum balance to request allowance</span>
-              <input className="input numeric" type="number" placeholder="Not set" />
-            </label>
-            <div className="card" style={{ background: 'rgba(0,0,0,0.2)' }}>
-              <strong>Fixed by the app</strong>
-              <p className="muted" style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)' }}>
-                ${settings.weeklyCashOutCapDollars} weekly cap per child, resetting Sunday at
-                midnight. Cash-out amounts: {settings.cashOutPresets.map((value) => `$${value}`).join(', ')}.
-              </p>
-            </div>
-            <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
-              Changes apply going forward. Points already earned are never recalculated.
-            </p>
-          </div>
-        </Sheet>
-      )}
-
-      {open === 'notifications' && (
-        <Sheet title="Notifications" onClose={() => setOpen(null)}>
-          <div className="stack">
-            <label className="field">
-              <span className="field__label">Reminder to the kids</span>
-              <input className="input" type="time" defaultValue="20:45" />
-            </label>
-            <label className="field">
-              <span className="field__label">Escalation to parents</span>
-              <input className="input" type="time" defaultValue="23:00" />
-            </label>
-            <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
-              Kids cannot change these times.
-            </p>
-          </div>
-        </Sheet>
-      )}
-
-      {open === 'photos' && (
-        <Sheet title="Photos & storage" onClose={() => setOpen(null)}>
-          <div className="stack stack--tight">
-            <div className="card row">
-              <Icon name="camera" size={20} />
-              <span style={{ flex: 1 }}>Chore photos are deleted after</span>
-              <strong>48 hours</strong>
-            </div>
-            <div className="card row">
-              <Icon name="clock" size={20} />
-              <span style={{ flex: 1 }}>Review records kept for</span>
-              <strong>30 days</strong>
-            </div>
-          </div>
-        </Sheet>
-      )}
-
-      {open && !['points', 'notifications', 'photos'].includes(open) && (
-        <Sheet title={SECTIONS.find((section) => section.id === open)?.label ?? ''} onClose={() => setOpen(null)}>
-          <p className="muted" style={{ marginTop: 0 }}>
-            This section gets its real controls in a later stage. The layout and grouping are what
-            need approval now.
+        {error && (
+          <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-3)' }}>
+            {error}
           </p>
-        </Sheet>
-      )}
+        )}
+        {notice && (
+          <p role="status" className="badge badge--done" style={{ padding: 'var(--space-3)' }}>
+            {notice}
+          </p>
+        )}
+
+        <section className="card stack" style={{ marginTop: 'var(--space-4)' }}>
+          <h2 className="subtitle">Points</h2>
+          <div className="row" style={{ gap: 'var(--space-3)' }}>
+            <label className="field" style={{ flex: 1 }}>
+              <span className="field__label">Points per core chore</span>
+              <input
+                className="input numeric"
+                type="number"
+                min={1}
+                value={corePoints}
+                onChange={(event) => setCorePoints(event.target.value)}
+              />
+            </label>
+            <label className="field" style={{ flex: 1 }}>
+              <span className="field__label">Punctuality bonus</span>
+              <input
+                className="input numeric"
+                type="number"
+                min={0}
+                value={bonusPoints}
+                onChange={(event) => setBonusPoints(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="row" style={{ gap: 'var(--space-3)' }}>
+            <label className="field" style={{ flex: 1 }}>
+              <span className="field__label">Reminder</span>
+              <input
+                className="input"
+                type="time"
+                value={reminder}
+                onChange={(event) => setReminder(event.target.value)}
+              />
+            </label>
+            <label className="field" style={{ flex: 1 }}>
+              <span className="field__label">Escalation</span>
+              <input
+                className="input"
+                type="time"
+                value={escalation}
+                onChange={(event) => setEscalation(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+            The reminder time is also the punctuality deadline: a chore sent in before it earns the
+            bonus.
+          </p>
+
+          <Button tone="go" block disabled={working} onClick={() => void savePoints()}>
+            {working ? 'Saving…' : 'Save points'}
+          </Button>
+        </section>
+
+        <section className="card stack" style={{ marginTop: 'var(--space-4)' }}>
+          <div className="row row--between">
+            <h2 className="subtitle" style={{ margin: 0 }}>Allowance</h2>
+            {settings.cashOutConfigured ? (
+              <Badge tone="done" icon="check">On</Badge>
+            ) : (
+              <Badge tone="neutral" icon="lock">Off</Badge>
+            )}
+          </div>
+
+          <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+            Chore Quest has never chosen these for you. Until both are set, the kids&apos; wallets
+            show cash out as turned off.
+          </p>
+
+          <div className="row" style={{ gap: 'var(--space-3)' }}>
+            <label className="field" style={{ flex: 1 }}>
+              <span className="field__label">Points per dollar</span>
+              <input
+                className="input numeric"
+                type="number"
+                min={1}
+                value={rate}
+                onChange={(event) => setRate(event.target.value)}
+                placeholder="Not set"
+              />
+            </label>
+            <label className="field" style={{ flex: 1 }}>
+              <span className="field__label">Minimum to cash out</span>
+              <input
+                className="input numeric"
+                type="number"
+                min={0}
+                value={minimum}
+                onChange={(event) => setMinimum(event.target.value)}
+                placeholder="Not set"
+              />
+            </label>
+          </div>
+
+          <div className="row" style={{ gap: 'var(--space-3)' }}>
+            <Icon name="lock" size={18} />
+            <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
+              The ${(settings.weeklyCashOutCapCents / 100).toFixed(0)} weekly cap is fixed and
+              cannot be changed here.
+            </span>
+          </div>
+
+          <div className="row" style={{ gap: 'var(--space-3)' }}>
+            {settings.cashOutConfigured && (
+              <Button tone="stop" block disabled={working} onClick={() => void saveCashOut(true)}>
+                Turn off
+              </Button>
+            )}
+            <Button tone="go" block disabled={working || !cashOutReady} onClick={() => void saveCashOut()}>
+              {settings.cashOutConfigured ? 'Update' : 'Turn cash out on'}
+            </Button>
+          </div>
+        </section>
+
+        <section className="card stack" style={{ marginTop: 'var(--space-4)' }}>
+          <h2 className="subtitle">Household</h2>
+          <div className="row row--between">
+            <span>Time zone</span>
+            <strong>{settings.timezone}</strong>
+          </div>
+          <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+            Every chore day, deadline, and streak is worked out in this zone. Changing it means
+            changing HOUSEHOLD_TZ on the laptop and restarting.
+          </p>
+        </section>
+      </main>
     </>
   );
 }

@@ -4,7 +4,7 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 9 — Bonus chores |
+| Current stage | Stage 10 — Household setup in the app |
 | Stage status | Built and tested; awaiting approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
@@ -13,8 +13,8 @@ _Last updated: 2026-08-19_
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
 | Database migration status | 8 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 161 passing (143 backend, 18 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
-| Last known good commit | `c120be9` — Stage 8 rewards and wallet; CI and Pages green |
+| Test status | 180 passing (162 backend, 18 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
+| Last known good commit | `9aec1f2` — Stage 9 bonus chores; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -139,17 +139,18 @@ and `http://<laptop-ip>:5173` also works.
 - **Three child screens are wired; the rest still run on mock data.** Home,
   missions, and chore detail read the API. Rewards, wallet, leaderboard,
   achievements, notifications, profile, and every parent screen are unchanged.
-- **Parent side: approvals, rewards, and the bonus board are wired.** The
-  dashboard, schedule, chore wizard, children, and settings screens are still
-  mock data.
+- **Parent side: only the dashboard and the schedule screen are still mock.**
+  Approvals, rewards, the bonus board, the chore wizard, the household screen,
+  and settings all read and write real data.
 - **Cash-out is inert by design.** The points-to-dollars rate and minimum balance
   are still unset, so the wallet renders its "turned off" panel. Setting both in
   Settings turns it on with no code change; nothing else in the wallet is
   waiting on them.
-- **Nothing creates chores through the app.** Chore definitions and schedules
-  have to be inserted with SQL until the parent chore wizard is wired, so a real
-  household still cannot be set up without the terminal. Rewards no longer need
-  SQL - the parent rewards screen creates them.
+- **A household can now be set up entirely in the app.** No SQL is needed for
+  anything. The single exception is deliberate: creating the first parent, and
+  any later parent, is a terminal command
+  (`npm run user -w backend -- --role parent --name "..."`), so nothing in the
+  app can lock a parent out.
 - **The camera needs https or the laptop itself.** Browsers only expose
   `getUserMedia` in a secure context, so opening the dev server by its wifi
   address shows an explanation rather than a camera. Capture can be tested on the
@@ -194,30 +195,33 @@ and `http://<laptop-ip>:5173` also works.
 
 ## Next planned work
 
-**Stage 10 — Setting up a household through the app.** This is the last thing
-standing between Chore Quest and your family actually using it. Chore
-definitions and schedules are the only data that still has to be written with
-SQL by hand.
+**Chore Quest is usable by a real household from here.** Everything from
+creating the family to a child earning and spending points works through the app,
+with one deliberate terminal step for creating a parent.
 
-What Stage 10 has to settle:
+To start using it, on the laptop:
 
-- **The chore wizard.** `#/parent/chores/new` is still mock. It has to create a
-  definition, its subtask template, and the schedule that decides which child
-  owes it on which days.
-- **Managing people.** `#/parent/children` is mock, and adding a member or
-  changing a PIN is still a terminal command. The hashing and session-revocation
-  paths already exist in the CLI and should be reused, not reimplemented.
-- **Settings.** Including the points-to-dollars rate and cash-out minimum, which
-  are the two values that turn the wallet's cash-out panel on.
+1. `npm run user -w backend -- --role parent --name "Your name"` — the only
+   command needed, and only for parents.
+2. Sign in as that parent, add the children on the Household screen and give them
+   PINs.
+3. Create the chores on `#/parent/chores/new` and assign them.
+4. Optionally set the points-to-dollars rate and cash-out minimum in Settings.
+   Leaving them unset keeps cash-out off, which is a valid way to run.
 
-Also outstanding:
+**Stage 11 — The parent dashboard**, which is the last screen still entirely on
+mock data. It is a reading of things that already exist: what is waiting for
+review, who is behind, the week's activity, and the "needs attention" list.
 
-- **Missed, excused, and carry-over.** The parent dashboard offers them for a
-  chore nobody finished. Nothing sets those statuses, and carry-over needs a rule
+What it has to settle:
+
+- **Missed, excused, and carry-over.** The dashboard offers these for a chore
+  nobody finished, and nothing sets those statuses yet. Carry-over needs a rule
   about what it does to the next day's list.
-- **The parent dashboard itself**, which is still entirely mock data.
+- **The schedule screen**, `#/parent/schedule`, which should show what each child
+  owes across the week now that schedules are real.
 
-Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:
+Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:
 
 - **Points-to-dollars rate and cash-out minimum stay NULL.** The columns exist
   with no defaults and a test asserts they are unset, so the wallet keeps

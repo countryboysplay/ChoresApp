@@ -688,3 +688,57 @@ so there is no situation this refusal leaves unresolved.
 **Consequences.** A parent who genuinely wants it gone waits for the claim to
 lapse, which is at most the window they chose when posting it. The screen says
 "Someone is on it" rather than presenting a button that fails.
+
+---
+
+## 2026-08-19 — Children are managed in the app; parents are not
+
+**Decision.** Owner decision. A parent can add a child, set or reset a child's
+PIN, deactivate a child, and change every household setting, all from the app.
+Adding a parent, changing another parent's PIN, and deactivating a parent stay
+terminal jobs on the laptop.
+
+**Reason.** Locking a parent out of their own household is not recoverable from
+inside the app - there is nobody left with the authority to undo it. Keeping
+those three actions on the laptop removes the possibility entirely, rather than
+guarding against it with a confirmation dialog that an argument, a mis-tap, or a
+child holding an unlocked parent phone would sail straight through.
+
+**Consequences.** Setting up a second parent needs the laptop once, which is the
+same moment the first parent is created anyway. The members screen lists parents
+and says plainly where they are managed instead of hiding them. Resetting a
+child's PIN signs out every device that child is on, because doing it after a
+phone goes missing would otherwise achieve nothing.
+
+---
+
+## 2026-08-19 — Cash-out is turned on by setting both values together
+
+**Decision.** `PATCH /api/parent/settings` refuses a request that sets the
+points-to-dollars rate without the minimum, or clears one without the other.
+
+**Reason.** A rate with no minimum is not a rule anyone chose, and it would leave
+the wallet unable to say which half is missing. The pair is the setting; either
+alone is a half-finished thought.
+
+**Consequences.** Turning cash-out off means clearing both, which is the same
+gesture as never having set them - the wallet returns to exactly the state it has
+been in since Stage 8. This is the only place the two values can be set; nothing
+in the app defaults them, and nothing infers one from the other.
+
+---
+
+## 2026-08-19 — A new chore starts today, not at its schedule's earliest date
+
+**Decision.** A schedule created through the chore wizard gets `starts_on` of
+today unless a parent picks a later date.
+
+**Reason.** Materialisation backfills up to a fortnight. Without this, a chore
+created on a Tuesday morning would arrive on a child's list already carrying two
+weeks of history they never had the chance to do, and would drag their streak
+down on the day it was created.
+
+**Consequences.** Backdating a chore deliberately means choosing an earlier start
+date, which is an explicit act rather than an accident. This is the second of the
+two guards on backfill; the first is the join-date floor from Stage 5, which
+protects a newly added child in the same way.

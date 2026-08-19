@@ -1,6 +1,9 @@
 import type {
   ApiError,
   ApprovalQueueResponse,
+  ChoreDefinitionsResponse,
+  MembersResponse,
+  SettingsResponse,
   ParentBonusResponse,
   ChildRewardsResponse,
   ParentRewardsResponse,
@@ -196,6 +199,47 @@ export const api = {
 
   wallet: {
     mine: () => request<WalletResponse>('/api/child/wallet'),
+  },
+
+  household: {
+    members: () => request<MembersResponse>('/api/parent/members'),
+
+    addChild: (child: Record<string, unknown>) =>
+      request<{ member: { id: string } }>('/api/parent/members', {
+        method: 'POST',
+        body: JSON.stringify(child),
+      }),
+
+    updateChild: (userId: string, changes: Record<string, unknown>) =>
+      request<{ ok: true }>(`/api/parent/members/${userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(changes),
+      }),
+
+    setPin: (userId: string, pin: string) =>
+      request<{ ok: true; signedOutDevices: number }>(`/api/parent/members/${userId}/pin`, {
+        method: 'PUT',
+        body: JSON.stringify({ pin }),
+      }),
+
+    settings: () => request<SettingsResponse>('/api/parent/settings'),
+
+    saveSettings: (changes: Record<string, unknown>) =>
+      request<{ ok: true }>('/api/parent/settings', {
+        method: 'PATCH',
+        body: JSON.stringify(changes),
+      }),
+
+    chores: () => request<ChoreDefinitionsResponse>('/api/parent/chores'),
+
+    createChore: (chore: Record<string, unknown>) =>
+      request<{ chore: { id: string } }>('/api/parent/chores', {
+        method: 'POST',
+        body: JSON.stringify(chore),
+      }),
+
+    retireChore: (choreId: string) =>
+      request<{ ok: true }>(`/api/parent/chores/${choreId}`, { method: 'DELETE' }),
   },
 
   bonus: {

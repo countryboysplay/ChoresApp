@@ -330,3 +330,69 @@ export interface BonusPosting {
 export interface ParentBonusResponse {
   bonus: BonusPosting[];
 }
+
+export interface HouseholdMember {
+  id: string;
+  role: Role;
+  displayName: string;
+  avatar: unknown;
+  sortOrder: number;
+  isActive: boolean;
+  hasPin: boolean;
+  lastLoginAt: string | null;
+  /** Children only; null for parents. */
+  balance: number | null;
+  signedInDevices: number;
+  /** False for parents: those are managed from the laptop's terminal. */
+  managedHere: boolean;
+}
+
+export interface MembersResponse {
+  members: HouseholdMember[];
+}
+
+export interface ChoreSchedule {
+  id: string;
+  assignedTo: string;
+  assignedToName: string;
+  recurrence: 'daily' | 'weekly';
+  /** ISO weekdays, 1 = Monday .. 7 = Sunday. */
+  daysOfWeek: number[];
+  startsOn: string;
+  endsOn: string | null;
+  isActive: boolean;
+}
+
+export interface ChoreDefinition {
+  id: string;
+  name: string;
+  icon: string;
+  points: number;
+  category: string | null;
+  instructions: string | null;
+  isActive: boolean;
+  subtasks: { id: string; title: string; instruction: string | null }[];
+  schedules: ChoreSchedule[];
+}
+
+export interface ChoreDefinitionsResponse {
+  chores: ChoreDefinition[];
+}
+
+export interface HouseholdSettings {
+  corePointValue: number;
+  punctualityBonusPoints: number;
+  /** Both null until an owner sets them; see DECISIONS.md. */
+  pointsPerDollar: number | null;
+  minimumCashOutPoints: number | null;
+  /** Fixed by the specification at $40. Shown, not editable. */
+  weeklyCashOutCapCents: number;
+  reminderTime: string;
+  escalationTime: string;
+  timezone: string;
+  cashOutConfigured: boolean;
+}
+
+export interface SettingsResponse {
+  settings: HouseholdSettings;
+}

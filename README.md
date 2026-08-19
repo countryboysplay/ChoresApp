@@ -68,6 +68,27 @@ npm run dev
 A Windows-native equivalent is available at `scripts\preflight.ps1` if you prefer
 PowerShell output.
 
+## Setting up a household
+
+Everything except creating a parent happens in the app. On the laptop, once:
+
+```powershell
+npm run db:migrate
+npm run user -w backend -- --role parent --name "Your name"
+```
+
+Then sign in as that parent and use the app: add the children and give them PINs
+on the Household screen, create chores on `#/parent/chores/new`, and add rewards
+on `#/parent/rewards`.
+
+Creating a parent stays a terminal command on purpose. Nothing inside the app can
+change another parent's PIN or deactivate them, so no argument, mis-tap, or child
+holding an unlocked phone can lock a parent out of their own household.
+
+The points-to-dollars rate and the minimum cash-out balance start unset, and the
+app will not invent them. Until both are set in Settings, the kids' wallets show
+cash out as turned off, which is a perfectly valid way to run.
+
 ## Secrets
 
 `.env` files are git-ignored. Only `.env.example` is tracked, and it never contains
