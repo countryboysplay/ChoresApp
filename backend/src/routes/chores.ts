@@ -4,6 +4,7 @@ import type { Env } from '../env.js';
 import { getPool } from '../db.js';
 import { householdToday, isHouseholdDate } from '../time.js';
 import { ensureDaysMaterialized } from '../chores/materialize.js';
+import { releaseExpiredClaims } from '../chores/bonus.js';
 import {
   availableBonusChores,
   childSummary,
@@ -53,6 +54,9 @@ export async function choreRoutes(app: FastifyInstance, opts: { env: Env }): Pro
 
     // Lazy materialisation. Safe to run on every read; see chores/materialize.ts.
     await ensureDaysMaterialized(db, childId, today);
+    // A bonus somebody claimed and let lapse belongs back on the board before
+    // this child is told what is available.
+    await releaseExpiredClaims(db);
 
     const [chores, bonus, summary] = await Promise.all([
       choresForDay(db, childId, date),

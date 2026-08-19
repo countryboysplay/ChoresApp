@@ -309,3 +309,24 @@ export interface RedemptionQueueResponse {
   pending: RewardRequest[];
   recent: RewardRequest[];
 }
+
+/** A bonus chore as a parent sees it on the board. */
+export interface BonusPosting {
+  id: string;
+  definitionId: string;
+  name: string;
+  icon: string;
+  category: string | null;
+  points: number;
+  choreDate: string;
+  status: ChoreStatus;
+  expiresAt: string | null;
+  claimedAt: string | null;
+  /** Display name of whoever holds it, or null while it is on offer. */
+  claimedBy: string | null;
+  subtaskCount: number;
+}
+
+export interface ParentBonusResponse {
+  bonus: BonusPosting[];
+}

@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, type IconName } from '../../design/icons';
-import { Badge, PointsPill, Segmented } from '../../design/primitives';
+import { Badge, Button, PointsPill, Segmented } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { countdown } from '../../config/format';
+import { api, ApiRequestError } from '../../lib/api';
 import { useChildDay } from '../../lib/childDay';
 import { StatusBadge } from './choreStatus';
 
@@ -18,9 +19,45 @@ function minutesUntil(expiresAt: string | null): number | null {
 
 export function Missions() {
   const navigate = useNavigate();
-  const { day, loading, error } = useChildDay();
+  const { day, loading, error, reload } = useChildDay();
   const [range, setRange] = useState<(typeof RANGE)[number]>('Today');
   const [sort, setSort] = useState<(typeof SORTS)[number]>('Highest points');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [claimError, setClaimError] = useState<string | null>(null);
+
+  // A child holds one unfinished bonus at a time, so the board tells them why
+  // the other Claim buttons are off rather than just disabling them.
+  const holding = (day?.bonus ?? []).find(
+    (chore) => !['approved', 'submitted'].includes(chore.status),
+  );
+
+  const claim = async (instanceId: string) => {
+    setBusyId(instanceId);
+    setClaimError(null);
+    try {
+      await api.bonus.claim(instanceId);
+      await reload();
+    } catch (caught) {
+      setClaimError(caught instanceof ApiRequestError ? caught.message : 'That did not work.');
+      // Someone else may have taken it a moment ago; refresh either way.
+      await reload();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const release = async (instanceId: string) => {
+    setBusyId(instanceId);
+    setClaimError(null);
+    try {
+      await api.bonus.release(instanceId);
+      await reload();
+    } catch (caught) {
+      setClaimError(caught instanceof ApiRequestError ? caught.message : 'That did not work.');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const required = day?.core ?? [];
   const core = required[0] ?? null;
@@ -143,14 +180,15 @@ export function Missions() {
             </p>
           )}
 
+          {claimError && (
+            <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-3)', marginTop: 'var(--space-3)' }}>
+              {claimError}
+            </p>
+          )}
+
           <div className="stack stack--tight" style={{ marginTop: 'var(--space-3)' }}>
             {board.map((bonus) => (
-              <button
-                key={bonus.id}
-                type="button"
-                className="card card--interactive"
-                onClick={() => navigate(`/child/chore/${bonus.id}`)}
-              >
+              <article key={bonus.id} className="card">
                 <div className="row" style={{ gap: 'var(--space-3)' }}>
                   <span className="tile-icon tile-icon--purple tile-icon--sm">
                     <Icon name={bonus.icon as IconName} size={20} />
@@ -164,22 +202,46 @@ export function Missions() {
                     </span>
                   </span>
                   <PointsPill value={bonus.points} small />
-                  <Icon name="chevron" size={18} />
                 </div>
-                {bonus.claimed ? (
-                  <div style={{ marginTop: 'var(--space-3)' }}>
-                    <Badge tone="waiting" icon="lock">
-                      Claimed
-                    </Badge>
-                  </div>
-                ) : (minutesUntil(bonus.expiresAt) ?? Infinity) < 120 ? (
+                {(minutesUntil(bonus.expiresAt) ?? Infinity) < 120 && !bonus.claimed && (
                   <div style={{ marginTop: 'var(--space-3)' }}>
                     <Badge tone="soon" icon="clock">
                       Due soon
                     </Badge>
                   </div>
-                ) : null}
-              </button>
+                )}
+
+                <div className="row" style={{ gap: 'var(--space-3)', marginTop: 'var(--space-3)' }}>
+                  {bonus.claimed ? (
+                    <>
+                      <Button
+                        tone="quiet"
+                        block
+                        disabled={busyId === bonus.id}
+                        onClick={() => void release(bonus.id)}
+                      >
+                        Give back
+                      </Button>
+                      <Button tone="purple" block onClick={() => navigate(`/child/chore/${bonus.id}`)}>
+                        Open
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      tone="purple"
+                      block
+                      disabled={busyId === bonus.id || Boolean(holding)}
+                      onClick={() => void claim(bonus.id)}
+                    >
+                      {busyId === bonus.id
+                        ? 'Claiming…'
+                        : holding
+                          ? `Finish ${holding.name} first`
+                          : 'Claim it'}
+                    </Button>
+                  )}
+                </div>
+              </article>
             ))}
           </div>
         </section>

@@ -648,3 +648,43 @@ state from nulls, which is how a `0` or a `NaN` ends up in front of a child.
 only the conversion is inert. Setting both values in Settings turns cash-out on
 with no code change. `availableCents` is null rather than zero, so nothing can
 accidentally render "$0.00 available" as though the rate were known.
+
+---
+
+## 2026-08-19 — A lapsed bonus claim returns to the board with a fresh window
+
+**Decision.** Owner decision: a claimed bonus chore that passes its deadline
+unfinished goes back on the board, with no penalty and no missed status, and a
+child holds one unfinished bonus at a time. The returned chore gets a new
+deadline the same length as the original, taken from
+`chore_instances.claim_window_minutes`.
+
+**Reason.** The two rules together are what make claiming the whole board
+pointless: a second claim means finishing or releasing the first, and sitting on
+one just hands it back. The fresh window is what makes the return meaningful -
+handing a chore back with a deadline already in the past would take it off the
+board entirely, which is exactly the blocking the rule exists to prevent.
+
+**Consequences.** The window is a stored column rather than inferred from
+`expires_at - created_at`. That inference was the first implementation and is
+wrong twice over: it is destroyed the moment `expires_at` is rewritten, and after
+one release `created_at` no longer marks the start of the window, so each
+subsequent release would hand out a longer one than the last. Release is lazy,
+like day materialisation and for the same reason - the laptop sleeps - so the
+first person to open the board is the one who triggers it. A submitted or
+approved bonus is never taken back; it is waiting on a parent, not on the child.
+
+---
+
+## 2026-08-19 — A parent cannot withdraw a bonus chore somebody is doing
+
+**Decision.** `DELETE /api/parent/bonus/:id` is refused once a child has claimed
+it and the work is unfinished.
+
+**Reason.** Pulling it then means a child sweeping the garage for points that
+vanished mid-task. The deadline already handles the case where nobody gets to it,
+so there is no situation this refusal leaves unresolved.
+
+**Consequences.** A parent who genuinely wants it gone waits for the claim to
+lapse, which is at most the window they chose when posting it. The screen says
+"Someone is on it" rather than presenting a button that fails.

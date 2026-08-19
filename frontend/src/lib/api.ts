@@ -1,6 +1,7 @@
 import type {
   ApiError,
   ApprovalQueueResponse,
+  ParentBonusResponse,
   ChildRewardsResponse,
   ParentRewardsResponse,
   RedemptionQueueResponse,
@@ -195,5 +196,24 @@ export const api = {
 
   wallet: {
     mine: () => request<WalletResponse>('/api/child/wallet'),
+  },
+
+  bonus: {
+    claim: (instanceId: string) =>
+      request<{ ok: true }>(`/api/bonus/${instanceId}/claim`, { method: 'POST' }),
+
+    release: (instanceId: string) =>
+      request<{ ok: true }>(`/api/bonus/${instanceId}/release`, { method: 'POST' }),
+
+    board: () => request<ParentBonusResponse>('/api/parent/bonus'),
+
+    post: (bonus: Record<string, unknown>) =>
+      request<{ bonus: { id: string; definitionId: string } }>('/api/parent/bonus', {
+        method: 'POST',
+        body: JSON.stringify(bonus),
+      }),
+
+    withdraw: (instanceId: string) =>
+      request<{ ok: true }>(`/api/parent/bonus/${instanceId}`, { method: 'DELETE' }),
   },
 };

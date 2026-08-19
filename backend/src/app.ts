@@ -10,6 +10,7 @@ import { registerErrorHandler } from './errors.js';
 import { auth } from './auth/plugin.js';
 import { approvalRoutes } from './routes/approvals.js';
 import { authRoutes } from './routes/auth.js';
+import { bonusRoutes } from './routes/bonus.js';
 import { choreRoutes } from './routes/chores.js';
 import { photoRoutes } from './routes/photos.js';
 import { healthRoutes } from './routes/health.js';
@@ -84,6 +85,7 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(choreRoutes, { env });
   await app.register(photoRoutes, { env });
   await app.register(approvalRoutes, { env });
+  await app.register(bonusRoutes, { env });
   await app.register(rewardRoutes, { env });
   await app.register(walletRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
