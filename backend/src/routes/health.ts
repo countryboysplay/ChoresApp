@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { HealthResponse } from '@chore-quest/shared';
 import type { Env } from '../env.js';
+import { checkDatabase } from '../db.js';
 import { householdNow, householdToday } from '../time.js';
 
 /**
@@ -20,7 +21,10 @@ export async function healthRoutes(app: FastifyInstance, opts: { env: Env; versi
       localTime: householdNow(opts.env.HOUSEHOLD_TZ),
       choreDate: householdToday(opts.env.HOUSEHOLD_TZ),
     },
-    // Stage 3 replaces this with a real connection probe.
-    database: 'not_configured',
+    // A real probe. `status` stays 'ok' even when the database is unreachable:
+    // this endpoint answers "is the API up", and the database line is one of the
+    // facts it reports. Collapsing the two would make the tunnel health check
+    // flap on a transient Postgres restart.
+    database: await checkDatabase(),
   }));
 }

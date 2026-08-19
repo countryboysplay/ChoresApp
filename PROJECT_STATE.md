@@ -5,15 +5,15 @@ _Last updated: 2026-08-19_
 | Field | Value |
 | --- | --- |
 | Current stage | Stage 3 — Database schema and migrations |
-| Stage status | Not started. Unblocked: Stage 2 approved and PostgreSQL is running |
+| Stage status | Schema applied and tested; awaiting approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend |
 | Production URL | None yet — a real deployment still lands in Stage 17 |
-| Database migration status | No schema yet — Stage 3. Empty `chore_quest` database is provisioned and waiting |
-| Test status | 20 passing (5 backend, 15 frontend) on the laptop; typecheck, lint, and build clean; CI green |
+| Database migration status | 4 migrations applied; 16 tables, 8 enums. Rolls back to empty and forward again cleanly |
+| Test status | 38 passing (23 backend, 15 frontend); typecheck, lint, and build clean; CI green |
 | Last known good commit | `dcb2bc3` — visual review sheet; CI and Pages green |
 
 ## Stage 0 findings
@@ -125,9 +125,12 @@ and `http://<laptop-ip>:5173` also works.
 
 ## Known issues
 
-- `database` in the health response is hardcoded to `not_configured` until Stage 3.
-  PostgreSQL is running and `DATABASE_URL` is set; the route simply does not read
-  it yet.
+- The schema exists but nothing writes to it yet. Every screen still renders the
+  Stage 2 mock data; the API routes that read and write these tables are Stage 5
+  onward, and auth is Stage 4.
+- No seed data. `household_settings` has its single row with the money values
+  correctly unset; `users`, chores, and rewards are all empty, so the app has no
+  household in it yet.
 - The repository is **public**. It carries no secrets — CI fails the build if a
   `.env`, `.pem`, or `.key` is ever tracked — and the mock data uses `Child 1` /
   `Parent 1` placeholders rather than real names. Worth re-checking before any
@@ -154,18 +157,15 @@ and `http://<laptop-ip>:5173` also works.
 
 ## Next planned work
 
-**Stage 3 — Database schema and migrations.** Nothing is blocking it. Stage 2 is
-approved, PostgreSQL 17 is running as a service, and an empty `chore_quest`
-database owned by the non-superuser `chore_quest` login role already exists with
-`DATABASE_URL` wired into `backend/.env`.
+**Stage 4 — Authentication.** The schema reserves `users.pin_hash` and nothing
+else; sessions, PIN hashing, and the trusted-device approach are all still open
+(see the decision table in DECISIONS.md).
 
-Worth settling before or during Stage 3:
+Two things Stage 3 deliberately did not do, so they land where they belong:
 
-- **Migration tool.** Not yet chosen, and it decides how every later schema
-  change is written and rolled back.
-- **Pending decision 1 above** — the points-to-dollars rate and minimum cash-out
-  balance. Settings and the wallet need columns to store them either way, but the
-  values stay unset until you supply them.
-- `database` in the health response is still hardcoded to `not_configured`.
-  Stage 3 should make it report a real connection check, since that is the
-  signal the `#/health` page and the parent System screen both read.
+- **No seed data.** Creating the real household — names, PINs, avatars, and each
+  child's chore schedule — is parent-facing work that belongs behind auth in
+  Stage 10, not a script that hardcodes a family into a migration.
+- **Points-to-dollars rate and cash-out minimum stay NULL.** The columns exist
+  with no defaults and a test asserts they are unset, so the wallet keeps
+  rendering its "not configured" state until an owner sets them in Settings.

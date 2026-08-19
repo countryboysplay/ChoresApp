@@ -1,0 +1,7 @@
+{
+  "dir": "migrations",
+  "migrationsTable": "pgmigrations",
+  "databaseUrl": "DATABASE_URL",
+  "checkOrder": true,
+  "verbose": true
+}

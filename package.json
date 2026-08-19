@@ -20,6 +20,9 @@
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w backend && npm run typecheck -w frontend",
     "lint": "eslint .",
     "preflight": "node scripts/preflight.mjs",
+    "db:migrate": "npm run migrate -w backend",
+    "db:migrate:down": "npm run migrate:down -w backend",
+    "db:new": "npm run migrate:create -w backend --",
     "icons": "node scripts/generate-icons.mjs",
     "screenshots": "node scripts/screenshots.mjs",
     "review-sheet": "node scripts/review-sheet.mjs"

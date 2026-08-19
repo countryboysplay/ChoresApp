@@ -12,6 +12,28 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+
+    # The schema tests skip themselves when there is no database, which would
+    # quietly mean CI never checked a single constraint. This gives them one.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: chore_quest
+          POSTGRES_PASSWORD: chore_quest
+          POSTGRES_DB: chore_quest_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chore_quest"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://chore_quest:chore_quest@127.0.0.1:5432/chore_quest_test
+      TEST_DATABASE_URL: postgres://chore_quest:chore_quest@127.0.0.1:5432/chore_quest_test
+
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +50,16 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Run migrations
+        run: npm run db:migrate
+
+      - name: Check migrations roll back cleanly
+        # A down migration is only known to work the first time someone needs it
+        # to, which is the worst moment to find out. Down to empty and back up.
+        run: |
+          npm run migrate:down -w backend -- 4
+          npm run db:migrate
 
       - name: Test
         run: npm test

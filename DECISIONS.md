@@ -107,7 +107,6 @@ surface as a wrong chore day weeks later.
 
 | Topic | Stage | Notes |
 | --- | --- | --- |
-| ORM / migration tool | 3 | Leaning plain SQL migrations plus a thin query layer over a heavy ORM |
 | Auth token approach | 4 | Long-lived trusted-device sessions for kids; parent sessions shorter |
 | PWA / service worker strategy | 14 | Likely `vite-plugin-pwa` with a prompt-to-update flow |
 | Tunnel choice | 16 | Cloudflare Tunnel vs. Tailscale. No router ports either way |
@@ -241,3 +240,77 @@ on mock data, so no backend or database is involved.
 static frontend assets are published — the backend, the database, and household
 data stay on the laptop, as the architecture requires. Stage 17 extends this
 workflow with the production API URL rather than creating a new one.
+
+---
+
+## 2026-08-19 — Plain SQL migrations with `node-pg-migrate`, no ORM
+
+**Decision.** Schema changes are `.sql` files under `backend/migrations`, applied
+by `node-pg-migrate`. Queries are hand-written SQL over `pg`, with `backend/src/db.ts`
+owning only the pool, its shutdown, and the health probe.
+
+**Reason.** The migrations stay readable and can be run through `psql` by hand if
+the runner is ever unavailable, which matters for a database that lives on one
+laptop with no ops team behind it. The runner still supplies the migrations
+table, ordering, advisory locking, and `down` — the parts that are subtly easy
+to get wrong. An ORM would have added a second schema definition to keep in sync
+with this one.
+
+**Consequences.** No generated types: a column rename is a find-and-replace
+across SQL strings, and nothing but a test will catch a missed one. Every
+migration must supply a working `-- Down Migration`; CI rolls the whole schema
+back to empty and forward again on every push, so a broken one fails there
+rather than during an emergency.
+
+---
+
+## 2026-08-19 — The points ledger is the only source of truth for points
+
+**Decision.** `points_ledger` is append-only. No table stores a balance.
+Spendable points are `SUM(delta)` and lifetime points are the sum of the
+positive rows. Corrections are new rows, never edits.
+
+**Reason.** A cached balance and the history behind it drift apart eventually,
+and the first symptom is a child seeing points disappear with no line item to
+explain it. Every number the wallet shows can be traced to a row.
+
+**Consequences.** Balance is a query, not a column, so the read path is a sum
+over `points_ledger_child_idx` — fine at household scale, and worth revisiting
+only if a child's history reaches a size where it isn't. A partial unique index
+on `(chore_instance_id, reason)` makes paying for the same chore twice
+impossible, so a double-tapped Approve cannot silently double an award.
+
+---
+
+## 2026-08-19 — Chore definitions and instances are separate, and instances snapshot
+
+**Decision.** A `chore_definition` is the template a parent edits. A
+`chore_instance` is one chore, for one child, on one household day. Instances
+copy the point value, and instance subtasks copy their title and instruction
+rather than joining back to the template.
+
+**Reason.** Editing "Kitchen Cleaning" next month must not rewrite what a child
+did last week. Without the snapshot, renaming a subtask or repricing a chore
+silently rewrites history, including the ledger labels that explain past awards.
+
+**Consequences.** Duplicated text between template and instance is deliberate.
+Changing a template affects only chores generated after the change, which is the
+intended behavior and should be stated plainly in the parent UI.
+
+---
+
+## 2026-08-19 — Household days are `date` columns the application computes
+
+**Decision.** `chore_date`, `week_start`, and `locked_until` are plain `date`
+columns. The application decides which household day an instant belongs to using
+`Intl` in `America/Chicago`; Postgres is never asked to do timezone arithmetic.
+`backend/src/pg-parsers.ts` disables node-postgres's default `date` parser so
+these come back as `YYYY-MM-DD` strings.
+
+**Reason.** The default parser builds a `Date` at the *server's* local midnight,
+so a machine in a different zone can report the previous day. That is the exact
+class of bug the Intl decision exists to prevent, reintroduced at the driver.
+
+**Consequences.** `pg-parsers.ts` must be imported by anything opening its own
+connection, tests included — the parsers are global to the `pg` module, not
+per-pool. A schema test asserts a round-tripped `chore_date` is still a string.

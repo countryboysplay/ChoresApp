@@ -1,4 +1,5 @@
 import { buildApp } from './app.js';
+import { closePool } from './db.js';
 import { env } from './env.js';
 
 async function main(): Promise<void> {
@@ -7,6 +8,8 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string) => {
     app.log.info({ signal }, 'shutting down');
     await app.close();
+    // After the server stops accepting requests, so nothing is mid-query.
+    await closePool();
     process.exit(0);
   };
 

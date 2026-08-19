@@ -57,6 +57,9 @@ npm run dev
 | `npm run lint` | ESLint across the repo |
 | `npm run build` | Production build of both apps |
 | `npm run preflight` | Checks Node, npm, Postgres, ports, and env files |
+| `npm run db:migrate` | Applies pending database migrations |
+| `npm run db:migrate:down` | Rolls back the most recent migration |
+| `npm run db:new -- <name>` | Creates a new empty `.sql` migration |
 | `npm run screenshots` | Captures every screen to `screenshots/` (needs the dev server) |
 | `npm run icons` | Regenerates the home-screen icons from code |
 
