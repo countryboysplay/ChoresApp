@@ -4,9 +4,9 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 2 — Design system and static GUI |
-| Stage status | Rebuilt against the approved design board; awaiting visual approval |
-| Last approved stage | Stage 1 — Frontend/backend scaffold |
+| Current stage | Stage 3 — Database schema and migrations |
+| Stage status | Not started. Unblocked: Stage 2 approved and PostgreSQL is running |
+| Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
@@ -14,7 +14,7 @@ _Last updated: 2026-08-19_
 | Production URL | None yet — a real deployment still lands in Stage 17 |
 | Database migration status | No schema yet — Stage 3. Empty `chore_quest` database is provisioned and waiting |
 | Test status | 20 passing (5 backend, 15 frontend) on the laptop; typecheck, lint, and build clean; CI green |
-| Last known good commit | `41dfbe1` — Stage 0 prerequisites, first commit pushed from the laptop |
+| Last known good commit | `dcb2bc3` — visual review sheet; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -70,9 +70,16 @@ completion, and every workflow state.
   the Pages URL will be `https://<account>.github.io/ChoresApp/`. Capitalization is
   load-bearing — Pages paths are case-sensitive.
 
-## Stage 2 — what to review
+## Stage 2 — approved
 
-23 screens, all on mock data, no database and no API calls. Routes:
+**Approved 2026-08-19, as built.** The screens are the visual baseline now, so
+later stages replace mock data with real data behind the same layouts rather
+than redesigning them. Anything that changes how a screen looks from here is a
+deliberate decision, not incidental drift, and belongs in DECISIONS.md.
+
+Regenerate the review page any time with `npm run review-sheet`.
+
+The 23 screens, all on mock data, no database and no API calls. Routes:
 
 **Child** — `#/` splash · `#/profiles` choose your hero · `#/pin/child-1` PIN ·
 `#/child/home` ·
@@ -147,7 +154,18 @@ and `http://<laptop-ip>:5173` also works.
 
 ## Next planned work
 
-**Stage 3 — Database schema and migrations.** PostgreSQL is now installed and
-running, and an empty `chore_quest` database owned by the `chore_quest` login
-role already exists with `DATABASE_URL` wired into `backend/.env`. Stage 3 is
-blocked only on Stage 2 visual approval.
+**Stage 3 — Database schema and migrations.** Nothing is blocking it. Stage 2 is
+approved, PostgreSQL 17 is running as a service, and an empty `chore_quest`
+database owned by the non-superuser `chore_quest` login role already exists with
+`DATABASE_URL` wired into `backend/.env`.
+
+Worth settling before or during Stage 3:
+
+- **Migration tool.** Not yet chosen, and it decides how every later schema
+  change is written and rolled back.
+- **Pending decision 1 above** — the points-to-dollars rate and minimum cash-out
+  balance. Settings and the wallet need columns to store them either way, but the
+  values stay unset until you supply them.
+- `database` in the health response is still hardcoded to `not_configured`.
+  Stage 3 should make it report a real connection check, since that is the
+  signal the `#/health` page and the parent System screen both read.
