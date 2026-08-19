@@ -1,0 +1,57 @@
+name: Deploy frontend preview
+
+# Publishes the frontend to GitHub Pages so the UI can be reviewed on a phone
+# without running anything locally. Stage 2 screens run on mock data, so no
+# backend is required. The backend is never deployed here.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build frontend
+        run: npm run build -w frontend
+        env:
+          # Must match the repository name exactly - Pages paths are case-sensitive.
+          VITE_BASE_PATH: /ChoresApp/
+
+      - name: Add 404 fallback
+        run: cp frontend/dist/index.html frontend/dist/404.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
