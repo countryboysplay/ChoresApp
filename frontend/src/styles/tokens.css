@@ -1,0 +1,94 @@
+/*
+ * Chore Quest design tokens.
+ * Derived from the approved design board. Screens must use these variables;
+ * never hardcode a brand color in a component.
+ */
+:root {
+  /* Approved core palette */
+  --blue: #4d7cfe;
+  --purple: #7c4dff;
+  --green: #00c853;
+  --gold: #ffc107;
+  --red: #ff5252;
+  --dark: #1e1e2f;
+  --light: #f5f7fa;
+
+  /* App shell - deep navy, from the board */
+  --navy-950: #0a1230;
+  --navy-900: #0e1838;
+  --navy-800: #142254;
+  --surface: #1a2a63;
+  --surface-raised: #22357a;
+  --surface-sunken: rgba(6, 12, 34, 0.55);
+  --outline: rgba(122, 158, 255, 0.24);
+  --outline-strong: rgba(122, 158, 255, 0.45);
+
+  /* Pre-login sky - splash, profile select, PIN */
+  --sky-light: #57b4f5;
+  --sky: #2f92ef;
+  --sky-deep: #1667c8;
+
+  /* Feature card blues, used for the hero panels */
+  --panel-blue: #3ba5f5;
+  --panel-blue-deep: #1f7fd6;
+
+  /* Text */
+  --text-strong: #ffffff;
+  --text: #e4ebff;
+  --text-muted: #9fb3e0;
+  --text-on-light: var(--dark);
+  --text-on-gold: #4a3200;
+  --text-on-green: #05331b;
+
+  /* Status - always paired with an icon and a text label */
+  --status-done: var(--green);
+  --status-waiting: var(--gold);
+  --status-late: var(--red);
+  --status-info: var(--blue);
+  --orange: #ff9800;
+
+  /* Type */
+  --font-display: 'Fredoka', 'Nunito', 'Inter', system-ui, sans-serif;
+  --font-body: 'Nunito', 'Inter', system-ui, -apple-system, sans-serif;
+
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.75rem;
+
+  /* Shape - the board is generously rounded */
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 10px 24px rgba(4, 10, 30, 0.45);
+  --shadow-raised: 0 18px 40px rgba(4, 10, 30, 0.55);
+  --shadow-press: inset 0 4px 10px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 0 3px rgba(124, 77, 255, 0.35);
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --touch-min: 48px;
+
+  --transition-fast: 120ms ease-out;
+  --transition-base: 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 1ms;
+    --transition-base: 1ms;
+  }
+}

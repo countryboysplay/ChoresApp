@@ -1,0 +1,61 @@
+@import '@fontsource/fredoka/500.css';
+@import '@fontsource/fredoka/600.css';
+@import '@fontsource/fredoka/700.css';
+@import '@fontsource/nunito/400.css';
+@import '@fontsource/nunito/600.css';
+@import '@fontsource/nunito/700.css';
+@import '@fontsource/nunito/800.css';
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text);
+  background:
+    radial-gradient(900px 520px at 12% -8%, rgba(124, 77, 255, 0.22), transparent 62%),
+    radial-gradient(760px 480px at 96% 2%, rgba(77, 124, 254, 0.2), transparent 58%),
+    var(--navy-900);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Pre-login screens use the bright sky treatment from the board. */
+body.is-sky {
+  background: linear-gradient(180deg, var(--sky-light) 0%, var(--sky) 55%, var(--sky-deep) 100%);
+  background-attachment: fixed;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text-strong);
+  line-height: 1.15;
+  margin: 0 0 var(--space-3);
+}
+
+button {
+  font: inherit;
+  min-height: var(--touch-min);
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
