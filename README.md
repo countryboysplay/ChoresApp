@@ -62,6 +62,7 @@ npm run dev
 | `npm run db:new -- <name>` | Creates a new empty `.sql` migration |
 | `npm run user -w backend -- --list` | Lists household members |
 | `npm run user -w backend -- --role parent --name "N"` | Creates a member and sets their PIN |
+| `npm run vapid` | Prints a fresh VAPID key pair for push notifications |
 | `npm run screenshots` | Captures every screen to `screenshots/` (needs the dev server) |
 | `npm run icons` | Regenerates the home-screen icons from code |
 
@@ -88,6 +89,24 @@ holding an unlocked phone can lock a parent out of their own household.
 The points-to-dollars rate and the minimum cash-out balance start unset, and the
 app will not invent them. Until both are set in Settings, the kids' wallets show
 cash out as turned off, which is a perfectly valid way to run.
+
+## Phone notifications
+
+Optional, and off until the laptop has keys of its own:
+
+```powershell
+npm run vapid
+```
+
+Paste the three lines it prints into `backend/.env` and restart. From then on the
+evening reminder reaches a child's phone without the app being open - it is the
+only notification that does. Everything else lands in the inbox and is read when
+the app is next opened.
+
+Each phone opts in separately, on the Inbox screen. Browsers only allow
+notifications over https or on the laptop itself, so a phone on the house wifi
+gets this once the Stage 16 tunnel is in place. Signing out, or a parent
+resetting a child's PIN, stops that phone buzzing immediately.
 
 ## Secrets
 

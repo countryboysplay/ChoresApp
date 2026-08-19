@@ -4,7 +4,7 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 12 — Reminders and the inbox |
+| Current stage | Stage 13 — Push notifications |
 | Stage status | Built and tested; awaiting approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
@@ -12,9 +12,9 @@ _Last updated: 2026-08-19_
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
-| Database migration status | 9 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 202 passing (184 backend, 18 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
-| Last known good commit | `f06146b` — Stage 11 dashboard and schedule; CI and Pages green |
+| Database migration status | 10 migrations applied; 18 tables, 8 enums. Rolls back to empty and forward again cleanly |
+| Test status | 225 passing (202 backend, 23 frontend); typecheck, lint, build clean, 0 npm vulnerabilities |
+| Last known good commit | `c814853` — Stage 12 reminders and the inbox; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -133,6 +133,11 @@ and `http://<laptop-ip>:5173` also works.
   sound helper that generates every effect (no audio files, never blocks a flow).
 - Level curve centralized in `frontend/src/config/levels.ts` — the only place a
   level threshold is computed.
+- Push notifications: a push-only service worker, per-browser subscriptions that
+  move with whoever signs in and die with the sign-in, and a drain that runs on
+  the same tick as the reminder sweep. One notification kind reaches a phone;
+  everything else stays in the inbox, which now has a screen on both sides of
+  the app.
 
 ## Known issues
 
@@ -143,9 +148,21 @@ and `http://<laptop-ip>:5173` also works.
   mock any more.
 - **Two child screens are still mock:** leaderboard and achievements, plus the
   avatar builder on the profile screen. Everything else on both sides is real.
-- **Notifications are in-app only.** They arrive in the inbox and nothing is
-  pushed to a phone, so a reminder is only seen when the app is opened. Push is
-  Stage 13 and needs the service worker from Stage 14.
+- **One notification buzzes a phone; the rest wait in the inbox.** Owner
+  decision: only the child's evening `chore_reminder` is pushed, because it is
+  the only one whose whole purpose is to reach somebody who is not looking.
+  Escalations, approvals, rejections, reward answers, and posted bonus chores
+  arrive in the inbox and are read when the app is next opened. Adding a kind is
+  one line in `PUSHABLE_KINDS`.
+- **Push is off until the laptop has VAPID keys.** `npm run vapid` prints the
+  three lines for `backend/.env`; the server refuses to start with some but not
+  all of them. Until they are set, the panel on the inbox screen and the System
+  status row both say so, and everything else works unchanged. Notifications
+  written while push is off are held rather than discarded, so adding the keys in
+  the evening still delivers that evening's reminders.
+- **Push needs https, or the laptop itself** — the same rule as the camera, and
+  the same consequence: it cannot be tested on a phone over the wifi address
+  until the Stage 16 tunnel provides https.
 - **A streak can overstate.** Unresolved days pause rather than break, so a
   household that never opens the parent app keeps every streak alive. That is
   the deliberate trade for never punishing a child over an adult's inattention.
@@ -183,12 +200,14 @@ and `http://<laptop-ip>:5173` also works.
 - Camera, photo, and pinch-zoom areas are placeholders with the correct states and
   copy; real `getUserMedia` capture is Stage 6.
 - ~~Playwright screenshots could not be produced in the build environment.~~
-  Resolved: `npm run screenshots` captures all 24 routes at phone and desktop
+  Resolved: `npm run screenshots` captures all 25 routes at phone and desktop
   sizes into `screenshots/`, and fails if any screen logs a console error or
   overflows horizontally. Needs the dev server running.
-- No service worker, so Chrome will not offer a true "Install" prompt. The
-  manifest and icons are in place, which is what Add to Home Screen needs; the
-  service worker is Stage 14 per DECISIONS.md.
+- **The service worker does push and nothing else**, so Chrome still will not
+  offer a true "Install" prompt — that wants a worker with a fetch handler. The
+  manifest and icons are in place, which is what Add to Home Screen needs.
+  Offline caching, the install prompt, and the prompt-to-update flow are still
+  Stage 14, which may replace `frontend/public/sw.js` wholesale.
 
 ## Pending owner decisions
 
@@ -215,31 +234,37 @@ To start using it, on the laptop:
 3. Create the chores on `#/parent/chores/new` and assign them.
 4. Optionally set the points-to-dollars rate and cash-out minimum in Settings.
    Leaving them unset keeps cash-out off, which is a valid way to run.
+5. Optionally `npm run vapid`, paste the three lines into `backend/.env`, and
+   restart. That turns on the evening reminder buzzing a child's phone. Leaving
+   the keys unset keeps push off, which is also a valid way to run.
 
-**Stage 13 — Push notifications.** The inbox works, but a reminder nobody sees
-until they open the app is only half a reminder. `web-push` and the VAPID keys
-are already in the environment schema and unset.
+**Stage 14 — The rest of the PWA.** Stage 13 brought forward a push-only service
+worker; everything else that file was going to do is still ahead.
 
 What it has to settle:
 
-- **The service worker**, which push depends on and which DECISIONS.md has always
-  placed in Stage 14. Push cannot land before it, so the two may need to swap or
-  merge.
-- **Subscriptions per device**, and what happens when a child signs out or a
-  parent revokes a device.
-- **Which notifications are worth a phone buzzing** - almost certainly not all of
-  them.
+- **Caching strategy**, and the update flow that goes with it. The current
+  worker calls `skipWaiting` and `clients.claim`, which is safe only because
+  nothing is cached. The moment something is, that line needs revisiting.
+- **Whether `vite-plugin-pwa` replaces the hand-written worker** or wraps it.
+  The push and click handlers have to survive either way.
+- **The install prompt**, which wants a fetch handler before Chrome will offer
+  it.
 
 Also outstanding:
 
 - **Leaderboard, achievements, and the avatar builder**, the last three screens
   on mock data. All three are readings of data that already exists.
+- **System status is still mostly mock.** The push row is real; backend uptime,
+  database, backups, and app version are placeholders belonging to Stages 15 and
+  17.
 
-Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:
+Still deliberately unfinished, so it lands where it belongs:
 
 - **Points-to-dollars rate and cash-out minimum stay NULL.** The columns exist
   with no defaults and a test asserts they are unset, so the wallet keeps
   rendering its "not configured" state until an owner sets them in Settings.
-- **Creating the real household** — names, PINs, avatars, and each child's chore
-  schedule — is parent-facing work for Stage 10. The terminal CLI covers the
-  bootstrap until then.
+- **VAPID keys stay unset in the repository**, for the same reason and one more:
+  the private key is the only thing between anyone and the ability to send
+  notifications that arrive on the kids' phones looking like they came from this
+  household. It is generated on the laptop and never leaves it.

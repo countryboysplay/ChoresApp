@@ -17,6 +17,7 @@ const SIDEBAR: { to: string; label: string; icon: IconName }[] = [
   { to: '/parent/bonus', label: 'Bonus chores', icon: 'star' },
   { to: '/parent/rewards', label: 'Rewards', icon: 'gift' },
   { to: '/parent/children', label: 'Kids', icon: 'user' },
+  { to: '/parent/notifications', label: 'Inbox', icon: 'bell' },
   { to: '/parent/settings', label: 'Settings', icon: 'settings' },
   { to: '/parent/system', label: 'System status', icon: 'alert' },
 ];

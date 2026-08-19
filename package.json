@@ -23,6 +23,7 @@
     "db:migrate": "npm run migrate -w backend",
     "db:migrate:down": "npm run migrate:down -w backend",
     "db:new": "npm run migrate:create -w backend --",
+    "vapid": "npm run vapid -w backend",
     "icons": "node scripts/generate-icons.mjs",
     "screenshots": "node scripts/screenshots.mjs",
     "review-sheet": "node scripts/review-sheet.mjs"

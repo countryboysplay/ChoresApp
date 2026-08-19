@@ -6,6 +6,7 @@ import { Avatar, DEFAULT_AVATAR } from '../../design/Avatar';
 import { Icon, type IconName } from '../../design/icons';
 import { Badge, Button, EmptyState, PointsPill, Sheet, StatRow } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
+import { InboxBell } from '../../components/InboxBell';
 import { api, ApiRequestError } from '../../lib/api';
 
 /**
@@ -67,7 +68,7 @@ export function ParentDashboard() {
 
   return (
     <>
-      <ScreenTop title="Home" />
+      <ScreenTop title="Home" trailing={<InboxBell to="/parent/notifications" />} />
       <main className="screen screen--wide">
         {error && (
           <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-3)' }}>

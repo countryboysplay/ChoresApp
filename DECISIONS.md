@@ -107,7 +107,7 @@ surface as a wrong chore day weeks later.
 
 | Topic | Stage | Notes |
 | --- | --- | --- |
-| PWA / service worker strategy | 14 | Likely `vite-plugin-pwa` with a prompt-to-update flow |
+| PWA / service worker strategy | 14 | A push-only worker landed in Stage 13; caching, install prompt, and update flow still open. Likely `vite-plugin-pwa` |
 | Tunnel choice | 16 | Cloudflare Tunnel vs. Tailscale. No router ports either way |
 | Windows startup method | 18 | Scheduled Task at boot vs. NSSM service |
 | Backup retention | 15 | Owner decision |
@@ -844,3 +844,185 @@ as a real property of the system.
 **Consequences.** The suite is sequential and takes a few seconds. A database per
 worker would restore parallelism and is worth doing if it ever gets slow enough
 to care; at this size it would be complexity bought for nothing.
+
+---
+
+## 2026-08-19 — Only the child's evening reminder buzzes a phone
+
+**Decision.** Owner decision. `chore_reminder` is the only notification kind
+delivered by push. Escalations, approvals, rejections, reward answers, and
+posted bonus chores are written to the inbox and read when the app is next
+opened. The list lives in one place, `PUSHABLE_KINDS`, so adding a kind later is
+a one-line change with a test to match.
+
+**Reason.** The reminder is the only notification whose entire purpose is to
+reach somebody who is not looking - it lands at the moment the punctuality bonus
+is about to lapse, and a reminder nobody sees until they open the app is not a
+reminder. Everything else is news. A household interrupted several times a day
+for news learns within a week to swipe the app away, and then the one message
+that had to arrive does not either.
+
+**Consequences.** A parent is never buzzed at all. They have the dashboard,
+which shows the day as it stands, and now an inbox screen for the 11pm
+escalation. If that turns out to be too quiet, adding `chore_escalation` to the
+list is the whole change - but it should be a deliberate second decision rather
+than a default nobody chose.
+
+---
+
+## 2026-08-19 — A push-only service worker, ahead of the Stage 14 PWA work
+
+**Decision.** `frontend/public/sw.js` is a hand-written worker with a `push`
+handler and a `notificationclick` handler and nothing else. No precaching, no
+offline support, no update prompt. Stage 14 still owns all of that and may
+replace this file wholesale when it brings in a build plugin.
+
+**Reason.** Push cannot work without a registered service worker, so something
+had to come forward. Caching did not: a precache that serves a stale bundle is a
+bug that hides for a week and then breaks a screen for everybody at once, and it
+has nothing to do with delivering a notification. Merging the two stages would
+have put a caching bug and a push bug in the same commit.
+
+**Consequences.** Chrome still will not offer a true install prompt, because
+that wants a worker with a fetch handler - Add to Home Screen continues to work,
+as it has since Stage 2. The worker takes control immediately (`skipWaiting`
+plus `clients.claim`), which is only safe because there is nothing cached for an
+older version to disagree with; Stage 14 has to revisit that line when it adds
+one. It is plain JavaScript in `public/`, served as-is, so eslint needs the
+service-worker globals for that one file.
+
+---
+
+## 2026-08-19 — Push is at-most-once, and the inbox is the durable copy
+
+**Decision.** The drain marks a notification `pushed_at` before attempting the
+send. A crash between the two loses the buzz rather than repeating it, and
+nothing retries a failed send.
+
+**Reason.** The alternative - mark after success - turns every restart into a
+re-send of whatever was in flight, and a phone that buzzes four times about one
+chore teaches a child to turn notifications off. That costs more than the
+occasional missed buzz, because the message is never actually lost: it is in the
+inbox either way, and the inbox is what the app shows when it opens.
+
+**Consequences.** `pushed_at` means "the sender has finished with this row", not
+"a phone rang" - it is set on notifications that were never eligible to be sent
+at all. Rows are claimed with `FOR UPDATE SKIP LOCKED`, so two overlapping
+drains cannot both take the same one. The one deliberate exception is a
+household with no VAPID keys: those rows are left unclaimed, so adding the keys
+in the evening still delivers that evening's reminders.
+
+---
+
+## 2026-08-19 — Nothing older than 45 minutes is pushed
+
+**Decision.** A notification past 45 minutes old is marked done without being
+sent. It stays in the inbox.
+
+**Reason.** After a power cut, a Windows update, or a week with the laptop off,
+the first drain finds every unpushed row at once. Sending them would buzz a
+child's phone thirty times about chores from days ago, which is indistinguishable
+from a broken app. Past the window the message is history rather than an alarm,
+and the inbox is the right place to read history.
+
+**Consequences.** This is the one thing in the project that can silently drop a
+notification, and it does so only in the case where delivering it would be
+worse. The number sits with the 8:45pm reminder and the 11pm escalation: a
+reminder that arrives after 9:30pm has missed the moment it existed for. The
+push itself also carries a four-hour TTL, so a phone that has been off all
+evening does not light up at breakfast.
+
+---
+
+## 2026-08-19 — A push subscription belongs to a browser, and dies with the sign-in
+
+**Decision.** `push_subscriptions.endpoint` is the unique key, not `(user_id,
+endpoint)`. Subscribing signs the row over to whoever is signed in now. Revoking
+a session deletes its subscription, and so does resetting a PIN.
+
+**Reason.** The endpoint is minted by the phone's push service and is the same
+string whoever is logged in, so it genuinely identifies a browser rather than a
+person. On a shared tablet, keying by person would leave the first child's
+reminders arriving all evening on a device the second child is holding. And a
+PIN gets reset precisely because a phone went missing - signing that phone out
+while leaving it subscribed would achieve nothing.
+
+**Consequences.** This is the one place a row is deleted rather than marked.
+There is no history worth keeping: the browser mints a fresh endpoint the next
+time anybody says yes, and a stale one is unusable by definition. A phone keeps
+its browser-side subscription across a sign-out even though the server row is
+gone, so the app re-registers it after every sign-in - without that, a child who
+signs back in has a browser that believes it is subscribed and a household that
+will never send to it.
+
+---
+
+## 2026-08-19 — The scheduler tick is now the push latency ceiling
+
+**Decision.** The reminder sweep and the push drain run on the same 15-second
+interval, down from 60 seconds.
+
+**Reason.** Until now the interval carried no correctness argument at all - the
+sweep is a reconciliation, so a tick that is late or missed changed only when a
+notification appeared in an inbox somebody would open later anyway. Push makes
+the number visible: it is how long a phone waits after a reminder is written.
+That is still not a correctness argument, but it is the first time the number has
+meant anything to anybody.
+
+**Consequences.** Both remain reconciliations and neither depends on the process
+having been alive at a particular instant, so a restart at 9:20pm still delivers
+the 8:45pm reminder and puts it on the phone. They are guarded separately: a
+sweep that fails must not hold up notifications that were already written, which
+are not its fault. The cost is a handful of indexed queries against a
+household-sized database every fifteen seconds.
+
+---
+
+## 2026-08-19 — The parent inbox gets a screen
+
+**Decision.** `Notifications` moves out of `screens/child/` and becomes
+`screens/Inbox.tsx`, served at `#/child/notifications` and
+`#/parent/notifications`. A parent reaches it from the sidebar on a desktop and
+from a bell on the dashboard on a phone.
+
+**Reason.** Stage 12 wrote the 11pm escalation to the parents' inbox rows and
+never built a route that could open them, so everything a parent was told went
+somewhere nobody could look. Push made that unavoidable rather than merely
+wrong: a notification that is tapped has to land on a screen.
+
+**Consequences.** One component, two routes, and the only difference between
+them is that a parent gets a back button where a child has the bottom bar. The
+parent phone navigation keeps its five tabs - the inbox is not a
+several-times-a-day destination and should not displace one that is - so the
+bell on the dashboard, with an unread count, is the way in.
+
+This is a deliberate change to an approved Stage 2 screen, so it is recorded
+here rather than left as drift: the inbox now carries a "Reminders on this
+phone" panel above the list. It sits there because the inbox is where somebody
+already is when they are thinking about notifications, and because per-device is
+what a subscription actually is - the same person answers it again on a tablet.
+The panel draws itself only once it knows which of its six states applies, so it
+never flickers from Off to On as the screen settles, which would read as the app
+changing the setting by itself.
+
+---
+
+## 2026-08-19 — VAPID keys are all three or none
+
+**Decision.** The environment loader refuses a configuration with some but not
+all of `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`, and refuses
+a subject that is not `mailto:` or `https://`. Empty is treated as absent.
+
+**Reason.** The same argument as the points-to-dollars rate and the cash-out
+minimum: a partial setting is not a rule anybody chose, and it leaves the app
+unable to say which half is missing. The subject check exists because push
+services reject anything else outright, and they do it at send time - which
+would be the evening the first reminder failed to arrive.
+
+**Consequences.** `npm run vapid` prints the three lines to paste in. With none
+of them set, push is simply off and every other part of the app is unchanged:
+reminders still reach the inbox, the panel on the inbox screen says the laptop
+has no keys yet, and System status says so too. Regenerating the pair
+invalidates every existing subscription, because the push services tie each one
+to the key that created it - recoverable, since each phone resubscribes on its
+next sign-in, but not silent.

@@ -158,6 +158,11 @@ export async function revokeSession(
       WHERE id = $1 AND revoked_at IS NULL`,
     [sessionId, now, revokedBy],
   );
+  // A signed-out phone must stop buzzing. Sessions are kept after revocation so
+  // "signed out on 12 Aug" stays answerable, but a push subscription has no
+  // history worth keeping and every reason not to outlive the sign-in that made
+  // it - the browser mints a fresh one the next time anybody says yes.
+  await db.query('DELETE FROM push_subscriptions WHERE session_id = $1', [sessionId]);
 }
 
 /** Used when a PIN changes: every other device has to sign in again. */
@@ -172,5 +177,15 @@ export async function revokeAllForUser(
       WHERE user_id = $1 AND revoked_at IS NULL AND ($4::uuid IS NULL OR id <> $4)`,
     [userId, now, options.revokedBy ?? null, options.except ?? null],
   );
+
+  // Same reasoning as revokeSession, and it matters more here: this runs when a
+  // PIN is reset after a phone goes missing. Signing that phone out while
+  // leaving it subscribed would keep delivering a child's reminders to it.
+  await db.query(
+    `DELETE FROM push_subscriptions
+      WHERE user_id = $1 AND ($2::uuid IS NULL OR session_id IS DISTINCT FROM $2)`,
+    [userId, options.except ?? null],
+  );
+
   return rowCount ?? 0;
 }

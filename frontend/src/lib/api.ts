@@ -2,6 +2,8 @@ import type {
   ApiError,
   ApprovalQueueResponse,
   NotificationsResponse,
+  PushKeyResponse,
+  PushStatusResponse,
   ChoreResolution,
   DashboardResponse,
   ScheduleResponse,
@@ -213,6 +215,25 @@ export const api = {
 
     markAllRead: () =>
       request<{ marked: number }>('/api/notifications/read-all', { method: 'POST' }),
+  },
+
+  push: {
+    key: () => request<PushKeyResponse>('/api/push/key'),
+
+    /** Registers this browser, or moves it to whoever is signed in now. */
+    subscribe: (subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+      request<{ ok: true; configured: boolean }>('/api/push/subscribe', {
+        method: 'POST',
+        body: JSON.stringify(subscription),
+      }),
+
+    unsubscribe: (endpoint: string) =>
+      request<{ ok: true; removed: number }>('/api/push/subscribe', {
+        method: 'DELETE',
+        body: JSON.stringify({ endpoint }),
+      }),
+
+    status: () => request<PushStatusResponse>('/api/push/status'),
   },
 
   dashboard: {

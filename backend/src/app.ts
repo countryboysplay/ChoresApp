@@ -7,6 +7,7 @@ import sensible from '@fastify/sensible';
 import { loadEnv, type Env } from './env.js';
 import { loggerOptions } from './logger.js';
 import { registerErrorHandler } from './errors.js';
+import { applyPushConfig, pushConfig } from './notifications/push.js';
 import { auth } from './auth/plugin.js';
 import { approvalRoutes } from './routes/approvals.js';
 import { authRoutes } from './routes/auth.js';
@@ -17,6 +18,7 @@ import { notificationRoutes } from './routes/notifications.js';
 import { householdRoutes } from './routes/household.js';
 import { choreRoutes } from './routes/chores.js';
 import { photoRoutes } from './routes/photos.js';
+import { pushRoutes } from './routes/push.js';
 import { healthRoutes } from './routes/health.js';
 import { rewardRoutes } from './routes/rewards.js';
 import { walletRoutes } from './routes/wallet.js';
@@ -84,6 +86,13 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
 
   registerErrorHandler(app);
 
+  // Applied here rather than at the first send, so a malformed VAPID key is a
+  // startup failure instead of a reminder that silently never arrives. Absent
+  // keys are not an error: push is simply off, exactly like cash-out before a
+  // rate is set.
+  const push = pushConfig(env);
+  if (push) applyPushConfig(push);
+
   await app.register(auth, { env });
   await app.register(authRoutes, { env });
   await app.register(choreRoutes, { env });
@@ -95,6 +104,7 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(choreAdminRoutes, { env });
   await app.register(dashboardRoutes, { env });
   await app.register(notificationRoutes, { env });
+  await app.register(pushRoutes, { env });
   await app.register(walletRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
 

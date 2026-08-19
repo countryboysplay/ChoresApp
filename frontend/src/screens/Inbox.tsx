@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { InboxNotification } from '@chore-quest/shared';
-import { Icon, type IconName } from '../../design/icons';
-import { Badge, Button, EmptyState } from '../../design/primitives';
-import { ScreenTop } from '../../components/ScreenTop';
-import { relativeTime } from '../../config/format';
-import { api, ApiRequestError } from '../../lib/api';
+import { Icon, type IconName } from '../design/icons';
+import { Badge, Button, EmptyState } from '../design/primitives';
+import { ScreenTop } from '../components/ScreenTop';
+import { PushSetup } from '../components/PushSetup';
+import { relativeTime } from '../config/format';
+import { api, ApiRequestError } from '../lib/api';
 
 const ICON_FOR: Record<InboxNotification['tone'], IconName> = {
   done: 'check',
@@ -21,7 +22,16 @@ const COLOR_FOR: Record<InboxNotification['tone'], string> = {
   info: 'var(--blue)',
 };
 
-export function Notifications() {
+/**
+ * One inbox, both sides of the app.
+ *
+ * Parents are told things too - the 11pm escalation goes to them - and until
+ * this screen had a parent route those messages were written to a place nobody
+ * could open. The child reaches it from the bottom bar and the parent from the
+ * sidebar, which is the only difference between the two: a parent gets a way
+ * back, a child has the bar.
+ */
+export function Inbox({ back }: { back?: string } = {}) {
   const navigate = useNavigate();
   const [items, setItems] = useState<InboxNotification[]>([]);
   const [unread, setUnread] = useState(0);
@@ -67,13 +77,17 @@ export function Notifications() {
 
   return (
     <>
-      <ScreenTop title="Inbox" />
+      <ScreenTop title="Inbox" back={back} />
       <main className="screen">
         {error && (
           <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-3)' }}>
             {error}
           </p>
         )}
+
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <PushSetup />
+        </div>
 
         {loading ? (
           <p aria-live="polite" style={{ textAlign: 'center', marginTop: 'var(--space-6)' }}>

@@ -45,6 +45,7 @@ const ROUTES = [
   ['#/parent/rewards', 'parent-rewards'],
   ['#/parent/children', 'parent-children'],
   ['#/parent/settings', 'parent-settings'],
+  ['#/parent/notifications', 'parent-inbox'],
   ['#/parent/system', 'parent-system'],
   ['#/health', 'health'],
 ];

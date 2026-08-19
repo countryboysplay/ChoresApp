@@ -479,3 +479,23 @@ export interface NotificationsResponse {
   unread: number;
   notifications: InboxNotification[];
 }
+
+/**
+ * Web Push.
+ *
+ * The VAPID public key is served rather than built into the bundle: the Pages
+ * preview is built with no backend behind it and would carry a key matching
+ * nothing. `configured` is false until all three VAPID values are set on the
+ * laptop, and the app says so plainly rather than offering a switch that does
+ * nothing.
+ */
+export interface PushKeyResponse {
+  configured: boolean;
+  publicKey: string | null;
+}
+
+export interface PushStatusResponse {
+  configured: boolean;
+  /** Phones subscribed across the whole household. Never endpoints. */
+  devices: number;
+}

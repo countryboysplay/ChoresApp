@@ -28,6 +28,13 @@ export default tseslint.config(
     rules: { 'no-console': 'off' },
   },
   {
+    // The service worker runs in its own global scope, where `self` is the
+    // registration rather than a window. It is plain JS because it is served
+    // as-is rather than bundled.
+    files: ['frontend/public/sw.js'],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  {
     // These scripts drive a real browser. Callbacks passed to page.evaluate()
     // are serialized and run in the page, so they legitimately reference
     // document and window even though the file itself executes under Node.

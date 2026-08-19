@@ -13,7 +13,7 @@ import { Rewards } from './screens/child/Rewards';
 import { Wallet } from './screens/child/Wallet';
 import { Leaderboard } from './screens/child/Leaderboard';
 import { Achievements } from './screens/child/Achievements';
-import { Notifications } from './screens/child/Notifications';
+import { Inbox } from './screens/Inbox';
 import { Profile } from './screens/child/Profile';
 import { ParentDashboard } from './screens/parent/Dashboard';
 import { ApprovalQueue } from './screens/parent/Approvals';
@@ -51,7 +51,7 @@ export function App() {
         <Route path="/child/wallet" element={<Wallet />} />
         <Route path="/child/leaderboard" element={<Leaderboard />} />
         <Route path="/child/achievements" element={<Achievements />} />
-        <Route path="/child/notifications" element={<Notifications />} />
+        <Route path="/child/notifications" element={<Inbox />} />
         <Route path="/child/profile" element={<Profile />} />
         <Route path="/child" element={<Navigate to="/child/home" replace />} />
         </Route>
@@ -68,6 +68,7 @@ export function App() {
         <Route path="/parent/rewards" element={<RewardManage />} />
         <Route path="/parent/children" element={<ChildManage />} />
         <Route path="/parent/settings" element={<Settings />} />
+        <Route path="/parent/notifications" element={<Inbox back="/parent" />} />
         <Route path="/parent/system" element={<SystemStatus />} />
       </Route>
       </Route>

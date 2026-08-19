@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { AuthProfile, MeResponse } from '@chore-quest/shared';
 import { ApiRequestError, api } from './api';
+import { resyncPush } from './push';
 import { children as mockChildren, parents as mockParents } from '../mock/data';
 import { DEFAULT_AVATAR } from '../design/Avatar';
 
@@ -66,6 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await api.auth.me();
       setUser(me.user);
       setMode('live');
+      // A phone keeps its browser subscription across a sign-out, but the
+      // server row is deleted with the session. Without this the browser
+      // believes it is subscribed and nothing is ever sent to it. Silent and
+      // best-effort; the switch on the inbox screen repairs it either way.
+      void resyncPush();
     } catch (error) {
       if (error instanceof ApiRequestError && error.isUnreachable) {
         // No server. This is the Pages preview, or the laptop is asleep.
@@ -97,6 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api.auth.login(userId, pin);
     const me = await api.auth.me();
     setUser(me.user);
+    // Binds an existing subscription on this phone to the person who just
+    // signed in. On a shared tablet that is what moves the reminders across
+    // rather than leaving them going to whoever used it last.
+    void resyncPush();
     return me.user;
   }, []);
 

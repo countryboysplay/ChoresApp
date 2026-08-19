@@ -9,9 +9,10 @@ async function main(): Promise<void> {
   // Reminders are the one thing here that has to happen when nobody is looking,
   // so this is the only timer in the project. It sweeps immediately at startup
   // too, which is what makes a restart at 9:20pm still deliver the 8:45pm
-  // reminder rather than swallowing the evening.
+  // reminder rather than swallowing the evening - and now, on the same tick,
+  // put that reminder on the child's phone.
   const pool = getPool();
-  const scheduler = pool ? startScheduler(pool, env.HOUSEHOLD_TZ, app.log) : null;
+  const scheduler = pool ? startScheduler(pool, env, app.log) : null;
   if (scheduler) void scheduler.runNow();
 
   const shutdown = async (signal: string) => {
