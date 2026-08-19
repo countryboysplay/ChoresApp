@@ -9,6 +9,9 @@ const testEnv = loadEnv({
   HOST: '127.0.0.1',
   HOUSEHOLD_TZ: 'America/Chicago',
   CORS_ORIGINS: 'http://localhost:5173',
+  // buildApp registers the auth plugin, which refuses to start without a
+  // secret long enough to sign session cookies with.
+  SESSION_SECRET: 'test-secret-that-is-comfortably-long-enough-to-pass',
 } as NodeJS.ProcessEnv);
 
 describe('GET /api/health', () => {

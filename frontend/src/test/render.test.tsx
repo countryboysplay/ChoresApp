@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
+import { AuthProvider } from '../lib/auth';
 import { ChoreDetail } from '../screens/child/ChoreDetail';
 import { ApprovalQueue } from '../screens/parent/Approvals';
 import { levelForLifetimePoints, thresholdForLevel } from '../config/levels';
@@ -10,7 +11,9 @@ import { levelForLifetimePoints, thresholdForLevel } from '../config/levels';
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </MemoryRouter>,
   );
 }
@@ -22,10 +25,12 @@ describe('routing', () => {
     expect(screen.getByRole('button', { name: /select profile/i })).toBeInTheDocument();
   });
 
-  it('lists every profile on the hero select screen', () => {
+  it('lists every profile on the hero select screen', async () => {
     renderAt('/profiles');
     expect(screen.getByRole('heading', { name: /choose your hero/i })).toBeInTheDocument();
-    expect(screen.getByText('Child 1')).toBeInTheDocument();
+    // Awaited: the profile list arrives after AuthProvider has worked out
+    // whether there is a server to ask.
+    expect(await screen.findByText('Child 1')).toBeInTheDocument();
     expect(screen.getByText('Parent 1')).toBeInTheDocument();
   });
 

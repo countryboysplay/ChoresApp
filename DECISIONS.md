@@ -107,7 +107,6 @@ surface as a wrong chore day weeks later.
 
 | Topic | Stage | Notes |
 | --- | --- | --- |
-| Auth token approach | 4 | Long-lived trusted-device sessions for kids; parent sessions shorter |
 | PWA / service worker strategy | 14 | Likely `vite-plugin-pwa` with a prompt-to-update flow |
 | Tunnel choice | 16 | Cloudflare Tunnel vs. Tailscale. No router ports either way |
 | Windows startup method | 18 | Scheduled Task at boot vs. NSSM service |

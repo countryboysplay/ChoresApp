@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { AUTH_ERROR, type InvalidPinDetails, type PinLockedDetails } from '@chore-quest/shared';
+import type { AvatarConfig } from '../../design/Avatar';
 import { Avatar } from '../../design/Avatar';
 import { Icon } from '../../design/icons';
 import { useSkyBackground } from '../../hooks/useSkyBackground';
 import { playSound } from '../../design/sound';
-import { children, parents } from '../../mock/data';
+import { ApiRequestError } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'back'];
 const PIN_LENGTH = 4;
@@ -13,32 +16,94 @@ export function PinEntry() {
   useSkyBackground();
   const { userId = '' } = useParams();
   const navigate = useNavigate();
-  const [pin, setPin] = useState('');
+  const { mode, profiles, login } = useAuth();
 
-  const child = children.find((entry) => entry.id === userId);
-  const parent = parents.find((entry) => entry.id === userId);
-  const isParent = Boolean(parent);
-  const name = child?.name ?? parent?.name ?? 'Player';
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [locked, setLocked] = useState(false);
+
+  const profile = profiles.find((entry) => entry.id === userId);
+  const isParent = profile?.role === 'parent';
+  const name = profile?.displayName ?? 'Player';
+
+  const goHome = () => navigate(isParent ? '/parent' : '/child/home', { replace: true });
+
+  const submit = async (candidate: string) => {
+    // The Pages preview has no server to check against, so it walks through.
+    // There is no household data behind these screens in that mode.
+    if (mode === 'preview') {
+      window.setTimeout(goHome, 220);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await login(userId, candidate);
+      playSound('success');
+      goHome();
+    } catch (caught) {
+      // No sound on failure. The design system has five effects and none of
+      // them means "wrong"; a cheerful one here would read as success.
+      setPin('');
+
+      if (!(caught instanceof ApiRequestError)) {
+        setError('Something went wrong. Try again.');
+        return;
+      }
+
+      if (caught.code === AUTH_ERROR.pinLocked) {
+        const details = caught.details as PinLockedDetails | undefined;
+        setLocked(true);
+        setError(caught.message);
+        // Re-enable the pad the moment the wait is over, so nobody has to guess
+        // when to try again or reload the page.
+        if (details?.retryAfterSeconds) {
+          window.setTimeout(() => {
+            setLocked(false);
+            setError(null);
+          }, details.retryAfterSeconds * 1000);
+        }
+        return;
+      }
+
+      if (caught.code === AUTH_ERROR.invalidPin) {
+        const details = caught.details as InvalidPinDetails | undefined;
+        setError(
+          details && details.attemptsRemaining > 0
+            ? `That PIN is not right. ${details.attemptsRemaining} ${
+                details.attemptsRemaining === 1 ? 'try' : 'tries'
+              } left before a short wait.`
+            : 'That PIN is not right.',
+        );
+        return;
+      }
+
+      setError(caught.isUnreachable ? 'Cannot reach the Chore Quest server.' : caught.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const press = (key: string) => {
-    if (!key) return;
+    if (!key || busy || locked) return;
     playSound('tap');
-    if (key === 'back') return setPin((value) => value.slice(0, -1));
+    if (key === 'back') {
+      setError(null);
+      return setPin((value) => value.slice(0, -1));
+    }
     if (pin.length >= PIN_LENGTH) return;
 
     const next = pin + key;
     setPin(next);
-    if (next.length === PIN_LENGTH) {
-      // Stage 4 replaces this with a server-side PIN check and rate limiting.
-      window.setTimeout(() => navigate(isParent ? '/parent' : '/child/home'), 220);
-    }
+    if (next.length === PIN_LENGTH) void submit(next);
   };
 
   return (
     <main className="screen screen--sky" style={{ paddingTop: 'var(--space-6)', maxWidth: 400 }}>
       <div style={{ display: 'grid', justifyItems: 'center', gap: 'var(--space-3)' }}>
-        {child ? (
-          <Avatar config={child.avatar} size={76} label={`${name} avatar`} />
+        {profile && profile.role === 'child' && profile.avatar ? (
+          <Avatar config={profile.avatar as AvatarConfig} size={76} label={`${name} avatar`} />
         ) : (
           <span className="iconbtn" style={{ width: 76, height: 76 }}>
             <Icon name="user" size={32} />
@@ -64,6 +129,16 @@ export function PinEntry() {
           ))}
         </div>
         <p className="visually-hidden" aria-live="polite">{`${pin.length} of ${PIN_LENGTH} digits entered`}</p>
+
+        {error && (
+          <p
+            role="alert"
+            className="badge badge--late"
+            style={{ textAlign: 'center', maxWidth: 320, lineHeight: 1.4, padding: 'var(--space-3)' }}
+          >
+            {error}
+          </p>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-3)' }}>
@@ -75,6 +150,7 @@ export function PinEntry() {
               className="btn btn--dark"
               style={{ minHeight: 62, fontSize: 'var(--text-xl)', borderRadius: 'var(--radius-md)' }}
               onClick={() => press(key)}
+              disabled={busy || locked}
               aria-label={key === 'back' ? 'Delete last digit' : key}
             >
               {key === 'back' ? <Icon name="close" size={20} /> : key}

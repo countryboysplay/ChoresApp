@@ -1,10 +1,13 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
 import { loadEnv, type Env } from './env.js';
 import { loggerOptions } from './logger.js';
 import { registerErrorHandler } from './errors.js';
+import { auth } from './auth/plugin.js';
+import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
 
 export const APP_VERSION = '0.1.0';
@@ -25,7 +28,40 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(sensible);
   await app.register(helmet, { contentSecurityPolicy: false });
 
-  // Stage 1: localhost only. Stage 16 adds the tunnel origin, Stage 17 the Pages origin.
+  // Fastify's built-in JSON parser rejects an empty body as malformed. Plenty of
+  // actions here are a bare POST with nothing to send - logout, claim a bonus
+  // chore, approve a submission - and the browser still labels those
+  // application/json. Treat an empty body as "no body" rather than an error.
+  app.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (_request, body, done) => {
+      const raw = typeof body === 'string' ? body.trim() : '';
+      if (raw === '') {
+        done(null, undefined);
+        return;
+      }
+      try {
+        done(null, JSON.parse(raw));
+      } catch {
+        done(app.httpErrors.badRequest('The request body is not valid JSON.'), undefined);
+      }
+    },
+  );
+
+  // A backstop for the whole API. Individual routes tighten this - see the PIN
+  // login, which is the one endpoint worth guessing at.
+  await app.register(rateLimit, {
+    max: 300,
+    timeWindow: '1 minute',
+    // The household shares one address, so a per-IP limit has to be generous
+    // enough for several people using the app at once.
+    keyGenerator: (request) => request.ip,
+  });
+
+  // In development the frontend is a separate Vite origin. In production the
+  // backend serves the built frontend from the same origin, so this list is
+  // only about dev and the Stage 16 tunnel hostname.
   await app.register(cors, {
     origin: env.CORS_ORIGINS,
     credentials: true,
@@ -33,6 +69,9 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   });
 
   registerErrorHandler(app);
+
+  await app.register(auth, { env });
+  await app.register(authRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
 
   app.decorate('env', env);

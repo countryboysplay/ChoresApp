@@ -11,6 +11,8 @@
  * single row.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { readdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 // Same type parsing the app uses. Without this the test would be asserting
 // against different JavaScript types than production sees.
@@ -97,13 +99,20 @@ afterAll(async () => {
 
 describeDb('migrations', () => {
   it('applied every migration in the folder', async () => {
+    // Compared against the directory rather than a hardcoded list, so adding a
+    // migration does not mean editing this test - and forgetting to run one
+    // still fails here.
+    const dir = fileURLToPath(new URL('../../migrations', import.meta.url));
+    const onDisk = (await readdir(dir))
+      .filter((file) => file.endsWith('.sql'))
+      .map((file) => file.replace(/\.sql$/, ''))
+      .sort();
+
     const { rows } = await pool.query<{ name: string }>('SELECT name FROM pgmigrations ORDER BY id');
-    expect(rows.map((r) => r.name)).toEqual([
-      '1755640000000_household-core',
-      '1755640100000_chores',
-      '1755640200000_points-and-rewards',
-      '1755640300000_achievements-and-notifications',
-    ]);
+    const applied = rows.map((r) => r.name).sort();
+
+    expect(onDisk.length).toBeGreaterThan(0);
+    expect(applied).toEqual(onDisk);
   });
 
   it('keeps exactly one settings row and refuses a second', async () => {

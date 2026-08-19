@@ -22,7 +22,9 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
-    files: ['scripts/**/*.mjs'],
+    // Console output is the interface of a script or a CLI, not a stray debug
+    // statement someone forgot to remove.
+    files: ['scripts/**/*.mjs', 'backend/src/cli/**/*.ts'],
     rules: { 'no-console': 'off' },
   },
   {
