@@ -29,7 +29,7 @@ export default tseslint.config(
     // These scripts drive a real browser. Callbacks passed to page.evaluate()
     // are serialized and run in the page, so they legitimately reference
     // document and window even though the file itself executes under Node.
-    files: ['scripts/screenshots.mjs', 'scripts/generate-icons.mjs'],
+    files: ['scripts/screenshots.mjs', 'scripts/generate-icons.mjs', 'scripts/review-sheet.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 );
