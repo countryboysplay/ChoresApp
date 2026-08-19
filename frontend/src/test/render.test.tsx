@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { App } from '../App';
 import { AuthProvider } from '../lib/auth';
@@ -134,29 +134,75 @@ describe('chore completion flow', () => {
 });
 
 describe('approval queue safety rule', () => {
-  it('locks Approve All until every photo has been opened', async () => {
-    const user = userEvent.setup();
-    renderScreen(
-      '/parent/approvals',
-      <>
-        <Route path="/parent/approvals" element={<ApprovalQueue />} />
-        <Route path="/parent/approvals/:submissionId" element={<div>review</div>} />
-      </>,
+  /** One pending submission, with control over whether its photo was opened. */
+  function queueWith(photosViewed: boolean[]) {
+    return {
+      pending: photosViewed.map((viewed, index) => ({
+        id: `sub-${index}`,
+        status: 'submitted',
+        choreDate: '2026-08-19',
+        choreName: `Chore ${index + 1}`,
+        choreIcon: 'kitchen',
+        choreKind: 'core',
+        child: { id: `child-${index}`, displayName: `Child ${index + 1}`, avatar: null },
+        submittedAt: new Date().toISOString(),
+        reviewedAt: null,
+        pointsValue: 10,
+        pointsAwarded: null,
+        punctual: false,
+        rejectionNote: null,
+        subtasksTotal: 3,
+        subtasksDone: 3,
+        photos: [{ id: `photo-${index}`, viewed }],
+      })),
+      reviewed: [],
+    };
+  }
+
+  function stubQueue(queue: unknown) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/api/parent/approvals')) {
+          return Promise.resolve(
+            new Response(JSON.stringify(queue), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+        }
+        // Everything else, including the auth check, stays offline.
+        return Promise.reject(new TypeError('fetch is disabled in tests'));
+      }),
     );
+  }
 
-    const bulk = await screen.findByRole('button', { name: /approve all/i });
-    expect(bulk).toBeDisabled();
+  it('locks Approve All while any photo is still unopened', async () => {
+    // The specification's guard against rubber-stamping work nobody looked at.
+    // Whether a photo has been opened is decided by the server - loading it is
+    // what marks it seen - so the screen reads that state rather than tracking
+    // its own clicks.
+    stubQueue(queueWith([true, false]));
+    renderScreen('/parent/approvals', <Route path="/parent/approvals" element={<ApprovalQueue />} />);
 
-    const thumbnails = screen.getAllByRole('button', { name: /view photo for/i });
-    await user.click(thumbnails[0]!);
-    await user.click(screen.getByRole('dialog', { name: /submitted photo/i }));
-    expect(screen.getByRole('button', { name: /approve all/i })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: /approve all/i })).toBeDisabled();
+    expect(screen.getByText(/open every photo before approving/i)).toBeInTheDocument();
+  });
 
-    for (const thumbnail of screen.getAllByRole('button', { name: /view photo for/i })) {
-      await user.click(thumbnail);
-      await user.click(screen.getByRole('dialog', { name: /submitted photo/i }));
-    }
-    expect(screen.getByRole('button', { name: /approve all/i })).toBeEnabled();
+  it('unlocks it once every photo has been opened', async () => {
+    stubQueue(queueWith([true, true]));
+    renderScreen('/parent/approvals', <Route path="/parent/approvals" element={<ApprovalQueue />} />);
+
+    expect(await screen.findByRole('button', { name: /approve all/i })).toBeEnabled();
+  });
+
+  it('offers nothing to approve when the queue is empty', async () => {
+    stubQueue({ pending: [], reviewed: [] });
+    renderScreen('/parent/approvals', <Route path="/parent/approvals" element={<ApprovalQueue />} />);
+
+    expect(await screen.findByText(/nothing waiting/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /approve all/i })).not.toBeInTheDocument();
   });
 });
 

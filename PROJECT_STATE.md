@@ -4,7 +4,7 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 6 — Camera capture and photo proof |
+| Current stage | Stage 7 — Parent approval |
 | Stage status | Built and tested; awaiting approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
@@ -12,9 +12,9 @@ _Last updated: 2026-08-19_
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
-| Database migration status | 5 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 113 passing (97 backend, 16 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
-| Last known good commit | `dd46173` — Stage 6 photo proof; CI and Pages green |
+| Database migration status | 6 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
+| Test status | 133 passing (115 backend, 18 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
+| Last known good commit | `24c14cd` — CI warnings and advisories cleared; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -139,16 +139,20 @@ and `http://<laptop-ip>:5173` also works.
 - **Three child screens are wired; the rest still run on mock data.** Home,
   missions, and chore detail read the API. Rewards, wallet, leaderboard,
   achievements, notifications, profile, and every parent screen are unchanged.
-- **Nothing awards points.** `points_ledger` is written by no code path yet, so
-  every balance is zero and the streak is zero. A submitted chore waits for a
-  parent, and the approval that creates those rows is Stage 7.
+- **Only the approval screens are wired on the parent side.** The queue and the
+  review screen read real submissions; the dashboard, schedule, chore wizard,
+  bonus, rewards, children, and settings screens are all still mock data.
+- **Nothing creates chores through the app.** Chore definitions and schedules
+  have to be inserted with SQL until the parent chore wizard is wired, so a real
+  household still cannot be set up without the terminal.
 - **The camera needs https or the laptop itself.** Browsers only expose
   `getUserMedia` in a secure context, so opening the dev server by its wifi
   address shows an explanation rather than a camera. Capture can be tested on the
   laptop today; phones get it when the Stage 16 tunnel provides https.
-- **No parent can review anything yet.** Submissions land in the database and the
-  approval queue screen is still mock data, so a submitted chore currently stays
-  submitted. Stage 7.
+- **Nothing marks a chore missed or excused.** A chore nobody finished simply
+  stays not-started; the dashboard's "excuse, carry over, or mark missed" actions
+  are not built. The streak calculation already treats excused as a pause, ready
+  for when they are.
 - **The household is empty.** `household_settings` has its single row with the
   money values correctly unset, and `users` has nobody in it. Create the first
   parent on the laptop:
@@ -185,26 +189,28 @@ and `http://<laptop-ip>:5173` also works.
 
 ## Next planned work
 
-**Stage 7 — Parent approval.** A chore can now be submitted, and nothing can
-act on it. This is the other half of the loop and the first code that writes to
-`points_ledger`.
+**Stage 8 — Rewards and the wallet.** The ledger now has real rows in it, which
+is what the wallet and the reward catalogue read.
 
-What Stage 7 has to settle:
+What Stage 8 has to settle:
 
-- **Approve, reject, and the note.** Rejecting requires a note - the schema
-  already refuses a rejection without one - and a rejected chore is reopened for
-  the child, who can already fix and resubmit it.
-- **What approval pays.** The chore's snapshotted `points_value`, plus the
-  punctuality bonus when it applies, written as ledger rows. The partial unique
-  index makes a double-tapped Approve unable to pay twice; the rule for when the
-  bonus applies is still undefined.
-- **The "every photo opened" gate.** `first_viewed_at` is already stamped when a
-  parent fetches a photo, so the queue can enforce it; the screen has to read it.
-- **Missed and excused.** The parent dashboard offers "excuse, carry over, or
-  mark missed" for a chore nobody finished. Nothing sets those statuses yet, and
-  the streak calculation already treats excused as a pause.
+- **Redeeming.** `reward_redemptions` and the ledger both exist; the flow that
+  reserves points, asks a parent, and refunds a denial does not.
+- **The points-to-dollars rate and cash-out minimum.** Still deliberately unset,
+  and the wallet still renders its "not configured" state. Cash-out cannot be
+  built past that screen until an owner supplies them.
+- **The weekly $40 cap.** `cash_out_requests.week_start` and
+  `householdWeekStart()` are both in place for it.
 
-Still deliberately unfinished, so it lands where it belongs:
+Also outstanding, and cheap now that approval works:
+
+- **Missed, excused, and carry-over.** The parent dashboard offers them for a
+  chore nobody finished. Nothing sets those statuses, and carry-over needs a rule
+  about what it does to the next day's list.
+- **Setting up a household through the app.** Chore definitions and schedules
+  still have to be inserted with SQL. Stage 10.
+
+Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:
 
 - **Points-to-dollars rate and cash-out minimum stay NULL.** The columns exist
   with no defaults and a test asserts they are unset, so the wallet keeps

@@ -8,6 +8,7 @@ import { loadEnv, type Env } from './env.js';
 import { loggerOptions } from './logger.js';
 import { registerErrorHandler } from './errors.js';
 import { auth } from './auth/plugin.js';
+import { approvalRoutes } from './routes/approvals.js';
 import { authRoutes } from './routes/auth.js';
 import { choreRoutes } from './routes/chores.js';
 import { photoRoutes } from './routes/photos.js';
@@ -80,6 +81,7 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(authRoutes, { env });
   await app.register(choreRoutes, { env });
   await app.register(photoRoutes, { env });
+  await app.register(approvalRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
 
   app.decorate('env', env);

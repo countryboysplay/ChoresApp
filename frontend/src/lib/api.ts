@@ -1,5 +1,9 @@
 import type {
   ApiError,
+  ApprovalQueueResponse,
+  ApproveAllResult,
+  ApproveResult,
+  SubmissionDetailResponse,
   ChildDayResponse,
   ChoreResponse,
   HealthResponse,
@@ -117,5 +121,27 @@ export const api = {
 
     submit: (instanceId: string) =>
       request<ChoreResponse>(`/api/chores/${instanceId}/submit`, { method: 'POST' }),
+  },
+
+  approvals: {
+    queue: () => request<ApprovalQueueResponse>('/api/parent/approvals'),
+
+    get: (instanceId: string) =>
+      request<SubmissionDetailResponse>(`/api/parent/approvals/${instanceId}`),
+
+    approve: (instanceId: string) =>
+      request<ApproveResult>(`/api/parent/approvals/${instanceId}/approve`, { method: 'POST' }),
+
+    approveAll: () =>
+      request<ApproveAllResult>('/api/parent/approvals/approve-all', { method: 'POST' }),
+
+    reject: (instanceId: string, note: string) =>
+      request<{ ok: true }>(`/api/parent/approvals/${instanceId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ note }),
+      }),
+
+    /** The photo endpoint marks a photo seen the first time a parent loads it. */
+    photoUrl: (photoId: string) => `${BASE_URL}/api/photos/${photoId}`,
   },
 };

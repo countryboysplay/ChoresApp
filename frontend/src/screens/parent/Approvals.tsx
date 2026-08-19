@@ -1,186 +1,163 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon } from '../../design/icons';
-import { Badge, Button, EmptyState, PointsPill, Segmented, Sheet } from '../../design/primitives';
+import type { Submission } from '@chore-quest/shared';
+import { Icon, type IconName } from '../../design/icons';
+import { Badge, Button, EmptyState, PointsPill, Segmented } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { relativeTime } from '../../config/format';
-import { pendingSubmissions } from '../../mock/data';
+import { api, ApiRequestError } from '../../lib/api';
 
-/**
- * Approve All is disabled until every thumbnail in the queue has been opened in
- * this session - the spec's safety rule against rubber-stamping unseen photos.
- */
 const TABS = ['Pending', 'Reviewed'] as const;
 
+/**
+ * The approval queue.
+ *
+ * Approve All stays disabled until every photo in the queue has been opened -
+ * the specification's rule against rubber-stamping work nobody looked at. The
+ * server enforces the same rule, so this is the courtesy version: it explains
+ * the block rather than letting the request fail.
+ */
 export function ApprovalQueue() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Pending');
-  const [viewed, setViewed] = useState<string[]>([]);
-  const [confirmBulk, setConfirmBulk] = useState(false);
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [pending, setPending] = useState<Submission[]>([]);
+  const [reviewed, setReviewed] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [working, setWorking] = useState(false);
 
-  const byChild = pendingSubmissions.reduce<Record<string, typeof pendingSubmissions>>((groups, item) => {
-    (groups[item.child] ??= []).push(item);
-    return groups;
-  }, {});
+  const load = useCallback(async () => {
+    try {
+      const queue = await api.approvals.queue();
+      setPending(queue.pending);
+      setReviewed(queue.reviewed);
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : 'Could not load the queue.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const allViewed = pendingSubmissions.every((item) => viewed.includes(item.id));
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const allViewed =
+    pending.length > 0 && pending.every((item) => item.photos.every((photo) => photo.viewed));
+
+  const approveAll = async () => {
+    setWorking(true);
+    try {
+      const result = await api.approvals.approveAll();
+      if (result.skipped.length > 0) {
+        setError(`${result.approved} approved. ${result.skipped.length} could not be.`);
+      }
+      await load();
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : 'That did not work.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const list = tab === 'Pending' ? pending : reviewed;
 
   return (
     <>
-      <ScreenTop
-        title="Approvals"
-        trailing={<Badge tone="waiting">{pendingSubmissions.length} pending</Badge>}
-      />
+      <ScreenTop title="Approvals" />
       <main className="screen screen--wide">
-        <Segmented options={TABS} value={tab} onChange={setTab} label="Approval queue" />
+        <Segmented options={TABS} value={tab} onChange={setTab} label="Queue" />
 
-        {tab === 'Reviewed' ? (
-          <div style={{ marginTop: 'var(--space-4)' }}>
+        {error && (
+          <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
+            {error}
+          </p>
+        )}
+
+        {loading ? (
+          <p aria-live="polite" style={{ textAlign: 'center', marginTop: 'var(--space-6)' }}>
+            Loading&hellip;
+          </p>
+        ) : list.length === 0 ? (
+          <div style={{ marginTop: 'var(--space-5)' }}>
             <EmptyState
               icon="check"
-              title="Nothing reviewed yet today"
-              message="Approved and rejected chores from the last 30 days show up here."
+              title={tab === 'Pending' ? 'Nothing waiting' : 'Nothing reviewed yet today'}
+              message={
+                tab === 'Pending'
+                  ? 'Chores appear here as soon as they are sent in.'
+                  : 'Approved and returned chores from today will show here.'
+              }
             />
           </div>
-        ) : pendingSubmissions.length === 0 ? (
-          <EmptyState icon="check" title="All caught up" message="No submissions are waiting." />
         ) : (
-          <>
-            {Object.entries(byChild).map(([child, items]) => (
-              <section key={child} style={{ margin: 'var(--space-5) 0' }}>
-                <h2 className="subtitle">{child}</h2>
-                <div className="stack stack--tight">
-                  {items.map((item) => (
-                    <article key={item.id} className="card row" style={{ gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        aria-label={`View photo for ${item.choreName}`}
-                        onClick={() => {
-                          setViewed((current) =>
-                            current.includes(item.id) ? current : [...current, item.id],
-                          );
-                          setLightbox(item.id);
-                        }}
-                        style={{
-                          width: 68,
-                          height: 68,
-                          borderRadius: 'var(--radius-md)',
-                          border: viewed.includes(item.id)
-                            ? '2px solid var(--green)'
-                            : '2px solid var(--outline)',
-                          background:
-                            'repeating-linear-gradient(45deg, rgba(255,255,255,0.06) 0 8px, rgba(255,255,255,0.02) 8px 16px)',
-                          color: 'var(--text-muted)',
-                          display: 'grid',
-                          placeItems: 'center',
-                        }}
-                      >
-                        <Icon name="camera" size={22} />
-                      </button>
+          <div className="stack" style={{ marginTop: 'var(--space-4)' }}>
+            {list.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="card card--interactive row"
+                style={{ gap: 'var(--space-3)', textAlign: 'left' }}
+                onClick={() => navigate(`/parent/approvals/${item.id}`)}
+              >
+                <span className="tile-icon tile-icon--gold tile-icon--sm">
+                  <Icon name={item.choreIcon as IconName} size={20} />
+                </span>
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <strong style={{ display: 'block' }}>{item.choreName}</strong>
-                        <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-                          {item.subtasksDone}/{item.subtasksTotal} subtasks · {item.photos} photo
-                          {item.photos > 1 ? 's' : ''} · {relativeTime(item.minutesAgo)}
-                        </span>
-                        <div className="row" style={{ gap: 'var(--space-2)', marginTop: 6 }}>
-                          <PointsPill value={item.points} small />
-                          {viewed.includes(item.id) ? (
-                            <Badge tone="done" icon="check">
-                              Photo viewed
-                            </Badge>
-                          ) : (
-                            <Badge tone="neutral">Not reviewed</Badge>
-                          )}
-                        </div>
-                      </div>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontWeight: 800, display: 'block' }}>{item.choreName}</span>
+                  <span className="muted" style={{ fontSize: 'var(--text-sm)', display: 'block' }}>
+                    {item.child.displayName} · {item.subtasksDone}/{item.subtasksTotal} steps ·{' '}
+                    {item.photos.length} photo{item.photos.length === 1 ? '' : 's'}
+                    {item.submittedAt ? ` · ${relativeTime(minutesSince(item.submittedAt))}` : ''}
+                  </span>
+                  <span style={{ display: 'inline-flex', gap: 'var(--space-2)', marginTop: 6 }}>
+                    {item.status === 'submitted' ? (
+                      item.photos.every((photo) => photo.viewed) ? (
+                        <Badge tone="done" icon="check">Photo viewed</Badge>
+                      ) : (
+                        <Badge tone="neutral">Not reviewed</Badge>
+                      )
+                    ) : item.status === 'approved' ? (
+                      <Badge tone="done" icon="check">Approved</Badge>
+                    ) : (
+                      <Badge tone="late" icon="alert">Sent back</Badge>
+                    )}
+                    {item.punctual && <Badge tone="bonus">On time</Badge>}
+                  </span>
+                </span>
 
-                      <span className="row" style={{ gap: 'var(--space-2)' }}>
-                        <Button
-                          size="sm"
-                          tone="go"
-                          sound="approve"
-                          onClick={() => navigate(`/parent/approvals/${item.id}`)}
-                        >
-                          Approve
-                        </Button>
-                        <Button size="sm" tone="stop" onClick={() => navigate(`/parent/approvals/${item.id}`)}>
-                          Reject
-                        </Button>
-                      </span>
-                    </article>
-                  ))}
-                </div>
-              </section>
+                <PointsPill value={item.pointsAwarded ?? item.pointsValue} small />
+                <Icon name="chevron" size={18} />
+              </button>
             ))}
+          </div>
+        )}
 
+        {tab === 'Pending' && pending.length > 0 && (
+          <div style={{ marginTop: 'var(--space-5)' }}>
+            {!allViewed && (
+              <p className="muted" style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--space-2)' }}>
+                Open every photo before approving them all at once.
+              </p>
+            )}
             <Button
               tone="go"
               size="lg"
               block
-              disabled={!allViewed}
-              onClick={() => setConfirmBulk(true)}
+              disabled={!allViewed || working}
+              onClick={() => void approveAll()}
             >
-              Approve all ({pendingSubmissions.length})
+              {working ? 'Approving…' : `Approve all (${pending.length})`}
             </Button>
-            {!allViewed && (
-              <p className="muted" style={{ fontSize: 'var(--text-sm)', textAlign: 'center' }}>
-                Open every photo first. Approve All stays locked until you have seen them all.
-              </p>
-            )}
-          </>
+          </div>
         )}
       </main>
-
-      {lightbox && (
-        <div
-          className="sheet-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Submitted photo"
-          style={{ alignItems: 'center' }}
-          onClick={() => setLightbox(null)}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 720,
-              aspectRatio: '4 / 3',
-              borderRadius: 'var(--radius-lg)',
-              background:
-                'repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0 18px, rgba(255,255,255,0.03) 18px 36px)',
-              display: 'grid',
-              placeItems: 'center',
-              color: 'var(--text-muted)',
-            }}
-          >
-            <p style={{ fontSize: 'var(--text-sm)' }}>Tap anywhere to close</p>
-          </div>
-        </div>
-      )}
-
-      {confirmBulk && (
-        <Sheet
-          title="Approve everything?"
-          onClose={() => setConfirmBulk(false)}
-          footer={
-            <div className="row" style={{ gap: 'var(--space-3)' }}>
-              <Button tone="quiet" block onClick={() => setConfirmBulk(false)}>
-                Cancel
-              </Button>
-              <Button tone="go" block sound="approve" onClick={() => setConfirmBulk(false)}>
-                Approve all
-              </Button>
-            </div>
-          }
-        >
-          <p style={{ marginTop: 0 }}>
-            This approves {pendingSubmissions.length} submissions and awards their points at once.
-          </p>
-        </Sheet>
-      )}
     </>
   );
+}
+
+function minutesSince(iso: string): number {
+  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
 }

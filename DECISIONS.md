@@ -524,3 +524,72 @@ the screen says so plainly instead of offering a button that fails on tap.
 Testing capture means the laptop itself, or waiting for the Stage 16 tunnel to
 provide https. Submission is blocked without a photo, enforced on the server,
 so a browser that cannot open the camera cannot complete a chore either.
+
+---
+
+## 2026-08-19 — The punctuality bonus is decided at submission, and stored
+
+**Decision.** A chore earns the punctuality bonus when the child sends it in
+before `household_settings.reminder_time` on its own chore day. That is worked
+out at submission and written to `chore_instances.submitted_punctual`, not
+recomputed when a parent reviews.
+
+**Reason.** Owner decision, 2026-08-19. It puts the bonus entirely inside the
+child's control: it depends on when they finished, not on when a parent got
+round to looking. Tying it to approval instead would mean a child who finished at
+six loses points because nobody opened the app that evening. Storing rather than
+recomputing matters for the same reason a parent can change `reminder_time` -
+recalculating later would silently rewrite whether chores already sent in were
+on time.
+
+**Consequences.** `reminder_time` is now load-bearing rather than only a
+notification setting, and the 8:45pm reminder means something concrete: it fires
+as the bonus is about to be lost. `escalation_time` stays the separate
+"still not done" alert. Submitting a previous day's chore is never punctual
+however early in the evening it happens.
+
+---
+
+## 2026-08-19 — Approval is the only thing that writes to the ledger
+
+**Decision.** `POST /api/parent/approvals/:id/approve` sets the status, records
+the award, and writes the ledger rows in one transaction, with the chore row
+locked for the duration. The award and the punctuality bonus are separate ledger
+rows.
+
+**Reason.** Points with no history, or history with no points, is exactly the
+drift the ledger decision exists to prevent - so it cannot be two operations.
+The row lock is because two parents can both be looking at the queue on their own
+phones; without it both see `submitted` and both pay. Separate rows because the
+wallet has to be able to say why one approved chore paid more than the same chore
+did yesterday.
+
+**Consequences.** Approving is a write to four things and is not idempotent by
+accident - it is idempotent by the status check plus the partial unique index on
+`(chore_instance_id, reason)`, which means even a bug that got past the status
+check could not pay twice. Approve All runs each chore in its own transaction and
+reports what it skipped, so one problem does not roll back the approvals that
+already worked.
+
+---
+
+## 2026-08-19 — Approval requires the photo to have been opened
+
+**Decision.** The server refuses to approve a chore that has a photo nobody has
+opened, and the queue's Approve All button is disabled until every photo in it
+has been. Rejection requires a note, clears the checklist, and the old photo no
+longer counts as proof of the fix.
+
+**Reason.** The specification's rule against rubber-stamping. Disabling a button
+is not enforcement, and the review screen loads the photo - which is what marks
+it seen - so reaching the screen is what unlocks approval. On the other side,
+"do it again" with no reason is the thing that makes a child give up, and the
+screen already promises "check everything again and take a new photo", so both
+have to be true rather than decorative.
+
+**Consequences.** A parent cannot approve from the queue without opening each
+submission, which is the intent. Photos taken before a rejection are kept as a
+record but cannot satisfy the resubmission - the submit route only counts proof
+created after `reviewed_at`. Clearing the checklist loses the record of what was
+ticked on the first attempt; the photos and the note remain as the history of
+that round.

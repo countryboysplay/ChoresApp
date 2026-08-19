@@ -91,3 +91,43 @@ export function isoWeekdayFor(date: string): number {
 export function householdWeekStart(date: string): string {
   return addHouseholdDays(date, -(isoWeekdayFor(date) - 1));
 }
+
+/**
+ * Local wall-clock time in the household zone, as minutes since midnight.
+ * Used to compare an instant against a setting like the 8:45pm reminder.
+ */
+export function householdMinutesOfDay(timeZone: string, instant: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(instant);
+
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? '0');
+  // Intl reports midnight as hour 24 in some engines.
+  const hour = get('hour') === 24 ? 0 : get('hour');
+  return hour * 60 + get('minute');
+}
+
+/** Parses a Postgres `time` value, "20:45:00", into minutes since midnight. */
+export function minutesFromClockTime(value: string): number {
+  const [hours = '0', minutes = '0'] = value.split(':');
+  return Number(hours) * 60 + Number(minutes);
+}
+
+/**
+ * Was this submitted before the household's reminder time, on its own chore day?
+ *
+ * Submitting a chore for a previous day is never punctual however early in the
+ * evening it happens - the deadline belonged to that day, and it has passed.
+ */
+export function isPunctual(
+  timeZone: string,
+  choreDate: string,
+  reminderTime: string,
+  submittedAt: Date = new Date(),
+): boolean {
+  if (householdToday(timeZone, submittedAt) !== choreDate) return false;
+  return householdMinutesOfDay(timeZone, submittedAt) < minutesFromClockTime(reminderTime);
+}

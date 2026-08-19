@@ -157,3 +157,61 @@ export interface InvalidPinDetails {
 export interface PinLockedDetails {
   retryAfterSeconds: number;
 }
+
+/** One chore waiting for, or just finished with, a parent's review. */
+export interface Submission {
+  id: string;
+  status: ChoreStatus;
+  choreDate: string;
+  choreName: string;
+  choreIcon: string;
+  choreKind: ChoreKind;
+  child: { id: string; displayName: string; avatar: unknown };
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  pointsValue: number;
+  /** Null until approved. Includes the punctuality bonus when one applied. */
+  pointsAwarded: number | null;
+  /** Frozen when the child submitted, not recomputed at review time. */
+  punctual: boolean | null;
+  rejectionNote: string | null;
+  subtasksTotal: number;
+  subtasksDone: number;
+  photos: { id: string; viewed: boolean }[];
+}
+
+export interface ApprovalQueueResponse {
+  pending: Submission[];
+  /** Reviewed today, for the queue's second tab. */
+  reviewed: Submission[];
+}
+
+export interface SubmissionDetail {
+  id: string;
+  status: ChoreStatus;
+  choreDate: string;
+  choreName: string;
+  choreIcon: string;
+  child: { id: string; displayName: string; avatar: unknown };
+  submittedAt: string | null;
+  pointsValue: number;
+  punctual: boolean | null;
+  /** What the bonus would add, already zero when the submission was late. */
+  bonusPoints: number;
+  rejectionNote: string | null;
+  subtasks: { id: string; title: string; instruction: string | null; done: boolean }[];
+  photos: { id: string; viewed: boolean }[];
+}
+
+export interface SubmissionDetailResponse {
+  submission: SubmissionDetail;
+}
+
+export interface ApproveResult {
+  result: { awarded: number; bonus: number };
+}
+
+export interface ApproveAllResult {
+  approved: number;
+  skipped: { id: string; reason: string }[];
+}

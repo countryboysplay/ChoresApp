@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { Env } from '../env.js';
 import { getPool } from '../db.js';
 import { choreForChild } from '../chores/queries.js';
+import { isPunctual } from '../time.js';
 import {
   MAX_PHOTO_BYTES,
   MIME_FOR,
@@ -183,17 +184,25 @@ export async function photoRoutes(app: FastifyInstance, opts: { env: Env }): Pro
       const db = pool();
       const { rows } = await db.query<{
         status: string;
+        chore_date: string;
         total: number;
         done: number;
-        photos: number;
+        fresh_photos: number;
+        reminder_time: string;
       }>(
         `SELECT ci.status,
+                ci.chore_date::text AS chore_date,
                 (SELECT count(*)::int FROM chore_instance_subtasks s
                   WHERE s.chore_instance_id = ci.id) AS total,
                 (SELECT count(*)::int FROM chore_instance_subtasks s
                   WHERE s.chore_instance_id = ci.id AND s.done) AS done,
+                -- After a rejection, only proof taken since counts. Old photos
+                -- are kept as a record but cannot stand in for the new one the
+                -- child was asked to take.
                 (SELECT count(*)::int FROM chore_photos p
-                  WHERE p.chore_instance_id = ci.id) AS photos
+                  WHERE p.chore_instance_id = ci.id
+                    AND (ci.reviewed_at IS NULL OR p.created_at > ci.reviewed_at)) AS fresh_photos,
+                (SELECT reminder_time::text FROM household_settings) AS reminder_time
            FROM chore_instances ci
           WHERE ci.id = $1 AND ci.assigned_to = $2`,
         [instanceId, session.user.id],
@@ -207,15 +216,24 @@ export async function photoRoutes(app: FastifyInstance, opts: { env: Env }): Pro
       if (chore.total > 0 && chore.done < chore.total) {
         throw app.httpErrors.badRequest('Finish every step before sending this for review.');
       }
-      if (chore.photos === 0) {
-        throw app.httpErrors.badRequest('Add a photo of your finished work.');
+      if (chore.fresh_photos === 0) {
+        throw app.httpErrors.badRequest(
+          chore.status === 'rejected'
+            ? 'Take a new photo of the fixed work.'
+            : 'Add a photo of your finished work.',
+        );
       }
+
+      // Decided now and stored, not recomputed at approval: a parent may not
+      // look until morning, and reminder_time can change in the meantime.
+      const punctual = isPunctual(env.HOUSEHOLD_TZ, chore.chore_date, chore.reminder_time);
 
       await db.query(
         `UPDATE chore_instances
-            SET status = 'submitted', submitted_at = now(), rejection_note = NULL
+            SET status = 'submitted', submitted_at = now(), rejection_note = NULL,
+                submitted_punctual = $3
           WHERE id = $1 AND assigned_to = $2`,
-        [instanceId, session.user.id],
+        [instanceId, session.user.id, punctual],
       );
 
       const updated = await choreForChild(db, session.user.id, instanceId);
