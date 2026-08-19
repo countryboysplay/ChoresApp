@@ -35,11 +35,15 @@ jobs:
       TEST_DATABASE_URL: postgres://chore_quest:chore_quest@127.0.0.1:5432/chore_quest_test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          # Matches the laptop, which is what actually runs this backend. CI was
+          # on 22 while the machine serving the household ran 24 - so the runtime
+          # differences that bite (the .cmd spawn change, date parsing) were
+          # being tested on a version nobody uses.
+          node-version: 24
           cache: npm
 
       - name: Install dependencies

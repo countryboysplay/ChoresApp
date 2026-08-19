@@ -13,8 +13,8 @@ _Last updated: 2026-08-19_
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
 | Database migration status | 5 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 112 passing (96 backend, 16 frontend); typecheck, lint, and build clean; CI green |
-| Last known good commit | `ad8ff20` — Stage 5 chore API; CI and Pages green |
+| Test status | 113 passing (97 backend, 16 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
+| Last known good commit | `dd46173` — Stage 6 photo proof; CI and Pages green |
 
 ## Stage 0 findings
 

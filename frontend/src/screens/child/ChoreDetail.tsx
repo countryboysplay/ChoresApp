@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icon, type IconName } from '../../design/icons';
-import { Badge, Button, CheckItem, Meter, PointsPill } from '../../design/primitives';
+import { Button, CheckItem, Meter, PointsPill } from '../../design/primitives';
 import { CameraCapture } from '../../components/CameraCapture';
 import { ScreenTop } from '../../components/ScreenTop';
 import { playSound } from '../../design/sound';

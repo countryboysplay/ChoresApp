@@ -15,7 +15,6 @@ import { buildApp } from '../app.js';
 import { loadEnv } from '../env.js';
 import { hashPin } from '../auth/pin.js';
 import { SESSION_COOKIE } from '../auth/plugin.js';
-import { ensureDaysMaterialized } from '../chores/materialize.js';
 import { detectFormat, resolveStoredPath, storePhoto } from '../photos/storage.js';
 
 /** Smallest bytes that still sniff as each format. */

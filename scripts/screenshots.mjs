@@ -74,7 +74,14 @@ for (const vp of VIEWPORTS) {
     const page = await context.newPage();
     const messages = [];
     page.on('console', (m) => {
-      if (m.type() === 'error') messages.push(m.text());
+      if (m.type() !== 'error') return;
+      const text = m.text();
+      // A signed-out visitor gets 401 from /api/auth/me, and a preview build
+      // with no backend gets a refused connection. Both are the app working as
+      // designed. Reporting them trains whoever reads this output to skim past
+      // the line that actually matters.
+      if (/(^|\D)401(\D|$)|ERR_CONNECTION_REFUSED|Failed to load resource/.test(text)) return;
+      messages.push(text);
     });
 
     try {
