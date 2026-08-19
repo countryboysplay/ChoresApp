@@ -1,6 +1,6 @@
 # Chore Quest — Project State
 
-_Last updated: 2026-08-18_
+_Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
@@ -9,10 +9,12 @@ _Last updated: 2026-08-18_
 | Last approved stage | Stage 1 — Frontend/backend scaffold |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
-| Production URL | None yet — GitHub Pages lands in Stage 17 (repo `ChoresApp`, base `/ChoresApp/`) |
-| Database migration status | No schema yet — Stage 3 |
-| Test status | 20 passing (5 backend, 15 frontend) on the laptop; typecheck clean |
-| Last known good commit | Not yet committed — repo not initialized on the Windows laptop |
+| Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
+| Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend |
+| Production URL | None yet — a real deployment still lands in Stage 17 |
+| Database migration status | No schema yet — Stage 3. Empty `chore_quest` database is provisioned and waiting |
+| Test status | 20 passing (5 backend, 15 frontend) on the laptop; typecheck, lint, and build clean; CI green |
+| Last known good commit | `41dfbe1` — Stage 0 prerequisites, first commit pushed from the laptop |
 
 ## Stage 0 findings
 
@@ -117,7 +119,12 @@ and `http://<laptop-ip>:5173` also works.
 ## Known issues
 
 - `database` in the health response is hardcoded to `not_configured` until Stage 3.
-- No lockfile has been committed from the Windows laptop yet.
+  PostgreSQL is running and `DATABASE_URL` is set; the route simply does not read
+  it yet.
+- The repository is **public**. It carries no secrets — CI fails the build if a
+  `.env`, `.pem`, or `.key` is ever tracked — and the mock data uses `Child 1` /
+  `Parent 1` placeholders rather than real names. Worth re-checking before any
+  real household data goes anywhere near the frontend.
 - Camera, photo, and pinch-zoom areas are placeholders with the correct states and
   copy; real `getUserMedia` capture is Stage 6.
 - Playwright screenshots could not be produced in the build environment (no
