@@ -1,6 +1,9 @@
 import type {
   ApiError,
   ApprovalQueueResponse,
+  ChoreResolution,
+  DashboardResponse,
+  ScheduleResponse,
   ChoreDefinitionsResponse,
   MembersResponse,
   SettingsResponse,
@@ -199,6 +202,19 @@ export const api = {
 
   wallet: {
     mine: () => request<WalletResponse>('/api/child/wallet'),
+  },
+
+  dashboard: {
+    load: () => request<DashboardResponse>('/api/parent/dashboard'),
+
+    schedule: () => request<ScheduleResponse>('/api/parent/schedule'),
+
+    /** Excuse, carry over, or record as missed. The only way a chore is missed. */
+    resolve: (instanceId: string, outcome: ChoreResolution) =>
+      request<{ result: { outcome: ChoreResolution; carriedTo: string | null } }>(
+        `/api/parent/chores/${instanceId}/resolve`,
+        { method: 'POST', body: JSON.stringify({ outcome }) },
+      ),
   },
 
   household: {

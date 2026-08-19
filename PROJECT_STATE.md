@@ -4,7 +4,7 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 10 — Household setup in the app |
+| Current stage | Stage 11 — Parent dashboard and schedule |
 | Stage status | Built and tested; awaiting approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
@@ -13,8 +13,8 @@ _Last updated: 2026-08-19_
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
 | Database migration status | 8 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 180 passing (162 backend, 18 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
-| Last known good commit | `9aec1f2` — Stage 9 bonus chores; CI and Pages green |
+| Test status | 191 passing (173 backend, 18 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
+| Last known good commit | `b6d593b` — Stage 10 household setup; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -139,9 +139,14 @@ and `http://<laptop-ip>:5173` also works.
 - **Three child screens are wired; the rest still run on mock data.** Home,
   missions, and chore detail read the API. Rewards, wallet, leaderboard,
   achievements, notifications, profile, and every parent screen are unchanged.
-- **Parent side: only the dashboard and the schedule screen are still mock.**
-  Approvals, rewards, the bonus board, the chore wizard, the household screen,
-  and settings all read and write real data.
+- **Every parent screen now reads real data.** Nothing on the parent side is
+  mock any more.
+- **Some child screens are still mock:** leaderboard, achievements,
+  notifications, and the avatar builder on the profile screen. Home, missions,
+  chore detail, rewards, and the wallet are all real.
+- **A streak can overstate.** Unresolved days pause rather than break, so a
+  household that never opens the parent app keeps every streak alive. That is
+  the deliberate trade for never punishing a child over an adult's inattention.
 - **Cash-out is inert by design.** The points-to-dollars rate and minimum balance
   are still unset, so the wallet renders its "turned off" panel. Setting both in
   Settings turns it on with no code change; nothing else in the wallet is
@@ -209,19 +214,27 @@ To start using it, on the laptop:
 4. Optionally set the points-to-dollars rate and cash-out minimum in Settings.
    Leaving them unset keeps cash-out off, which is a valid way to run.
 
-**Stage 11 — The parent dashboard**, which is the last screen still entirely on
-mock data. It is a reading of things that already exist: what is waiting for
-review, who is behind, the week's activity, and the "needs attention" list.
+**Stage 12 — Reminders and notifications.** The `notifications` table has
+existed since Stage 3 and nothing writes to it. `reminder_time` and
+`escalation_time` are both set and only one of them means anything so far.
 
 What it has to settle:
 
-- **Missed, excused, and carry-over.** The dashboard offers these for a chore
-  nobody finished, and nothing sets those statuses yet. Carry-over needs a rule
-  about what it does to the next day's list.
-- **The schedule screen**, `#/parent/schedule`, which should show what each child
-  owes across the week now that schedules are real.
+- **What runs the clock.** Every other time-sensitive thing in this app is lazy,
+  because the laptop sleeps. A reminder is the first feature that genuinely needs
+  something to happen when nobody is looking, so it needs a scheduler and a
+  catch-up rule for a machine that was asleep at 8:45pm.
+- **What each reminder says**, and who gets it: the child who has not finished, a
+  parent, or both at escalation.
+- **Whether an in-app inbox is enough** for now, given push notifications are
+  Stage 13 and need the service worker from Stage 14.
 
-Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:
+Also outstanding:
+
+- **The remaining child screens** — leaderboard, achievements, notifications, and
+  the avatar builder — which are readings of data that already exists.
+
+Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:
 
 - **Points-to-dollars rate and cash-out minimum stay NULL.** The columns exist
   with no defaults and a test asserts they are unset, so the wallet keeps

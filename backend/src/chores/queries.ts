@@ -180,19 +180,24 @@ export async function childSummary(
 /**
  * Consecutive days, counting back, where every core chore was approved.
  *
- * Today is skipped when it is still unfinished: a streak should not read as
- * broken at breakfast just because the day's chores have not been done yet. An
- * excused day does not break the streak but does not extend it either, which is
- * what "paused" means on the streak calendar.
+ * Only a day a parent has actually marked `missed` breaks a streak. A day left
+ * unresolved - nobody finished it and no parent has looked yet - pauses instead:
+ * it neither extends the streak nor ends it. Breaking on an unresolved day would
+ * mean a child losing a fortnight's streak because a parent was busy on Tuesday,
+ * which is a penalty nobody chose to apply.
+ *
+ * An excused day pauses for the same reason, and a rejected chore is still open
+ * work the child can fix and resend, so it pauses too. Today is naturally
+ * unresolved for most of the day and is covered by the same rule.
  */
 async function streakLength(db: pg.Pool, childId: string, today: string): Promise<number> {
   const { rows } = await db.query<{ chore_date: string; state: string }>(
     `SELECT ci.chore_date::text AS chore_date,
             CASE
               WHEN bool_and(ci.status = 'approved') THEN 'done'
-              WHEN bool_and(ci.status IN ('approved', 'excused')) THEN 'paused'
-              WHEN bool_or(ci.status IN ('missed', 'rejected')) THEN 'broken'
-              ELSE 'pending'
+              -- A decision by a person, and the only thing that ends a streak.
+              WHEN bool_or(ci.status = 'missed') THEN 'broken'
+              ELSE 'paused'
             END AS state
        FROM chore_instances ci
        JOIN chore_definitions d ON d.id = ci.chore_definition_id
@@ -210,14 +215,9 @@ async function streakLength(db: pg.Pool, childId: string, today: string): Promis
 
   for (const row of rows) {
     if (row.chore_date !== expected) break; // a day with no chores at all ends it
-    if (row.state === 'pending') {
-      // Only tolerated for today, which is still in progress.
-      if (row.chore_date !== today) break;
-    } else if (row.state === 'done') {
-      streak += 1;
-    } else if (row.state !== 'paused') {
-      break;
-    }
+    if (row.state === 'broken') break;
+    if (row.state === 'done') streak += 1;
+    // 'paused' falls through: it carries the count back without adding to it.
     expected = addHouseholdDays(expected, -1);
   }
 

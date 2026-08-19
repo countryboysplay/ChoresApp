@@ -60,10 +60,42 @@ describe('routing', () => {
     expect(screen.getByRole('button', { name: /continue chore/i })).toBeInTheDocument();
   });
 
-  it('renders the parent dashboard with both children', async () => {
+  it('shows the parent dashboard once its data arrives', async () => {
+    // The dashboard reads real household data now, so the screen is exercised
+    // against a stubbed response rather than the Stage 2 mock module.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        if (String(input).includes('/api/parent/dashboard')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                today: '2026-08-19',
+                weekStart: '2026-08-17',
+                children: [
+                  { id: 'a', displayName: 'Child 1', avatar: null, balance: 240, weekPoints: 84 },
+                  { id: 'b', displayName: 'Child 2', avatar: null, balance: 95, weekPoints: 62 },
+                ],
+                counts: {
+                  pendingApprovals: 3,
+                  pendingRewardRequests: 1,
+                  choresDoneThisWeek: 7,
+                  choresDueThisWeek: 14,
+                },
+                needsAttention: [],
+                weekActivity: [],
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ),
+          );
+        }
+        return Promise.reject(new TypeError('fetch is disabled in tests'));
+      }),
+    );
+
     renderAt('/parent');
     expect(await screen.findByRole('heading', { name: 'Needs attention' })).toBeInTheDocument();
-    expect(screen.getByText('Pending approvals')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for review')).toBeInTheDocument();
     expect(screen.getByText('Child 1')).toBeInTheDocument();
     expect(screen.getByText('Child 2')).toBeInTheDocument();
   });

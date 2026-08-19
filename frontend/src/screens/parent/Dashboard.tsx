@@ -1,252 +1,217 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Avatar } from '../../design/Avatar';
+import type { ChoreResolution, DashboardResponse, UnresolvedChore } from '@chore-quest/shared';
+import type { AvatarConfig } from '../../design/Avatar';
+import { Avatar, DEFAULT_AVATAR } from '../../design/Avatar';
 import { Icon, type IconName } from '../../design/icons';
-import { Badge, Button, Meter, PointsPill, Sheet, StatRow } from '../../design/primitives';
+import { Badge, Button, EmptyState, PointsPill, Sheet, StatRow } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
-import { relativeTime } from '../../config/format';
-import {
-  children,
-  coreChores,
-  needsAttention,
-  pendingSubmissions,
-  weekActivity,
-  type AttentionItem,
-} from '../../mock/data';
-import { StatusBadge } from '../child/choreStatus';
+import { api, ApiRequestError } from '../../lib/api';
 
-const KIND_ICON: Record<AttentionItem['kind'], IconName> = {
-  approval: 'camera',
-  missed: 'alert',
-  cash_out: 'coin',
-  reward: 'gift',
-};
-
+/**
+ * The parent dashboard.
+ *
+ * "Needs attention" lists chores from a day that has passed which nobody
+ * finished and nobody has decided about. They sit there until a parent picks
+ * one of three outcomes - nothing here becomes `missed` by itself, because a
+ * busy Tuesday should not cost a child their streak.
+ */
 export function ParentDashboard() {
   const navigate = useNavigate();
-  const [quickCreate, setQuickCreate] = useState(false);
-  const [quickAction, setQuickAction] = useState<AttentionItem | null>(null);
+  const [data, setData] = useState<DashboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deciding, setDeciding] = useState<UnresolvedChore | null>(null);
+  const [working, setWorking] = useState(false);
 
-  const weekPoints = children.reduce((total, child) => total + child.weekPoints, 0);
-  const choresDone = Object.values(weekActivity)
-    .flat()
-    .reduce((total, day) => total + day.approved, 0);
-  const bonusExpiring = 2;
+  const load = useCallback(async () => {
+    try {
+      setData(await api.dashboard.load());
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : 'Could not load the dashboard.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const resolve = async (outcome: ChoreResolution) => {
+    if (!deciding) return;
+    setWorking(true);
+    try {
+      await api.dashboard.resolve(deciding.id, outcome);
+      setDeciding(null);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : 'That did not work.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  if (loading || !data) {
+    return (
+      <main className="screen screen--wide">
+        <p aria-live="polite" style={{ textAlign: 'center', marginTop: 'var(--space-6)' }}>
+          {error ?? 'Loading…'}
+        </p>
+      </main>
+    );
+  }
+
+  const { counts } = data;
 
   return (
     <>
-      <ScreenTop
-        title="Welcome back"
-        trailing={
-          <Button size="sm" tone="primary" icon="plus" onClick={() => setQuickCreate(true)}>
-            Create
-          </Button>
-        }
-      />
+      <ScreenTop title="Home" />
       <main className="screen screen--wide">
-        {/* Household summary */}
-        <div className="stack stack--tight">
-          <StatRow icon="trophy" tone="gold" label="Total points this week" value={weekPoints.toLocaleString('en-US')} />
-          <StatRow icon="check" tone="green" label="Chores completed" value={`${choresDone} / 14`} />
-          <StatRow
-            icon="camera"
-            tone="red"
-            label="Pending approvals"
-            value={String(pendingSubmissions.length)}
-            onClick={() => navigate('/parent/approvals')}
-          />
-          <StatRow
-            icon="star"
-            tone="purple"
-            label="Bonus expiring"
-            value={String(bonusExpiring)}
-            onClick={() => navigate('/parent/bonus')}
-          />
-        </div>
+        {error && (
+          <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-3)' }}>
+            {error}
+          </p>
+        )}
 
-        {/* Needs attention */}
+        <section className="stack stack--tight" style={{ marginTop: 'var(--space-3)' }}>
+          <StatRow
+            icon="check"
+            tone="green"
+            label="Chores done this week"
+            value={`${counts.choresDoneThisWeek} / ${counts.choresDueThisWeek}`}
+          />
+          <Link to="/parent/approvals" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <StatRow
+              icon="inbox"
+              tone="blue"
+              label="Waiting for review"
+              value={String(counts.pendingApprovals)}
+            />
+          </Link>
+          <Link to="/parent/rewards" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <StatRow
+              icon="gift"
+              tone="purple"
+              label="Reward requests"
+              value={String(counts.pendingRewardRequests)}
+            />
+          </Link>
+        </section>
+
         <section style={{ marginTop: 'var(--space-5)' }}>
-          <div className="row row--between" style={{ marginBottom: 'var(--space-3)' }}>
-            <h2 className="subtitle">Needs attention</h2>
-            <Link to="/parent/approvals" className="btn btn--quiet btn--sm">
-              View all
-            </Link>
-          </div>
-          <div className="stack stack--tight">
-            {needsAttention.slice(0, 3).map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`card card--interactive card--status ${item.urgency === 'high' ? 'is-late' : item.urgency === 'medium' ? 'is-waiting' : 'is-info'} row`}
-                onClick={() =>
-                  item.kind === 'approval' ? navigate('/parent/approvals') : setQuickAction(item)
-                }
-              >
-                <span
-                  className={`tile-icon tile-icon--sm ${item.urgency === 'high' ? 'tile-icon--red' : item.urgency === 'medium' ? 'tile-icon--gold' : 'tile-icon--blue'}`}
+          <h2 className="subtitle">Needs attention</h2>
+          {data.needsAttention.length === 0 ? (
+            <EmptyState
+              icon="check"
+              title="Nothing outstanding"
+              message="Chores nobody finished on a past day show up here."
+            />
+          ) : (
+            <div className="stack stack--tight">
+              {data.needsAttention.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="card card--interactive card--status is-waiting row"
+                  style={{ gap: 'var(--space-3)', textAlign: 'left' }}
+                  onClick={() => setDeciding(item)}
                 >
-                  <Icon name={KIND_ICON[item.kind]} size={20} />
-                </span>
+                  <span className="tile-icon tile-icon--gold tile-icon--sm">
+                    <Icon name={item.choreIcon as IconName} size={20} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontWeight: 800, display: 'block' }}>
+                      {item.choreName} not finished
+                    </span>
+                    <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
+                      {item.child.displayName} ·{' '}
+                      {new Date(`${item.choreDate}T12:00:00`).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </span>
+                  <Badge tone="waiting">Decide</Badge>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section style={{ marginTop: 'var(--space-5)' }}>
+          <h2 className="subtitle">The kids</h2>
+          <div className="stack stack--tight">
+            {data.children.map((child) => (
+              <div key={child.id} className="card row" style={{ gap: 'var(--space-3)' }}>
+                <Avatar
+                  config={(child.avatar as AvatarConfig | null) ?? DEFAULT_AVATAR}
+                  size={48}
+                  label={`${child.displayName} avatar`}
+                />
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ display: 'block' }}>{item.title}</strong>
+                  <span style={{ fontWeight: 800, display: 'block' }}>{child.displayName}</span>
                   <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-                    {item.child} · {item.detail} · {relativeTime(item.minutesAgo)}
+                    {child.weekPoints} points this week
                   </span>
                 </span>
-                <Icon name="chevron" size={18} />
-              </button>
+                <PointsPill value={child.balance} small />
+              </div>
             ))}
           </div>
         </section>
 
-        {/* Per-child status */}
-        <div className="grid-parent" style={{ marginTop: 'var(--space-5)' }}>
-          {children.map((child) => {
-            const chore = coreChores.find((entry) => entry.id === child.todayChoreId)!;
-            const done = chore.subtasks.filter((task) => task.done).length;
-            const week = weekActivity[child.id] ?? [];
-            const maxPoints = Math.max(...week.map((day) => day.points), 1);
-
-            return (
-              <article key={child.id} className="card stack">
-                <button
-                  type="button"
-                  className="row"
-                  style={{ background: 'none', border: 'none', color: 'inherit', padding: 0, textAlign: 'left' }}
-                  onClick={() => navigate('/parent/children')}
-                >
-                  <Avatar config={child.avatar} size={52} label={`${child.name} avatar`} />
-                  <span style={{ flex: 1 }}>
-                    <strong style={{ display: 'block' }}>{child.name}</strong>
-                    <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-                      {child.streakDays} day streak
-                    </span>
-                  </span>
-                  <PointsPill value={child.spendablePoints} small />
-                  <Icon name="chevron" size={18} />
-                </button>
-
-                <div className="card card--status is-info" style={{ background: 'var(--surface-sunken)' }}>
-                  <div className="row row--between" style={{ marginBottom: 'var(--space-2)' }}>
-                    <span className="row" style={{ gap: 'var(--space-2)' }}>
-                      <Icon name={chore.icon} size={18} />
-                      <strong>{chore.name}</strong>
-                    </span>
-                    <StatusBadge status={chore.status} />
-                  </div>
-                  <Meter value={done} max={chore.subtasks.length} right={`${done}/${chore.subtasks.length} subtasks`} />
-                  <div className="row" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-3)', flexWrap: 'wrap' }}>
-                    <Badge tone={chore.status === 'submitted' ? 'done' : 'neutral'} icon="camera">
-                      {chore.status === 'submitted' ? 'Photo submitted' : 'No photo yet'}
-                    </Badge>
-                    <PointsPill value={`${chore.points} if approved`} small />
-                  </div>
-                </div>
-
-                <div>
-                  <span className="eyebrow" style={{ color: 'var(--text-muted)' }}>
-                    Last 7 days
-                  </span>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(7, 1fr)',
-                      gap: 6,
-                      alignItems: 'end',
-                      height: 84,
-                      marginTop: 'var(--space-2)',
-                    }}
-                  >
-                    {week.map((day) => (
-                      <div key={day.day} style={{ display: 'grid', justifyItems: 'center', gap: 4 }}>
-                        <div
-                          title={`${day.points} points`}
-                          style={{
-                            width: '100%',
-                            height: `${Math.max(6, (day.points / maxPoints) * 56)}px`,
-                            borderRadius: 6,
-                            background:
-                              day.missed > 0
-                                ? 'linear-gradient(180deg, #ff7b7b, var(--red))'
-                                : day.approved > 0
-                                  ? 'linear-gradient(180deg, #22dd7f, var(--green))'
-                                  : 'rgba(255,255,255,0.12)',
-                          }}
-                        />
-                        <span className="muted" style={{ fontSize: 10 }}>
-                          {day.day}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+        <div className="row" style={{ gap: 'var(--space-3)', marginTop: 'var(--space-5)' }}>
+          <Button tone="quiet" block icon="plus" onClick={() => navigate('/parent/chores/new')}>
+            New chore
+          </Button>
+          <Button tone="purple" block icon="star" onClick={() => navigate('/parent/bonus')}>
+            Post a bonus
+          </Button>
         </div>
       </main>
 
-      {quickCreate && (
-        <Sheet title="Quick create" onClose={() => setQuickCreate(false)}>
-          <div className="stack stack--tight">
-            {(
-              [
-                ['Bonus chore', 'star', '/parent/bonus', 'purple'],
-                ['Recurring chore', 'missions', '/parent/chores/new', 'blue'],
-                ['One-day schedule override', 'calendar', '/parent/schedule', 'blue'],
-                ['Pause or vacation', 'lock', '/parent/schedule', 'slate'],
-                ['Reward', 'gift', '/parent/rewards', 'gold'],
-              ] as [string, IconName, string, 'blue' | 'purple' | 'gold' | 'slate'][]
-            ).map(([label, icon, to, tone]) => (
-              <button
-                key={label}
-                type="button"
-                className="card card--interactive row"
-                onClick={() => {
-                  setQuickCreate(false);
-                  navigate(to);
-                }}
-              >
-                <span className={`tile-icon tile-icon--sm tile-icon--${tone}`}>
-                  <Icon name={icon} size={20} />
-                </span>
-                <span style={{ flex: 1, fontWeight: 700 }}>{label}</span>
-                <Icon name="chevron" size={18} />
-              </button>
-            ))}
-          </div>
-        </Sheet>
-      )}
+      {deciding && (
+        <Sheet title={`${deciding.choreName} not finished`} onClose={() => setDeciding(null)}>
+          <div className="stack">
+            <p style={{ margin: 0 }}>
+              {deciding.child.displayName} did not finish this on{' '}
+              {new Date(`${deciding.choreDate}T12:00:00`).toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'short',
+                day: 'numeric',
+              })}
+              .
+            </p>
 
-      {quickAction && (
-        <Sheet title={quickAction.title} onClose={() => setQuickAction(null)}>
-          <p className="muted" style={{ marginTop: 0 }}>
-            {quickAction.child} · {quickAction.detail}
-          </p>
-          <div className="stack stack--tight">
-            {quickAction.kind === 'missed' && (
-              <>
-                <Button tone="quiet" block>Excuse this day</Button>
-                <Button tone="quiet" block>Carry over to today</Button>
-                <Button tone="stop" block>Mark missed</Button>
-              </>
-            )}
-            {quickAction.kind === 'reward' && (
-              <>
-                <Button tone="go" block sound="approve">Approve reward</Button>
-                <Button tone="stop" block>Reject and release points</Button>
-              </>
-            )}
-            {quickAction.kind === 'cash_out' && (
-              <>
-                <p style={{ marginTop: 0 }}>
-                  Set the points-to-dollars rate in Settings before approving allowance.
-                </p>
-                <Button tone="primary" block onClick={() => navigate('/parent/settings')}>
-                  Open points and allowance
-                </Button>
-              </>
-            )}
+            <div className="stack stack--tight">
+              <Button tone="quiet" block disabled={working} onClick={() => void resolve('excused')}>
+                Excuse it
+              </Button>
+              <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
+                Nothing owed. The streak pauses rather than breaking.
+              </span>
+            </div>
+
+            <div className="stack stack--tight">
+              <Button tone="purple" block disabled={working} onClick={() => void resolve('carried_over')}>
+                Carry it over to today
+              </Button>
+              <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
+                A fresh copy appears on today&apos;s list, still worth {deciding.points} points.
+              </span>
+            </div>
+
+            <div className="stack stack--tight">
+              <Button tone="stop" block disabled={working} onClick={() => void resolve('missed')}>
+                Mark it missed
+              </Button>
+              <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
+                This is the only thing that breaks a streak.
+              </span>
+            </div>
           </div>
         </Sheet>
       )}

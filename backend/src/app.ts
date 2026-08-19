@@ -12,6 +12,7 @@ import { approvalRoutes } from './routes/approvals.js';
 import { authRoutes } from './routes/auth.js';
 import { bonusRoutes } from './routes/bonus.js';
 import { choreAdminRoutes } from './routes/chore-admin.js';
+import { dashboardRoutes } from './routes/dashboard.js';
 import { householdRoutes } from './routes/household.js';
 import { choreRoutes } from './routes/chores.js';
 import { photoRoutes } from './routes/photos.js';
@@ -91,6 +92,7 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(rewardRoutes, { env });
   await app.register(householdRoutes, { env });
   await app.register(choreAdminRoutes, { env });
+  await app.register(dashboardRoutes, { env });
   await app.register(walletRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
 

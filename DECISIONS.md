@@ -742,3 +742,45 @@ down on the day it was created.
 date, which is an explicit act rather than an accident. This is the second of the
 two guards on backfill; the first is the join-date floor from Stage 5, which
 protects a newly added child in the same way.
+
+---
+
+## 2026-08-19 — Only a parent's decision breaks a streak
+
+**Decision.** Owner decision. A chore nobody finished stays open until a parent
+picks excused, carried over, or missed. Until then it neither extends a streak
+nor ends one. `missed` is the only status that breaks a streak, and nothing sets
+it automatically.
+
+**Reason.** The streak calculation previously treated any unresolved past day as
+a break, which meant a parent being busy on a Tuesday silently cost a child a
+fortnight's progress. That is a penalty nobody chose to apply, and the child had
+no way to see it coming or to prevent it. A record should say "missed" only when
+a person decided that.
+
+**Consequences.** A household that never opens the parent app keeps every
+streak alive indefinitely, which is the intended trade: a streak that overstates
+is better than one that punishes a child for an adult's inattention. Unresolved
+days pile up in Needs attention rather than resolving themselves. A rejected
+chore also pauses rather than breaking, because it is still work the child can
+fix and resend.
+
+---
+
+## 2026-08-19 — Carrying over creates a new chore rather than moving the old one
+
+**Decision.** Carrying a chore over closes the original as `carried_over` and
+inserts a fresh instance on today's list, linked back through
+`carried_over_from` and carrying the same points.
+
+**Reason.** Moving the original row's date would quietly erase the fact that a
+chore was due on the day it was actually due, which is the thing a week's history
+is for. Two rows keep each day's record honest and still give the child a real
+chance to earn the points.
+
+**Consequences.** The new instance snapshots its checklist from the template
+rather than inheriting yesterday's ticks: the work has to be done again, so the
+boxes start empty. If today's schedule already produced the same chore, no second
+copy is created - the partial unique index would refuse it, and two of the same
+chore on one day is not what a parent asked for. Closing the old day is still
+correct in that case, so the request succeeds with `carriedTo: null`.

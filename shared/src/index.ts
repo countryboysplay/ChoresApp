@@ -396,3 +396,60 @@ export interface HouseholdSettings {
 export interface SettingsResponse {
   settings: HouseholdSettings;
 }
+
+/** A chore from a past day that nobody finished and no parent has decided on. */
+export interface UnresolvedChore {
+  id: string;
+  choreName: string;
+  choreIcon: string;
+  choreDate: string;
+  points: number;
+  status: ChoreStatus;
+  child: { id: string; displayName: string };
+}
+
+export type ChoreResolution = 'excused' | 'missed' | 'carried_over';
+
+export interface DashboardResponse {
+  today: string;
+  weekStart: string;
+  children: {
+    id: string;
+    displayName: string;
+    avatar: unknown;
+    balance: number;
+    weekPoints: number;
+  }[];
+  counts: {
+    pendingApprovals: number;
+    pendingRewardRequests: number;
+    choresDoneThisWeek: number;
+    choresDueThisWeek: number;
+  };
+  needsAttention: UnresolvedChore[];
+  weekActivity: {
+    childId: string;
+    date: string;
+    approved: number;
+    missed: number;
+    points: number;
+  }[];
+}
+
+export interface ScheduleEntry {
+  id: string;
+  choreId: string;
+  choreName: string;
+  choreIcon: string;
+  points: number;
+  child: { id: string; displayName: string };
+  recurrence: 'daily' | 'weekly';
+  /** Empty for a daily chore, which applies to every day. */
+  daysOfWeek: number[];
+  startsOn: string;
+  endsOn: string | null;
+}
+
+export interface ScheduleResponse {
+  schedules: ScheduleEntry[];
+}
