@@ -4,17 +4,17 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 3 — Database schema and migrations |
-| Stage status | Schema applied and tested; awaiting approval |
+| Current stage | Stage 4 — Authentication |
+| Stage status | Built and tested; awaiting approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
-| Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend |
-| Production URL | None yet — a real deployment still lands in Stage 17 |
-| Database migration status | 4 migrations applied; 16 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 38 passing (23 backend, 15 frontend); typecheck, lint, and build clean; CI green |
-| Last known good commit | `dcb2bc3` — visual review sheet; CI and Pages green |
+| Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
+| Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
+| Database migration status | 5 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
+| Test status | 67 passing (52 backend, 15 frontend); typecheck, lint, and build clean; CI green |
+| Last known good commit | `619102a` — Stage 4 authentication; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -106,15 +106,22 @@ and `http://<laptop-ip>:5173` also works.
 
 - npm workspace root with dev, build, test, typecheck, lint, and preflight scripts.
 - Backend: Fastify 5 + TypeScript, Zod-validated environment loader, structured
-  logging with redaction, a single client-safe error handler, CORS restricted to
-  localhost, and `GET /api/health`.
+  logging with redaction, a single client-safe error handler, rate limiting, CORS
+  restricted to localhost, and `GET /api/health` with a real database probe.
 - Household time helpers with DST-boundary tests — the rule that every later
   scheduling feature depends on.
 - Frontend: React 18 + Vite 6, HashRouter, design tokens for the approved palette
   and type scale, and a placeholder Home route that reports backend connectivity.
 - Shared type-only API contract package.
-- CI workflow running typecheck, lint, tests, and build on every push, plus a
-  frontend-only GitHub Pages preview deploy so screens can be reviewed on a phone.
+- PostgreSQL schema in 5 SQL migrations: household and settings, chores, points
+  and rewards, achievements and notifications, sessions.
+- Authentication: PIN sign-in, opaque database-backed sessions in an httpOnly
+  cookie, per-user lockout with a doubling backoff, and `npm run user -w backend`
+  for creating members from the laptop.
+- CI workflow running typecheck, lint, tests, and build on every push against a
+  real `postgres:17` service — it applies the migrations, rolls the whole schema
+  back to empty and forward again, then tests. Plus a frontend-only GitHub Pages
+  preview deploy so screens can be reviewed on a phone.
 - Design system: palette and type tokens, buttons, cards, badges, chips, linear
   and circular meters, checklist items, sheets/modals, bottom navigation, tabs,
   form controls, empty states, and reduced-motion handling.
@@ -125,16 +132,26 @@ and `http://<laptop-ip>:5173` also works.
 
 ## Known issues
 
-- The schema exists but nothing writes to it yet. Every screen still renders the
-  Stage 2 mock data; the API routes that read and write these tables are Stage 5
-  onward, and auth is Stage 4.
-- No seed data. `household_settings` has its single row with the money values
-  correctly unset; `users`, chores, and rewards are all empty, so the app has no
-  household in it yet.
+- **Only the auth screens are wired to the API.** Hero select and the PIN pad talk
+  to the backend; every screen behind them still renders Stage 2 mock data. The
+  routes that read and write chores, points, and rewards are Stage 5 onward.
+- **No route guards yet.** Signing in works and is enforced by the API, but the
+  child and parent screens can still be reached by typing their hash URL, because
+  there is nothing behind them to protect. Guards land with the data in Stage 5.
+- **The household is empty.** `household_settings` has its single row with the
+  money values correctly unset, and `users` has nobody in it. Create the first
+  parent on the laptop:
+  `npm run user -w backend -- --role parent --name "Your name"`.
+  The hero-select screen says the same thing when it finds no profiles.
 - The repository is **public**. It carries no secrets — CI fails the build if a
   `.env`, `.pem`, or `.key` is ever tracked — and the mock data uses `Child 1` /
   `Parent 1` placeholders rather than real names. Worth re-checking before any
   real household data goes anywhere near the frontend.
+- **Lifetime points are readable before sign-in**, because the approved
+  hero-select screen shows a level and a total on every child's card. It is the
+  only household figure served unauthenticated; see the 2026-08-19 entry in
+  DECISIONS.md for the reasoning and what to revisit if it stops being
+  acceptable.
 - Camera, photo, and pinch-zoom areas are placeholders with the correct states and
   copy; real `getUserMedia` capture is Stage 6.
 - ~~Playwright screenshots could not be produced in the build environment.~~
@@ -157,15 +174,27 @@ and `http://<laptop-ip>:5173` also works.
 
 ## Next planned work
 
-**Stage 4 — Authentication.** The schema reserves `users.pin_hash` and nothing
-else; sessions, PIN hashing, and the trusted-device approach are all still open
-(see the decision table in DECISIONS.md).
+**Stage 5 — The chore API and the screens that read it.** Authentication is in
+place, so requests now arrive with a known member attached and routes can be
+gated on role.
 
-Two things Stage 3 deliberately did not do, so they land where they belong:
+What Stage 5 has to settle:
 
-- **No seed data.** Creating the real household — names, PINs, avatars, and each
-  child's chore schedule — is parent-facing work that belongs behind auth in
-  Stage 10, not a script that hardcodes a family into a migration.
+- **Route guards on the frontend.** Signing in works, but the app does not yet
+  redirect an anonymous visitor away from `#/child/home`. That guard belongs with
+  the first screen carrying real data, not before it.
+- **Generating chore instances.** `chore_schedules` describes what recurs;
+  something has to turn that into `chore_instances` for a household day. Whether
+  that runs on a timer or lazily on first read is undecided, and it interacts
+  with the DST-safe day boundary in `backend/src/time.ts`.
+- **Which screens come off mock data first.** The child home and missions screens
+  are the natural pair, since they exercise instances, subtasks, and status.
+
+Still deliberately unfinished, so it lands where it belongs:
+
 - **Points-to-dollars rate and cash-out minimum stay NULL.** The columns exist
   with no defaults and a test asserts they are unset, so the wallet keeps
   rendering its "not configured" state until an owner sets them in Settings.
+- **Creating the real household** — names, PINs, avatars, and each child's chore
+  schedule — is parent-facing work for Stage 10. The terminal CLI covers the
+  bootstrap until then.

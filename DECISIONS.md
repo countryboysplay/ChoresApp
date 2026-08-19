@@ -313,3 +313,110 @@ class of bug the Intl decision exists to prevent, reintroduced at the driver.
 **Consequences.** `pg-parsers.ts` must be imported by anything opening its own
 connection, tests included — the parsers are global to the `pg` module, not
 per-pool. A schema test asserts a round-tripped `chore_date` is still a string.
+
+---
+
+## 2026-08-19 — Production serves the frontend from the backend, same origin
+
+**Decision.** In production the Windows backend serves the built frontend, so the
+app and its API share one origin. GitHub Pages keeps publishing the frontend, but
+that deployment is a design preview on mock data with no backend behind it.
+
+**Reason.** Session cookies. Pages and a tunnelled laptop are different sites, so
+the cookie would be third-party — which Safari on iOS blocks outright and Chrome
+is phasing out. The kids are the ones on phones, and a login that silently stops
+sticking is the worst failure this app could have. Same origin removes the
+problem rather than working around it.
+
+**Consequences.** Stage 16 exposes one hostname, not two. Stage 17 gains a step
+that copies `frontend/dist` into what the backend serves, and `VITE_API_BASE_URL`
+becomes empty in that build because the API is a relative path. `CORS_ORIGINS`
+now matters only for local development, where Vite is a separate origin. The
+frontend detects an unreachable API and falls back to preview mode, which is what
+keeps the Pages build usable.
+
+---
+
+## 2026-08-19 — Opaque database-backed sessions, not JWTs
+
+**Decision.** A session is 32 random bytes in an httpOnly, signed cookie. Only
+its SHA-256 is stored. Children's sessions last 90 days and extend on use;
+parents' last 1 day.
+
+**Reason.** A parent has to be able to sign a lost phone out and have that take
+effect at once. A stateless token cannot be withdrawn without building the
+revocation list that a sessions table already is. The asymmetric lifetimes follow
+the risk: a child losing their session mid-week is a support call and a bad
+experience, while a parent session can approve chores, move points, and change
+money settings, so it should not sit unlocked on a shared tablet for a month.
+
+**Consequences.** Every authenticated request costs one indexed lookup, which is
+nothing at household scale. Deactivating a member ends their access immediately,
+because the lookup joins `users` and tests `is_active` rather than trusting a
+claim baked in at login. Changing a PIN revokes that member's other sessions —
+otherwise changing it after a device is lost would achieve nothing. Only the hash
+is stored, so a backup sitting on the same laptop as the database does not hand
+over live sessions.
+
+---
+
+## 2026-08-19 — scrypt for PINs, and a lockout that does the real work
+
+**Decision.** PINs are hashed with `node:crypto`'s scrypt at N=32768, stored as
+`scrypt$N$r$p$salt$hash`. Wrong attempts are counted per user and lock the
+profile with a doubling backoff from the fifth failure, capped at one hour.
+
+**Reason.** scrypt is memory-hard and built in, so there is no native module to
+rebuild whenever Node updates on the laptop — argon2 wants node-gyp, and a
+Windows toolchain that has to keep working unattended for years is a liability.
+More importantly, no KDF makes a 4-digit PIN unguessable: 10,000 options fall to
+anyone who can keep trying. The lockout is the control that actually matters, and
+it counts per user rather than per IP because the whole household shares one
+address — an IP limit would either be trivially evaded or lock everyone out at
+once.
+
+**Consequences.** The first four wrong entries cost nothing, so a child mistyping
+their own PIN is not punished. Past that, exhausting the keyspace takes over a
+year of continuous tapping. The cap means a locked-out child waits an hour at
+worst, never until morning. Parameters live in the stored string, so raising the
+cost later needs neither a migration nor a mass reset. The hash exists to protect
+a leaked backup, not to make the PIN strong — children reuse these on phone lock
+screens.
+
+---
+
+## 2026-08-19 — Household members are created from the laptop's terminal
+
+**Decision.** `npm run user -w backend` creates members and sets PINs. There is
+no seed migration and no public sign-up.
+
+**Reason.** Authentication has a bootstrap problem: the screens that manage
+people sit behind a login, and there is nobody to log in as until someone exists.
+The alternative was seeding a family into a migration, which would put real names
+into version control on a public repository.
+
+**Consequences.** First run on a new machine is a terminal command, which the
+"no profiles yet" state on the hero-select screen names explicitly. The CLI reads
+the PIN from stdin rather than taking it as a flag, so it stays out of shell
+history, and it refuses the handful of PINs a sibling guesses first. Stage 10
+adds the parent-facing version of this and should reuse the same hashing and
+revocation paths rather than reimplementing them.
+
+---
+
+## 2026-08-19 — Lifetime points are readable before sign-in
+
+**Decision.** `GET /api/auth/profiles` returns each child's lifetime points
+alongside their name and avatar. It is the only household figure served
+unauthenticated, and only for children.
+
+**Reason.** The approved hero-select screen puts a level badge and a lifetime
+total on every child's card, and that screen is drawn before anyone signs in.
+Withholding the number would have meant redesigning an approved screen; the
+alternative disclosure is small, because anyone who can reach the API already
+sees the household's first names, which that screen cannot function without.
+
+**Consequences.** Nothing else is served before sign-in — no spendable balance,
+no chore history, no photos, no PIN state beyond whether one is set. If the API
+ever becomes reachable by people outside the household, revisit this first. The
+tunnel hostname is effectively the secret protecting it.

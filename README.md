@@ -60,6 +60,8 @@ npm run dev
 | `npm run db:migrate` | Applies pending database migrations |
 | `npm run db:migrate:down` | Rolls back the most recent migration |
 | `npm run db:new -- <name>` | Creates a new empty `.sql` migration |
+| `npm run user -w backend -- --list` | Lists household members |
+| `npm run user -w backend -- --role parent --name "N"` | Creates a member and sets their PIN |
 | `npm run screenshots` | Captures every screen to `screenshots/` (needs the dev server) |
 | `npm run icons` | Regenerates the home-screen icons from code |
 
