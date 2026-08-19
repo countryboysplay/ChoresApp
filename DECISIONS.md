@@ -784,3 +784,63 @@ boxes start empty. If today's schedule already produced the same chore, no secon
 copy is created - the partial unique index would refuse it, and two of the same
 chore on one day is not what a parent asked for. Closing the old day is still
 correct in that case, so the request succeeds with `carriedTo: null`.
+
+---
+
+## 2026-08-19 — The laptop does not sleep, and reminders run on a timer
+
+**Decision.** Owner correction: the laptop is configured never to sleep. The
+reminder sweep therefore runs on an in-process interval, started with the server,
+and is the only timer in the project.
+
+**Reason.** Several earlier decisions - lazy day materialisation, lazy bonus
+release - were argued partly from "the laptop sleeps, so a timer cannot be
+trusted". That premise was wrong. Those decisions still stand on their remaining
+merits: lazy work is correct after a power cut, a Windows update reboot, or any
+other gap, and there is no scheduler state to keep. But reminders cannot be lazy
+under any premise, because the entire point of a reminder is that it happens when
+nobody is looking.
+
+**Consequences.** The sweep is written as a reconciliation rather than an event:
+it asks what should have been sent by now, not what just happened. A tick that is
+late, early, or missed entirely changes only when the notification arrives, which
+is what makes a restart at 9:20pm still deliver the 8:45pm reminder rather than
+swallowing the evening. Nothing depends on the process having been alive at a
+particular instant, and the tick interval carries no correctness argument.
+
+---
+
+## 2026-08-19 — The reminder goes to the child, the escalation to the parents
+
+**Decision.** Owner decision. At `reminder_time` the child alone is told their
+chore is unfinished. At `escalation_time`, if it is still unfinished, the parents
+are told. The child is not told twice.
+
+**Reason.** The reminder lands at the moment the punctuality bonus is about to
+lapse, so it is a chance to act rather than a report to management. Telling a
+parent at 8:45pm about something the child still has two hours to fix is how a
+household learns to ignore notifications. By 11pm it is a household matter rather
+than something the child is about to sort out.
+
+**Consequences.** A parent who wants to know earlier has the dashboard, which
+shows the day as it stands. Notifications are unique per person, per thing, per
+kind, enforced by a partial unique index, so overlapping sweeps cannot produce
+two identical nudges and a re-run after a restart is a no-op.
+
+---
+
+## 2026-08-19 — Backend tests run one file at a time
+
+**Decision.** `fileParallelism: false` in the backend vitest config.
+
+**Reason.** Every suite shares one Postgres database, and parts of the system are
+household-wide by design: there is a single `household_settings` row, and the
+reminder sweep deliberately tells every parent about every child. Run in
+parallel, one file's chores put notifications in another file's inboxes, and one
+file's settings change the times another file is asserting against. The failures
+moved between runs, which is the worst kind: they read as flaky tests rather than
+as a real property of the system.
+
+**Consequences.** The suite is sequential and takes a few seconds. A database per
+worker would restore parallelism and is worth doing if it ever gets slow enough
+to care; at this size it would be complexity bought for nothing.

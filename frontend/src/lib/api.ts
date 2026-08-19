@@ -1,6 +1,7 @@
 import type {
   ApiError,
   ApprovalQueueResponse,
+  NotificationsResponse,
   ChoreResolution,
   DashboardResponse,
   ScheduleResponse,
@@ -202,6 +203,16 @@ export const api = {
 
   wallet: {
     mine: () => request<WalletResponse>('/api/child/wallet'),
+  },
+
+  notifications: {
+    list: () => request<NotificationsResponse>('/api/notifications'),
+
+    markRead: (id: string) =>
+      request<{ ok: true }>(`/api/notifications/${id}/read`, { method: 'POST' }),
+
+    markAllRead: () =>
+      request<{ marked: number }>('/api/notifications/read-all', { method: 'POST' }),
   },
 
   dashboard: {

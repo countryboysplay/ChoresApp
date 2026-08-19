@@ -4,7 +4,7 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 11 — Parent dashboard and schedule |
+| Current stage | Stage 12 — Reminders and the inbox |
 | Stage status | Built and tested; awaiting approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
@@ -12,9 +12,9 @@ _Last updated: 2026-08-19_
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
-| Database migration status | 8 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 191 passing (173 backend, 18 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
-| Last known good commit | `b6d593b` — Stage 10 household setup; CI and Pages green |
+| Database migration status | 9 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
+| Test status | 202 passing (184 backend, 18 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
+| Last known good commit | `f06146b` — Stage 11 dashboard and schedule; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -141,9 +141,11 @@ and `http://<laptop-ip>:5173` also works.
   achievements, notifications, profile, and every parent screen are unchanged.
 - **Every parent screen now reads real data.** Nothing on the parent side is
   mock any more.
-- **Some child screens are still mock:** leaderboard, achievements,
-  notifications, and the avatar builder on the profile screen. Home, missions,
-  chore detail, rewards, and the wallet are all real.
+- **Two child screens are still mock:** leaderboard and achievements, plus the
+  avatar builder on the profile screen. Everything else on both sides is real.
+- **Notifications are in-app only.** They arrive in the inbox and nothing is
+  pushed to a phone, so a reminder is only seen when the app is opened. Push is
+  Stage 13 and needs the service worker from Stage 14.
 - **A streak can overstate.** Unresolved days pause rather than break, so a
   household that never opens the parent app keeps every streak alive. That is
   the deliberate trade for never punishing a child over an adult's inattention.
@@ -214,27 +216,26 @@ To start using it, on the laptop:
 4. Optionally set the points-to-dollars rate and cash-out minimum in Settings.
    Leaving them unset keeps cash-out off, which is a valid way to run.
 
-**Stage 12 — Reminders and notifications.** The `notifications` table has
-existed since Stage 3 and nothing writes to it. `reminder_time` and
-`escalation_time` are both set and only one of them means anything so far.
+**Stage 13 — Push notifications.** The inbox works, but a reminder nobody sees
+until they open the app is only half a reminder. `web-push` and the VAPID keys
+are already in the environment schema and unset.
 
 What it has to settle:
 
-- **What runs the clock.** Every other time-sensitive thing in this app is lazy,
-  because the laptop sleeps. A reminder is the first feature that genuinely needs
-  something to happen when nobody is looking, so it needs a scheduler and a
-  catch-up rule for a machine that was asleep at 8:45pm.
-- **What each reminder says**, and who gets it: the child who has not finished, a
-  parent, or both at escalation.
-- **Whether an in-app inbox is enough** for now, given push notifications are
-  Stage 13 and need the service worker from Stage 14.
+- **The service worker**, which push depends on and which DECISIONS.md has always
+  placed in Stage 14. Push cannot land before it, so the two may need to swap or
+  merge.
+- **Subscriptions per device**, and what happens when a child signs out or a
+  parent revokes a device.
+- **Which notifications are worth a phone buzzing** - almost certainly not all of
+  them.
 
 Also outstanding:
 
-- **The remaining child screens** — leaderboard, achievements, notifications, and
-  the avatar builder — which are readings of data that already exists.
+- **Leaderboard, achievements, and the avatar builder**, the last three screens
+  on mock data. All three are readings of data that already exists.
 
-Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:
+Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:Still deliberately unfinished, so it lands where it belongs:
 
 - **Points-to-dollars rate and cash-out minimum stay NULL.** The columns exist
   with no defaults and a test asserts they are unset, so the wallet keeps

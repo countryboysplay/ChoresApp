@@ -1,12 +1,22 @@
 import { buildApp } from './app.js';
-import { closePool } from './db.js';
+import { closePool, getPool } from './db.js';
 import { env } from './env.js';
+import { startScheduler } from './notifications/scheduler.js';
 
 async function main(): Promise<void> {
   const app = await buildApp({ env });
 
+  // Reminders are the one thing here that has to happen when nobody is looking,
+  // so this is the only timer in the project. It sweeps immediately at startup
+  // too, which is what makes a restart at 9:20pm still deliver the 8:45pm
+  // reminder rather than swallowing the evening.
+  const pool = getPool();
+  const scheduler = pool ? startScheduler(pool, env.HOUSEHOLD_TZ, app.log) : null;
+  if (scheduler) void scheduler.runNow();
+
   const shutdown = async (signal: string) => {
     app.log.info({ signal }, 'shutting down');
+    scheduler?.stop();
     await app.close();
     // After the server stops accepting requests, so nothing is mid-query.
     await closePool();

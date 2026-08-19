@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { Env } from '../env.js';
 import { getPool } from '../db.js';
 import { householdToday } from '../time.js';
+import { notify } from '../notifications/service.js';
 
 const RejectBody = z.object({
   note: z.string().trim().min(1, 'A note is required.').max(500),
@@ -224,6 +225,20 @@ export async function approvalRoutes(app: FastifyInstance, opts: { env: Env }): 
         );
       }
 
+      // Inside the transaction: a child told they were paid, when the payment
+      // rolled back, is worse than no notification at all.
+      await notify(client, {
+        userId: chore.child_id,
+        kind: 'chore_approved',
+        title: `${chore.chore_name} approved`,
+        body: bonus > 0
+          ? `${total} points, including ${bonus} for being on time.`
+          : `${total} points added to your wallet.`,
+        tone: 'done',
+        deepLink: '#/child/wallet',
+        choreInstanceId: instanceId,
+      });
+
       await client.query('COMMIT');
       return { awarded: chore.points_value, bonus };
     } catch (error) {
@@ -328,6 +343,24 @@ export async function approvalRoutes(app: FastifyInstance, opts: { env: Env }): 
           WHERE chore_instance_id = $1`,
         [instanceId],
       );
+
+      const { rows: owner } = await client.query<{ assigned_to: string; name: string }>(
+        `SELECT ci.assigned_to, d.name
+           FROM chore_instances ci JOIN chore_definitions d ON d.id = ci.chore_definition_id
+          WHERE ci.id = $1`,
+        [instanceId],
+      );
+      if (owner[0]?.assigned_to) {
+        await notify(client, {
+          userId: owner[0].assigned_to,
+          kind: 'chore_rejected',
+          title: `${owner[0].name} needs fixing`,
+          body: body.data.note,
+          tone: 'late',
+          deepLink: `#/child/chore/${instanceId}`,
+          choreInstanceId: instanceId,
+        });
+      }
 
       await client.query('COMMIT');
       return { ok: true };

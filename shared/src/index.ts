@@ -453,3 +453,29 @@ export interface ScheduleEntry {
 export interface ScheduleResponse {
   schedules: ScheduleEntry[];
 }
+
+export type NotificationKind =
+  | 'chore_reminder'
+  | 'chore_escalation'
+  | 'chore_approved'
+  | 'chore_rejected'
+  | 'reward_decided'
+  | 'bonus_posted'
+  | 'general';
+
+export interface InboxNotification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  tone: 'done' | 'waiting' | 'late' | 'info';
+  /** Hash-router path, because the frontend uses HashRouter. */
+  deepLink: string | null;
+  read: boolean;
+  at: string;
+}
+
+export interface NotificationsResponse {
+  unread: number;
+  notifications: InboxNotification[];
+}

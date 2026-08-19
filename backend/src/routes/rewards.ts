@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Env } from '../env.js';
 import { getPool } from '../db.js';
+import { notify } from '../notifications/service.js';
 
 const RewardBody = z.object({
   name: z.string().trim().min(1).max(80),
@@ -403,6 +404,22 @@ export async function rewardRoutes(app: FastifyInstance, opts: { env: Env }): Pr
           ],
         );
       }
+
+      await notify(client, {
+        userId: redemption.child_id,
+        kind: 'reward_decided',
+        title:
+          outcome === 'approved'
+            ? `${redemption.reward_name} is yours`
+            : `${redemption.reward_name} was not approved`,
+        body:
+          outcome === 'approved'
+            ? 'Enjoy it.'
+            : `Your ${redemption.cost_points} points have been put back.`,
+        tone: outcome === 'approved' ? 'done' : 'info',
+        deepLink: '#/child/rewards',
+        rewardRedemptionId: redemptionId,
+      });
 
       await client.query('COMMIT');
       return { status: outcome, refunded: outcome === 'denied' ? redemption.cost_points : 0 };
