@@ -464,3 +464,63 @@ small disclosure.
 by the session's user; adding a route to the guarded section of the router is not
 sufficient and never was. In preview mode the guard passes everything through,
 because there is no server to sign in to and no household data to reach.
+
+---
+
+## 2026-08-19 — Photos are downscaled in the browser, not on the server
+
+**Decision.** The camera captures a frame, draws it to a canvas at a maximum
+1600px on the long edge, and encodes JPEG at 0.85 before uploading. The backend
+stores exactly what it receives and has no image library.
+
+**Reason.** A parent is deciding whether a counter got wiped, on a phone screen;
+1600px settles that comfortably. Resizing on the client turns a 4MB camera frame
+into roughly 200KB, which is the difference between a fast submit and a child
+watching a spinner on house wifi. It also keeps `sharp` off the laptop — a
+native module that would have to keep building unattended across Node upgrades
+for years, in a project that has otherwise avoided native dependencies.
+
+**Consequences.** The server trusts the client for dimensions, which is
+acceptable because it does not trust it for anything that matters: the bytes are
+sniffed for a real image signature, capped at 6MB, and limited to five per chore.
+Storage is roughly 200KB per chore per day. If proof ever needs to be
+full-resolution — a dispute about damage, say — this is the decision to revisit.
+
+---
+
+## 2026-08-19 — Proof is served through the API, never as static files
+
+**Decision.** Photos live outside the web root under `PHOTO_STORAGE_DIR`, sharded
+`YYYY/MM/DD`, named with a random UUID. `GET /api/photos/:id` authenticates,
+checks that the requester is the owning child or any parent, and streams the file
+with a content type this server chose from the sniffed bytes.
+
+**Reason.** These are pictures of the inside of a family's home, taken by
+children. A static directory would make every one of them readable by anyone who
+learned or guessed a URL, and the app is going to sit behind a public tunnel.
+
+**Consequences.** Every photo view costs a database lookup, which is nothing at
+this scale and is also what makes the "every photo must be opened before Approve
+All" rule possible — the serve route is the only place that can know a parent
+actually looked, and it stamps `first_viewed_at` there. UUID names rather than
+content hashes, so two identical photos stay two files and deleting one chore's
+proof cannot remove another's. Date sharding means pruning old proof is deleting
+folders rather than querying for candidates.
+
+---
+
+## 2026-08-19 — The camera is the only source of proof
+
+**Decision.** Capture is `getUserMedia` only. There is no file input, no gallery
+picker, and no upload fallback anywhere in the app.
+
+**Reason.** The specification requires a photo of the work just finished. A
+gallery picker would let a child submit last week's clean kitchen, and no amount
+of copy on the screen would stop that.
+
+**Consequences.** Browsers only expose the camera in a secure context, so
+reaching the dev server over house wifi at `http://192.168.x.x` cannot work —
+the screen says so plainly instead of offering a button that fails on tap.
+Testing capture means the laptop itself, or waiting for the Stage 16 tunnel to
+provide https. Submission is blocked without a photo, enforced on the server,
+so a browser that cannot open the camera cannot complete a chore either.

@@ -99,7 +99,28 @@ describe('chore completion flow', () => {
     );
     await screen.findByText(/checklist/i);
     expect(screen.queryByText(/upload/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/choose from gallery/i)).not.toBeInTheDocument();
+  });
+
+  it('explains itself instead of offering a camera that cannot work', async () => {
+    // Reaching the dev server at http://192.168.x.x over house wifi is not a
+    // secure context, so getUserMedia is simply absent. The screen has to say
+    // why rather than presenting a button that fails on tap.
+    Object.defineProperty(window, 'isSecureContext', { value: false, configurable: true });
+    const user = userEvent.setup();
+    renderScreen(
+      '/child/chore/core-kitchen',
+      <Route path="/child/chore/:choreId" element={<ChoreDetail />} />,
+    );
+
+    await screen.findByText(/finish every step to unlock the camera/i);
+    for (const item of screen.getAllByRole('button', { pressed: false })) {
+      if (item.className.includes('check')) await user.click(item);
+    }
+
+    expect(await screen.findByText(/needs a secure connection/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /open camera/i })).not.toBeInTheDocument();
   });
 
   it('shows the parent note when a chore was rejected', async () => {

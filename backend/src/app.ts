@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
 import { loadEnv, type Env } from './env.js';
@@ -9,6 +10,7 @@ import { registerErrorHandler } from './errors.js';
 import { auth } from './auth/plugin.js';
 import { authRoutes } from './routes/auth.js';
 import { choreRoutes } from './routes/chores.js';
+import { photoRoutes } from './routes/photos.js';
 import { healthRoutes } from './routes/health.js';
 
 export const APP_VERSION = '0.1.0';
@@ -27,6 +29,9 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   });
 
   await app.register(sensible);
+  // Photo upload. The per-request cap is enforced at the route so the error is
+  // a clear "that photo is too large" rather than a connection reset.
+  await app.register(multipart);
   await app.register(helmet, { contentSecurityPolicy: false });
 
   // Fastify's built-in JSON parser rejects an empty body as malformed. Plenty of
@@ -74,6 +79,7 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(auth, { env });
   await app.register(authRoutes, { env });
   await app.register(choreRoutes, { env });
+  await app.register(photoRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
 
   app.decorate('env', env);

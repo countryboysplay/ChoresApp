@@ -12,7 +12,15 @@ import { beforeEach, vi } from 'vitest';
  *
  * A test that wants a signed-in app stubs fetch itself.
  */
+/**
+ * jsdom is not a secure context, and browsers only expose the camera in one.
+ * Without this the chore screens would render their "needs https" explanation
+ * in every test, and the checklist-gates-the-camera rule would go unchecked.
+ * The test that covers the insecure case overrides this back to false.
+ */
 beforeEach(() => {
+  Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true });
+
   vi.stubGlobal(
     'fetch',
     vi.fn(() => Promise.reject(new TypeError('fetch is disabled in tests'))),

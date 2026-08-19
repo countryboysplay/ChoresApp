@@ -4,7 +4,7 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 5 — Chore API and the child screens |
+| Current stage | Stage 6 — Camera capture and photo proof |
 | Stage status | Built and tested; awaiting approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
@@ -13,8 +13,8 @@ _Last updated: 2026-08-19_
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
 | Database migration status | 5 migrations applied; 17 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 91 passing (76 backend, 15 frontend); typecheck, lint, and build clean; CI green |
-| Last known good commit | `97cd4e2` — Stage 4 decisions recorded; CI and Pages green |
+| Test status | 112 passing (96 backend, 16 frontend); typecheck, lint, and build clean; CI green |
+| Last known good commit | `ad8ff20` — Stage 5 chore API; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -118,6 +118,10 @@ and `http://<laptop-ip>:5173` also works.
 - Authentication: PIN sign-in, opaque database-backed sessions in an httpOnly
   cookie, per-user lockout with a doubling backoff, and `npm run user -w backend`
   for creating members from the laptop.
+- The child loop end to end: the day materialises on read, the checklist
+  persists, a live photo is captured and downscaled in the browser, and the chore
+  is submitted for review. Photos are stored outside the web root and served only
+  to their owner or a parent.
 - CI workflow running typecheck, lint, tests, and build on every push against a
   real `postgres:17` service — it applies the migrations, rolls the whole schema
   back to empty and forward again, then tests. Plus a frontend-only GitHub Pages
@@ -135,12 +139,16 @@ and `http://<laptop-ip>:5173` also works.
 - **Three child screens are wired; the rest still run on mock data.** Home,
   missions, and chore detail read the API. Rewards, wallet, leaderboard,
   achievements, notifications, profile, and every parent screen are unchanged.
-- **A chore cannot be submitted yet.** The checklist persists, but the camera and
-  the submit button are still the Stage 2 placeholders. The specification
-  requires a photo, so submission lands with real capture in Stage 6.
 - **Nothing awards points.** `points_ledger` is written by no code path yet, so
-  every balance is zero and the streak is zero. Approval, which is what creates
-  those rows, is Stage 7.
+  every balance is zero and the streak is zero. A submitted chore waits for a
+  parent, and the approval that creates those rows is Stage 7.
+- **The camera needs https or the laptop itself.** Browsers only expose
+  `getUserMedia` in a secure context, so opening the dev server by its wifi
+  address shows an explanation rather than a camera. Capture can be tested on the
+  laptop today; phones get it when the Stage 16 tunnel provides https.
+- **No parent can review anything yet.** Submissions land in the database and the
+  approval queue screen is still mock data, so a submitted chore currently stays
+  submitted. Stage 7.
 - **The household is empty.** `household_settings` has its single row with the
   money values correctly unset, and `users` has nobody in it. Create the first
   parent on the laptop:
@@ -177,21 +185,24 @@ and `http://<laptop-ip>:5173` also works.
 
 ## Next planned work
 
-**Stage 5 — The chore API and the screens that read it.** Authentication is in
-place, so requests now arrive with a known member attached and routes can be
-gated on role.
+**Stage 7 — Parent approval.** A chore can now be submitted, and nothing can
+act on it. This is the other half of the loop and the first code that writes to
+`points_ledger`.
 
-What Stage 5 has to settle:
+What Stage 7 has to settle:
 
-- **Route guards on the frontend.** Signing in works, but the app does not yet
-  redirect an anonymous visitor away from `#/child/home`. That guard belongs with
-  the first screen carrying real data, not before it.
-- **Generating chore instances.** `chore_schedules` describes what recurs;
-  something has to turn that into `chore_instances` for a household day. Whether
-  that runs on a timer or lazily on first read is undecided, and it interacts
-  with the DST-safe day boundary in `backend/src/time.ts`.
-- **Which screens come off mock data first.** The child home and missions screens
-  are the natural pair, since they exercise instances, subtasks, and status.
+- **Approve, reject, and the note.** Rejecting requires a note - the schema
+  already refuses a rejection without one - and a rejected chore is reopened for
+  the child, who can already fix and resubmit it.
+- **What approval pays.** The chore's snapshotted `points_value`, plus the
+  punctuality bonus when it applies, written as ledger rows. The partial unique
+  index makes a double-tapped Approve unable to pay twice; the rule for when the
+  bonus applies is still undefined.
+- **The "every photo opened" gate.** `first_viewed_at` is already stamped when a
+  parent fetches a photo, so the queue can enforce it; the screen has to read it.
+- **Missed and excused.** The parent dashboard offers "excuse, carry over, or
+  mark missed" for a chore nobody finished. Nothing sets those statuses yet, and
+  the streak calculation already treats excused as a pause.
 
 Still deliberately unfinished, so it lands where it belongs:
 

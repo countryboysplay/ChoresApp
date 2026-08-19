@@ -83,5 +83,39 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ done }),
       }),
+
+    /**
+     * The browser must set its own multipart boundary, so this is the one call
+     * that cannot go through `request` - that helper forces a JSON content type.
+     */
+    async addPhoto(instanceId: string, blob: Blob): Promise<{ photo: { id: string } }> {
+      const form = new FormData();
+      form.append('photo', blob, 'proof.jpg');
+
+      let response: Response;
+      try {
+        response = await fetch(`${BASE_URL}/api/chores/${instanceId}/photos`, {
+          method: 'POST',
+          credentials: 'include',
+          body: form,
+        });
+      } catch {
+        throw new ApiRequestError('Cannot reach the Chore Quest server.', 'network_unreachable', 0);
+      }
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as ApiError | null;
+        throw new ApiRequestError(
+          body?.error.message ?? 'That photo could not be saved.',
+          body?.error.code ?? 'request_failed',
+          response.status,
+          body?.error.details,
+        );
+      }
+      return (await response.json()) as { photo: { id: string } };
+    },
+
+    submit: (instanceId: string) =>
+      request<ChoreResponse>(`/api/chores/${instanceId}/submit`, { method: 'POST' }),
   },
 };

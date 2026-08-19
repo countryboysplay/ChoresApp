@@ -1,18 +1,32 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icon, type IconName } from '../../design/icons';
 import { Badge, Button, CheckItem, Meter, PointsPill } from '../../design/primitives';
+import { CameraCapture } from '../../components/CameraCapture';
 import { ScreenTop } from '../../components/ScreenTop';
 import { playSound } from '../../design/sound';
+import { api, ApiRequestError } from '../../lib/api';
+import { isSecureForCamera } from '../../lib/camera';
+import type { CapturedPhoto } from '../../lib/camera';
+import { useAuth } from '../../lib/auth';
 import { useChildDay } from '../../lib/childDay';
 import { StatusBadge } from './choreStatus';
 
-type Phase = 'checklist' | 'camera' | 'review' | 'ready' | 'submitted';
+type Phase = 'checklist' | 'camera' | 'review' | 'submitted';
 
 export function ChoreDetail() {
   const { choreId = '' } = useParams();
-  const { day, loading, error, setSubtaskDone } = useChildDay();
+  const { mode } = useAuth();
+  const { day, loading, error, setSubtaskDone, reload } = useChildDay();
   const [phase, setPhase] = useState<Phase>('checklist');
+  const [captured, setCaptured] = useState<CapturedPhoto | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Object URLs are not garbage collected on their own.
+  useEffect(() => () => {
+    if (captured) URL.revokeObjectURL(captured.previewUrl);
+  }, [captured]);
 
   // Read from the day rather than fetching separately, so a tick here and the
   // progress ring on the home screen cannot disagree.
@@ -45,6 +59,28 @@ export function ChoreDetail() {
       </>
     );
   }
+
+  const submit = async () => {
+    if (!captured || uploading) return;
+    setUploading(true);
+    setSubmitError(null);
+    try {
+      // Preview mode has no server; the flow still demonstrates end to end.
+      if (mode !== 'preview') {
+        await api.chores.addPhoto(chore.id, captured.blob);
+        await api.chores.submit(chore.id);
+        await reload();
+      }
+      playSound('approve');
+      setPhase('submitted');
+    } catch (caught) {
+      setSubmitError(
+        caught instanceof ApiRequestError ? caught.message : 'That could not be sent. Try again.',
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const wasRejected = chore.status === 'rejected';
   const doneCount = chore.subtasks.filter((task) => task.done).length;
@@ -132,124 +168,92 @@ export function ChoreDetail() {
                   <p style={{ margin: 0 }}>
                     Take a live photo of your finished work. Saved pictures cannot be used.
                   </p>
-                  <Button
-                    tone="purple"
-                    size="lg"
-                    block
-                    icon="camera"
-                    sound="tap"
-                    onClick={() => setPhase('camera')}
-                  >
-                    Open camera
-                  </Button>
-                </div>
-              )}
-
-              {allDone && phase === 'camera' && <CameraPlaceholder onCapture={() => setPhase('review')} />}
-
-              {allDone && (phase === 'review' || phase === 'ready') && (
-                <div className="card stack">
-                  <div
-                    style={{
-                      aspectRatio: '4 / 3',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--outline)',
-                      background:
-                        'repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0 12px, rgba(255,255,255,0.02) 12px 24px)',
-                      display: 'grid',
-                      placeItems: 'center',
-                      color: 'var(--text-muted)',
-                    }}
-                  >
-                    <div style={{ textAlign: 'center' }}>
-                      <Icon name="camera" size={32} />
-                      <p style={{ margin: 0, fontSize: 'var(--text-sm)' }}>Captured photo preview</p>
+                  {isSecureForCamera() ? (
+                    <Button
+                      tone="purple"
+                      size="lg"
+                      block
+                      icon="camera"
+                      sound="tap"
+                      onClick={() => setPhase('camera')}
+                    >
+                      Open camera
+                    </Button>
+                  ) : (
+                    // Browsers only give out the camera over https or on
+                    // localhost, so opening the dev server by its wifi address
+                    // can never work. Say why instead of failing on tap.
+                    <div className="row" style={{ gap: 'var(--space-3)' }}>
+                      <Icon name="lock" size={22} />
+                      <p style={{ margin: 0 }} className="muted">
+                        The camera needs a secure connection. Open Chore Quest on the laptop, or
+                        wait for the household web address to be set up.
+                      </p>
                     </div>
-                  </div>
-                  <div className="row" style={{ gap: 'var(--space-3)' }}>
-                    <Button tone="quiet" block onClick={() => setPhase('camera')}>
-                      Retake
-                    </Button>
-                    <Button tone="go" block sound="success" onClick={() => setPhase('ready')}>
-                      Use photo
-                    </Button>
-                  </div>
-                  {phase === 'ready' && (
-                    <>
-                      <Badge tone="done" icon="check">
-                        1 photo attached
-                      </Badge>
-                      <Button
-                        tone="go"
-                        size="lg"
-                        block
-                        sound="approve"
-                        onClick={() => {
-                          playSound('approve');
-                          setPhase('submitted');
-                        }}
-                      >
-                        {wasRejected ? 'Fix and resubmit' : 'Submit for approval'}
-                      </Button>
-                    </>
                   )}
                 </div>
               )}
+
+              {allDone && phase === 'camera' && (
+                <CameraCapture
+                  onCaptured={(photo) => {
+                    setCaptured(photo);
+                    setPhase('review');
+                  }}
+                  onCancel={() => setPhase('checklist')}
+                />
+              )}
+
+              {allDone && phase === 'review' && captured && (
+                <div className="card stack">
+                  <img
+                    src={captured.previewUrl}
+                    alt="The photo you just took"
+                    style={{
+                      width: '100%',
+                      aspectRatio: '4 / 3',
+                      objectFit: 'cover',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--outline)',
+                      display: 'block',
+                    }}
+                  />
+
+                  {submitError && (
+                    <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-3)' }}>
+                      {submitError}
+                    </p>
+                  )}
+
+                  <div className="row" style={{ gap: 'var(--space-3)' }}>
+                    <Button
+                      tone="quiet"
+                      block
+                      disabled={uploading}
+                      onClick={() => {
+                        URL.revokeObjectURL(captured.previewUrl);
+                        setCaptured(null);
+                        setPhase('camera');
+                      }}
+                    >
+                      Retake
+                    </Button>
+                    <Button tone="go" size="lg" block disabled={uploading} onClick={() => void submit()}>
+                      {uploading
+                        ? 'Sending…'
+                        : wasRejected
+                          ? 'Fix and resubmit'
+                          : 'Submit for approval'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
             </section>
           </>
         )}
       </main>
     </>
-  );
-}
-
-/**
- * Stage 6 replaces this with a real getUserMedia preview. The permission-denied
- * copy is shown here on purpose so it gets reviewed now: when live camera is
- * unavailable, submission stays blocked and there is no gallery fallback.
- */
-function CameraPlaceholder({ onCapture }: { onCapture: () => void }) {
-  const [denied, setDenied] = useState(false);
-
-  return (
-    <div className="card stack">
-      <div
-        style={{
-          aspectRatio: '4 / 3',
-          borderRadius: 'var(--radius-md)',
-          background: 'rgba(0,0,0,0.5)',
-          border: '1px solid var(--outline)',
-          display: 'grid',
-          placeItems: 'center',
-          color: 'var(--text-muted)',
-          textAlign: 'center',
-          padding: 'var(--space-4)',
-        }}
-      >
-        {denied ? (
-          <div>
-            <Icon name="alert" size={32} />
-            <p style={{ fontWeight: 700, color: 'var(--text)' }}>Camera is blocked</p>
-            <p style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
-              Allow camera access in your browser settings, then try again. You cannot upload a
-              saved picture instead.
-            </p>
-          </div>
-        ) : (
-          <div>
-            <Icon name="camera" size={32} />
-            <p style={{ margin: 0, fontSize: 'var(--text-sm)' }}>Live camera preview (Stage 6)</p>
-          </div>
-        )}
-      </div>
-
-      <Button tone="purple" size="lg" block icon="camera" disabled={denied} onClick={onCapture}>
-        Capture
-      </Button>
-      <Button tone="quiet" size="sm" block onClick={() => setDenied((value) => !value)}>
-        Preview the camera-blocked state
-      </Button>
-    </div>
   );
 }
 
