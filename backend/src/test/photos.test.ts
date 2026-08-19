@@ -58,12 +58,21 @@ describe('stored paths stay inside the storage directory', () => {
   });
 
   it('refuses to climb out', () => {
-    for (const bad of [
-      '../../../etc/passwd',
-      '2026/../../../../secrets.env',
-      '..\\..\\windows\\system32\\config\\sam',
-    ]) {
+    for (const bad of ['../../../etc/passwd', '2026/../../../../secrets.env', '..']) {
       expect(() => resolveStoredPath(root, bad)).toThrow(/outside the storage directory/);
+    }
+  });
+
+  it('treats a backslash path as traversal only where it is a separator', () => {
+    // The backend runs on Windows, where "..\..\" climbs out; CI runs Linux,
+    // where a backslash is an ordinary filename character and the same string
+    // is a strangely named file safely inside the root. Both behaviours are
+    // correct, so the assertion follows the platform rather than picking one.
+    const windowsish = '..\\..\\windows\\system32\\config\\sam';
+    if (process.platform === 'win32') {
+      expect(() => resolveStoredPath(root, windowsish)).toThrow(/outside the storage directory/);
+    } else {
+      expect(resolveStoredPath(root, windowsish).startsWith(root)).toBe(true);
     }
   });
 });
