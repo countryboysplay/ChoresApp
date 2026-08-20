@@ -13,7 +13,7 @@ const SIDEBAR: { to: string; label: string; icon: IconName }[] = [
   { to: '/parent', label: 'Dashboard', icon: 'grid' },
   { to: '/parent/schedule', label: 'Schedule', icon: 'calendar' },
   { to: '/parent/approvals', label: 'Approvals', icon: 'check' },
-  { to: '/parent/chores/new', label: 'Chores', icon: 'missions' },
+  { to: '/parent/chores', label: 'Chores', icon: 'missions' },
   { to: '/parent/bonus', label: 'Bonus chores', icon: 'star' },
   { to: '/parent/rewards', label: 'Rewards', icon: 'gift' },
   { to: '/parent/children', label: 'Kids', icon: 'user' },

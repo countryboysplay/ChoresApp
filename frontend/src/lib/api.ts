@@ -330,6 +330,12 @@ export const api = {
         body: JSON.stringify(chore),
       }),
 
+    updateChore: (choreId: string, changes: Record<string, unknown>) =>
+      request<{ ok: true }>(`/api/parent/chores/${choreId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(changes),
+      }),
+
     retireChore: (choreId: string) =>
       request<{ ok: true }>(`/api/parent/chores/${choreId}`, { method: 'DELETE' }),
   },

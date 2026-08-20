@@ -1782,3 +1782,50 @@ generic refusal it is told so by name and asked to reload, which mints it a
 current one. Verified by probing the running server with each shape of request:
 bookmark, cross-site navigation, cross-site `fetch`, no Sec-Fetch headers, stale
 token, and a forged `Host` header.
+
+
+---
+
+## 2026-08-20 — Chores can be changed and stood down from the app
+
+**Decision.** A Chores screen lists every chore definition and opens one for
+editing: its name, its points, who does it, and whether it runs daily or on
+chosen weekdays. Retiring is on the same sheet. The `Chores` tab now lands here
+rather than on the new-chore wizard, which is reached by a button on it.
+
+**Reason.** The backend has had PATCH and DELETE for chore definitions since they
+were written; nothing in the app ever called them. `retireChore` sat unused in
+the API client. The wizard could only ever create, so a chore assigned to the
+wrong child, or a name typed wrong, or one the household stopped doing, could
+only be corrected with SQL at the laptop - which is the exact situation the
+chore admin routes were built to end.
+
+The owner asked for the database to be cleared so a household could be set up
+from scratch. That would have worked once and left the same dead end the second
+time somebody changed their mind.
+
+**Consequences.** Retiring stands the definition and its schedules down rather
+than deleting them, matching rewards, so a chore already done keeps its name in
+the child's history and `chore_instances` keeps pointing at something real.
+
+Because retiring is the closest thing to a delete button in the app, it had to
+be reversible: PATCH now accepts `isActive`, and saving a retired chore with
+somebody assigned puts it back on the schedule. Without that the button would
+have been a one-way door, since the materializer requires both `d.is_active` and
+`s.is_active` and nothing else could have set the first one back.
+
+Editing sends the whole schedule set and the server replaces it, so a chore
+already on a child's list today is untouched - instances keep the points and the
+wording they were created with, per the snapshot decision. The unique index on
+`(chore_definition_id, assigned_to, chore_date)` is what stops an edit made
+mid-day from adding the same chore to a child twice.
+
+The screen assumes one recurrence pattern per chore, reading the first schedule
+and applying the edited pattern to everybody assigned. That is what the wizard
+has always produced; a chore with genuinely different days per child could only
+have come from hand-written SQL, and editing one here would flatten it.
+
+**Not verified against a database.** The chore-admin suites skip on this laptop:
+there is no `TEST_DATABASE_URL`, and the app's Postgres role cannot create the
+scratch database to point it at. Typecheck, lint, the 53 tests that run without
+a database, and the production build all pass.

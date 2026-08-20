@@ -24,6 +24,8 @@ const ChoreBody = z.object({
     .max(30)
     .default([]),
   schedules: z.array(ScheduleBody).max(10).default([]),
+  /** Only read by PATCH, and only to bring a retired chore back. */
+  isActive: z.boolean().optional(),
 });
 
 /**
@@ -181,7 +183,8 @@ export async function choreAdminRoutes(app: FastifyInstance, opts: { env: Env })
                 icon = coalesce($3, icon),
                 points = coalesce($4, points),
                 category = coalesce($5, category),
-                instructions = coalesce($6, instructions)
+                instructions = coalesce($6, instructions),
+                is_active = coalesce($7, is_active)
           WHERE id = $1 AND kind = 'core'`,
         [
           choreId,
@@ -190,6 +193,7 @@ export async function choreAdminRoutes(app: FastifyInstance, opts: { env: Env })
           input.points ?? null,
           input.category ?? null,
           input.instructions ?? null,
+          input.isActive ?? null,
         ],
       );
       if (!rowCount) throw app.httpErrors.notFound('No such chore.');

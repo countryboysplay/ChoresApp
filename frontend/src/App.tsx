@@ -19,6 +19,7 @@ import { ParentDashboard } from './screens/parent/Dashboard';
 import { ApprovalQueue } from './screens/parent/Approvals';
 import { ApprovalReview } from './screens/parent/ApprovalReview';
 import { Schedule } from './screens/parent/Schedule';
+import { ChoreManage } from './screens/parent/ChoreManage';
 import { ChoreWizard } from './screens/parent/ChoreWizard';
 import { BonusManage } from './screens/parent/BonusManage';
 import { RewardManage } from './screens/parent/RewardManage';
@@ -63,6 +64,7 @@ export function App() {
         <Route path="/parent/approvals" element={<ApprovalQueue />} />
         <Route path="/parent/approvals/:submissionId" element={<ApprovalReview />} />
         <Route path="/parent/schedule" element={<Schedule />} />
+        <Route path="/parent/chores" element={<ChoreManage />} />
         <Route path="/parent/chores/new" element={<ChoreWizard />} />
         <Route path="/parent/bonus" element={<BonusManage />} />
         <Route path="/parent/rewards" element={<RewardManage />} />

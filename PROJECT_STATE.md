@@ -138,6 +138,10 @@ and `http://<laptop-ip>:5173` also works.
   DNS-01 challenge. Nothing is exposed to the internet - the hostname resolves
   to this laptop's private address. Falls back to plain http rather than
   refusing to start.
+- Chores are managed in the app: the parent Chores screen lists them, edits the
+  name, points, who does them and which days, and retires one when it is no
+  longer wanted. Retiring is reversible - saving a retired chore with somebody
+  assigned puts it back.
 - A laptop dashboard (`npm run admin`): start/stop/restart, back up to a USB
   drive, add a parent, reset a PIN, renew the certificate, rebuild, and read the
   log. Bookmarkable at `http://127.0.0.1:4100/`; loopback only, closed to other

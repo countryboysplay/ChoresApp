@@ -96,7 +96,7 @@ export function ChoreWizard() {
           daysOfWeek: recurrence === 'Weekly' ? days : [],
         })),
       });
-      navigate('/parent/schedule', { replace: true });
+      navigate('/parent/chores', { replace: true });
     } catch (caught) {
       setError(caught instanceof ApiRequestError ? caught.message : 'That did not save.');
     } finally {
