@@ -3,12 +3,22 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 /**
- * GitHub Pages serves the app from /<repo>/, and the repository is ChoresApp, so
- * the production base path is "/ChoresApp/". CI can override it with
- * VITE_BASE_PATH (Stage 17). Local dev and tests stay at "/".
+ * The base path is "/" unless something says otherwise.
+ *
+ * The household's own build is served from the root of its own hostname, so
+ * that is the default. GitHub Pages is the exception - it serves from
+ * /<repo>/ - and its workflow passes VITE_BASE_PATH explicitly, which is where
+ * that knowledge belongs.
+ *
+ * It used to be the other way round, defaulting to "/ChoresApp/" and expecting
+ * the household build to override it. That made the common case the one you had
+ * to remember, and on Windows it is worse than it sounds: Git Bash rewrites a
+ * lone "/" argument into a Windows path, so VITE_BASE_PATH=/ silently produced
+ * a bundle asking for /Program Files/Git/assets/... The default now needs no
+ * override at all.
  */
 export default defineConfig(({ mode }) => ({
-  base: mode === 'production' ? (process.env.VITE_BASE_PATH ?? '/ChoresApp/') : '/',
+  base: mode === 'production' ? (process.env.VITE_BASE_PATH || '/') : '/',
   plugins: [
     react(),
     VitePWA({
