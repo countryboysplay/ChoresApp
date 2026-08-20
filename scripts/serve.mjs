@@ -141,8 +141,29 @@ const KEEP_LOG_DAYS = 14;
 
 await mkdir(logDir, { recursive: true });
 
+/**
+ * The household's date, not UTC.
+ *
+ * Everything else in this project dates things by the household's own clock,
+ * and a log file should not be the exception: named by UTC, tonight's log would
+ * roll over at 7pm local and somebody looking for "last night" would open a
+ * file covering two different evenings.
+ */
+const timeZone = env.HOUSEHOLD_TZ || 'America/Chicago';
+
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  } catch {
+    // An unusable HOUSEHOLD_TZ is the server's problem to report, not this
+    // script's to crash over. Naming a log badly is not worth failing to start.
+    return new Date().toISOString().slice(0, 10);
+  }
 }
 
 let logDay = today();
