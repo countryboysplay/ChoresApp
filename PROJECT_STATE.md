@@ -4,8 +4,8 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 17 — Running for real |
-| Stage status | Serving the household from the compiled build; awaiting owner approval |
+| Current stage | Stage 18 — Starting by itself |
+| Stage status | Built and verified; needs one elevated command to register the task |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
@@ -14,7 +14,7 @@ _Last updated: 2026-08-19_
 | Production URL | https://chores.lindsayfam.org — home wifi only. Resolves to 192.168.0.178, this laptop's reserved address. Certificate from Let's Encrypt, renews itself |
 | Database migration status | 12 migrations applied; 19 tables, 10 enums. Rolls back to empty and forward again cleanly |
 | Test status | 263 in CI (232 backend, 31 frontend). On the laptop 179 skip by design - tests may not touch the household database |
-| Last known good commit | `8dcbfef` — Stage 16 live; CI and Pages green |
+| Last known good commit | `69cea4f` — Stage 17 running for real; CI green |
 
 ## Stage 0 findings
 
@@ -357,6 +357,44 @@ folders on disk. But the fallback is gone, a guard refuses a test database whose
 name is not obviously a test database, and a regression test greps the suites so
 it cannot come back.
 
+## Stage 18 - starting by itself
+
+`scripts/install-startup.ps1` registers a Scheduled Task that starts Chore Quest
+thirty seconds after boot, before anybody logs in, running as the owner's
+account. Owner decision: a built-in Scheduled Task rather than NSSM, which would
+have meant a third-party binary running with high privilege on the machine
+holding the family's photographs.
+
+The launcher supervises the server itself, because Task Scheduler only retries a
+task that *fails* and a process exiting zero is not a failure by its reckoning.
+It restarts with backoff and gives up after eight in a row - silence is the
+failure this stage exists to prevent, so it exits in a way Task Scheduler can
+see rather than retrying forever.
+
+Verified rather than assumed: the running server was killed outright and came
+back on its own, with the reason written to the day's log, still serving https
+with a valid certificate.
+
+Two things were also fixed here, both of which would have failed silently under
+a task rather than in a terminal:
+
+- **`pg_dump` is now located by absolute path**, not looked up on PATH. It is on
+  this laptop's *user* PATH only, so anything Windows started on its own would
+  have served perfectly and quietly stopped backing up.
+- **Output goes to a log file**, one per day in `backend/storage/logs`, kept a
+  fortnight. A scheduled task's output otherwise goes nowhere at all.
+
+### The one command left
+
+In an **elevated** PowerShell:
+
+    cd C:\Users\Jonathan\Desktop\ChoresApp-main
+    .\scripts\install-startup.ps1
+
+Close whatever is serving on port 443 first, then start it without rebooting:
+
+    Start-ScheduledTask -TaskName 'Chore Quest'
+
 ## Next planned work## Next planned work
 
 **Chore Quest is usable by a real household from here.** Everything from
@@ -376,11 +414,8 @@ To start using it, on the laptop:
    restart. That turns on the evening reminder buzzing a child's phone. Leaving
    the keys unset keeps push off, which is also a valid way to run.
 
-**Stage 18 — Starting by itself.** The household currently depends on somebody
-having run `npm run serve` in a window and not closed it. A power cut, a Windows
-update, or a stray Ctrl+C takes the app down until a person notices. Windows has
-to start it at boot and restart it if it dies. Scheduled Task versus NSSM
-service is still an open owner decision.
+**Every build stage is done.** Stages 0 to 18 are built and the household is
+running on them. What remains is not a stage:
 
 Also outstanding:
 

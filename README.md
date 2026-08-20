@@ -63,6 +63,7 @@ npm run dev
 | `npm run user -w backend -- --list` | Lists household members |
 | `npm run user -w backend -- --role parent --name "N"` | Creates a member and sets their PIN |
 | `npm run serve` | Builds everything and runs it for the household, in production mode |
+| `npm run startup` | Registers the Windows task that starts it at boot (needs admin) |
 | `npm run vapid` | Prints a fresh VAPID key pair for push notifications |
 | `npm run cert -- --issue` | Obtains or renews the https certificate |
 | `npm run restore -- --list` | Lists backups; `--from <folder>` restores one |
@@ -216,6 +217,35 @@ Also reserve the laptop's address in the router. The A record points at a fixed
 address, so a DHCP lease that moves takes the whole household off the air.
 
 Without any of this the app still runs on plain http exactly as before.
+
+## Starting automatically
+
+The household should not depend on somebody keeping a window open. Register the
+Windows task once, from an **elevated** PowerShell:
+
+```powershell
+cd C:\Users\Jonathan\Desktop\ChoresApp-main
+.\scripts\install-startup.ps1
+```
+
+It starts 30 seconds after boot, before anyone logs in, running as your account
+rather than SYSTEM — it needs to read `backend/.env` and write to
+`backend/storage`. Elevation is needed once to register it, not to run it.
+
+```powershell
+Start-ScheduledTask -TaskName 'Chore Quest'    # start now, no reboot
+Get-ScheduledTask  -TaskName 'Chore Quest' | Get-ScheduledTaskInfo
+Stop-ScheduledTask -TaskName 'Chore Quest'
+.\scripts\install-startup.ps1 -Remove          # undo it
+```
+
+Anything already listening on port 443 stops the task starting, so close a
+`npm run serve` window first.
+
+**Logs** are in `backend\storage\logs\`, one file per day, kept a fortnight. If
+the server dies the launcher restarts it with backoff, and gives up after eight
+in a row rather than hiding a real problem behind an endless retry — the reason
+is written to that day's log.
 
 ## Running tests
 

@@ -109,7 +109,7 @@ surface as a wrong chore day weeks later.
 | --- | --- | --- |
 | ~~PWA / service worker strategy~~ | ~~14~~ | Settled in Stage 14: vite-plugin-pwa in injectManifest mode, shell-only precache, update on next launch |
 | ~~Tunnel choice~~ | ~~16~~ | Settled in Stage 16: neither. Nothing is exposed; https on the home wifi via a public certificate for a private address |
-| Windows startup method | 18 | Scheduled Task at boot vs. NSSM service |
+| ~~Windows startup method~~ | ~~18~~ | Settled in Stage 18: Scheduled Task at boot, running as the owner, with the launcher supervising restarts |
 | ~~Backup retention~~ | ~~15~~ | Settled in Stage 15: 14 nightly then 8 weekly, mirrored to a USB drive when plugged in |
 
 ---
@@ -1517,3 +1517,191 @@ module ended up, which works the same under `tsx` and compiled. Uptime is shown
 alongside "Online" because the useful question is not whether the server is up,
 which is obvious from the screen having rendered, but whether it has been
 restarting all evening.
+
+---
+
+## 2026-08-19 — A Scheduled Task at boot, not a service wrapper
+
+**Decision.** Owner decision. Windows starts Chore Quest through a Scheduled
+Task registered by `scripts/install-startup.ps1`: at startup, thirty seconds
+after boot, running as the owner's account whether or not anybody is logged in.
+No NSSM, no third-party service wrapper.
+
+**Reason.** A Scheduled Task is built into Windows, visible in a tool the owner
+already has, and needs nothing downloaded. NSSM would give better restart
+semantics out of the box, but it is a third-party binary running with high
+privilege on the machine holding the family's photographs, and this project has
+declined that kind of dependency everywhere else. The restart handling it would
+have bought is small enough to write honestly instead - see the supervisor
+below.
+
+**Consequences.** Registering it needs one elevated PowerShell, because a task
+that runs before login cannot be created by a standard user. The script checks
+for that first and says so in full rather than failing on the
+`Register-ScheduledTask` line.
+
+It runs as the owner rather than as SYSTEM, deliberately. PostgreSQL is on this
+laptop's *user* PATH and not the machine PATH - that is where the EDB installer
+leaves it - so a task running as SYSTEM would start perfectly and then fail
+every nightly backup with "pg_dump is not recognized", which surfaces only as a
+backup that did not happen. The app no longer depends on PATH at all, but
+running as the account that owns the files is still the arrangement that matches
+what it needs to read and write. `LogonType S4U` means Windows does not have to
+store the account password anywhere to do it.
+
+---
+
+## 2026-08-19 — pg_dump is located, not looked up on PATH
+
+**Decision.** `findPgTool` resolves `pg_dump` and `pg_restore` to absolute paths:
+`PG_BIN_DIR` if set, then the standard install locations newest-version-first,
+then the bare name as a last resort.
+
+**Reason.** The backup code shelled out to `pg_dump` and relied on PATH, which
+was true for the account that installed PostgreSQL and false for anything
+Windows might start on its own. That failure mode is the worst shape available:
+the app starts, serves perfectly, and quietly stops backing up.
+
+**Consequences.** Newest version first, because `pg_dump` refuses a server newer
+than itself - when several are installed the latest is the only safe choice, and
+this project has already been bitten by exactly that in CI. A `PG_BIN_DIR` that
+is set but wrong throws rather than falling through to PATH: a wrong setting
+should not look identical to no setting. Falling back to the bare name keeps
+every machine where PATH is fine working exactly as before.
+
+---
+
+## 2026-08-19 — The launcher supervises, because Task Scheduler cannot
+
+**Decision.** `scripts/serve.mjs` restarts the server when it exits without
+being asked to, backing off 2s, 5s, 15s, 30s, 60s, and gives up after eight
+restarts in a row. A server that stayed up five minutes resets the count.
+
+**Reason.** Task Scheduler retries a task that *fails*, and a process exiting
+zero is not a failure by its reckoning. Relying on it alone would leave a whole
+category of exits unhandled. Twenty lines of supervisor covers all of them, and
+covers them the same way on a laptop somebody is watching as on one that
+rebooted at 3am.
+
+**Consequences.** Giving up is the part worth stating out loud. A supervisor
+that retries forever turns a broken deploy into silence, and silence is the
+exact failure this stage exists to prevent - so after eight consecutive
+restarts it exits non-zero, which is a failure Task Scheduler *can* see and
+which leaves a reason in the log. The five-minute healthy threshold is what
+stops a server that has restarted happily once a month for a year from being
+treated as a crash loop.
+
+Verified rather than assumed: the running server was killed outright and came
+back on its own, with the reason written to the day's log.
+
+---
+
+## 2026-08-19 — One log file a day, kept a fortnight
+
+**Decision.** The launcher writes everything the server prints to
+`backend/storage/logs/chore-quest-YYYY-MM-DD.log`, rotating when the date
+changes and deleting files older than fourteen days.
+
+**Reason.** A scheduled task's output goes nowhere at all, which would make
+production logging JSON that nobody can read. Rotating on the date rather than
+only at startup matters because this laptop is meant to stay up for months - a
+single file covering a whole season is one nobody opens.
+
+**Consequences.** Fourteen days matches the nightly backup retention, for the
+same reason: it is long enough to look into something noticed the same
+fortnight. Output still goes to the console as well, because the person standing
+at the laptop should not have to open a file to see what just happened.
+
+---
+
+## 2026-08-19 — A Scheduled Task at boot, not a service wrapper
+
+**Decision.** Owner decision. Windows starts Chore Quest through a Scheduled
+Task registered by `scripts/install-startup.ps1`: at startup, thirty seconds
+after boot, running as the owner's account whether or not anybody is logged in.
+No NSSM, no third-party service wrapper.
+
+**Reason.** A Scheduled Task is built into Windows, visible in a tool the owner
+already has, and needs nothing downloaded. NSSM would give better restart
+semantics out of the box, but it is a third-party binary running with high
+privilege on the machine holding the family's photographs, and this project has
+declined that kind of dependency everywhere else. The restart handling it would
+have bought is small enough to write honestly instead - see the supervisor
+below.
+
+**Consequences.** Registering it needs one elevated PowerShell, because a task
+that runs before login cannot be created by a standard user. The script checks
+for that first and says so in full rather than failing on the
+`Register-ScheduledTask` line.
+
+It runs as the owner rather than as SYSTEM, deliberately. PostgreSQL is on this
+laptop's *user* PATH and not the machine PATH - that is where the EDB installer
+leaves it - so a task running as SYSTEM would start perfectly and then fail
+every nightly backup with "pg_dump is not recognized", which surfaces only as a
+backup that did not happen. The app no longer depends on PATH at all, but
+running as the account that owns the files is still the arrangement that matches
+what it needs to read and write. `LogonType S4U` means Windows does not have to
+store the account password anywhere to do it.
+
+---
+
+## 2026-08-19 — pg_dump is located, not looked up on PATH
+
+**Decision.** `findPgTool` resolves `pg_dump` and `pg_restore` to absolute paths:
+`PG_BIN_DIR` if set, then the standard install locations newest-version-first,
+then the bare name as a last resort.
+
+**Reason.** The backup code shelled out to `pg_dump` and relied on PATH, which
+was true for the account that installed PostgreSQL and false for anything
+Windows might start on its own. That failure mode is the worst shape available:
+the app starts, serves perfectly, and quietly stops backing up.
+
+**Consequences.** Newest version first, because `pg_dump` refuses a server newer
+than itself - when several are installed the latest is the only safe choice, and
+this project has already been bitten by exactly that in CI. A `PG_BIN_DIR` that
+is set but wrong throws rather than falling through to PATH: a wrong setting
+should not look identical to no setting. Falling back to the bare name keeps
+every machine where PATH is fine working exactly as before.
+
+---
+
+## 2026-08-19 — The launcher supervises, because Task Scheduler cannot
+
+**Decision.** `scripts/serve.mjs` restarts the server when it exits without
+being asked to, backing off 2s, 5s, 15s, 30s, 60s, and gives up after eight
+restarts in a row. A server that stayed up five minutes resets the count.
+
+**Reason.** Task Scheduler retries a task that *fails*, and a process exiting
+zero is not a failure by its reckoning. Relying on it alone would leave a whole
+category of exits unhandled. Twenty lines of supervisor covers all of them, and
+covers them the same way on a laptop somebody is watching as on one that
+rebooted at 3am.
+
+**Consequences.** Giving up is the part worth stating out loud. A supervisor
+that retries forever turns a broken deploy into silence, and silence is the
+exact failure this stage exists to prevent - so after eight consecutive
+restarts it exits non-zero, which is a failure Task Scheduler *can* see and
+which leaves a reason in the log. The five-minute healthy threshold is what
+stops a server that has restarted happily once a month for a year from being
+treated as a crash loop.
+
+Verified rather than assumed: the running server was killed outright and came
+back on its own, with the reason written to the day's log.
+
+---
+
+## 2026-08-19 — One log file a day, kept a fortnight
+
+**Decision.** The launcher writes everything the server prints to
+`backend/storage/logs/chore-quest-YYYY-MM-DD.log`, rotating when the date
+changes and deleting files older than fourteen days.
+
+**Reason.** A scheduled task's output goes nowhere at all, which would make
+production logging JSON that nobody can read. Rotating on the date rather than
+only at startup matters because this laptop is meant to stay up for months - a
+single file covering a whole season is one nobody opens.
+
+**Consequences.** Fourteen days matches the nightly backup retention, for the
+same reason: it is long enough to look into something noticed the same
+fortnight. Output still goes to the console as well, because the person standing
+at the laptop should not have to open a file to see what just happened.

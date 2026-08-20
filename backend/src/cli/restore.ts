@@ -6,6 +6,7 @@ import { stdin, stdout } from 'node:process';
 import { promisify } from 'node:util';
 import { loadEnv } from '../env.js';
 import { DUMP_FILE, MANIFEST_FILE, PHOTO_DIR, type BackupManifest } from '../backup/service.js';
+import { findPgTool } from '../backup/pg-tools.js';
 
 const run = promisify(execFile);
 
@@ -189,7 +190,8 @@ the copy above. Everything that happened since then is lost. There is no undo.
   console.log('\nRestoring the database...');
   // --clean --if-exists drops what is there first, so this is a replacement
   // rather than a merge into whatever the database currently holds.
-  await run('pg_restore', [
+  const pgRestore = await findPgTool('pg_restore', env.PG_BIN_DIR);
+  await run(pgRestore, [
     `--dbname=${env.DATABASE_URL}`,
     '--clean',
     '--if-exists',

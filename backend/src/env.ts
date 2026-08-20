@@ -43,6 +43,10 @@ const EnvSchema = z.object({
   // the ordinary case and never an error - System status says when it last
   // happened so nobody has to assume.
   BACKUP_MIRROR_DIR: optionalText,
+  // Where pg_dump and pg_restore live. Usually found without help; needed when
+  // the app runs under an account whose PATH does not include PostgreSQL -
+  // which on this laptop is every account except the one that installed it.
+  PG_BIN_DIR: optionalText,
 
   // Serving the household over https on the home wifi.
   //

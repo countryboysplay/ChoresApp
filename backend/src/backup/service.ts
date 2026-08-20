@@ -6,6 +6,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import type pg from 'pg';
 import type { Env } from '../env.js';
 import { householdToday } from '../time.js';
+import { findPgTool } from './pg-tools.js';
 
 const run = promisify(execFile);
 
@@ -139,7 +140,10 @@ export async function runBackup(
     // Custom format: compressed, and pg_restore can rebuild from it selectively
     // if only part of the schema is ever needed. --no-owner because the
     // restoring role is whatever the laptop has, not whatever wrote the dump.
-    await run('pg_dump', [
+    // Located rather than assumed - see pg-tools. Under a scheduled task the
+    // PATH is not the one the person who installed PostgreSQL had.
+    const pgDump = await findPgTool('pg_dump', env.PG_BIN_DIR);
+    await run(pgDump, [
       `--dbname=${env.DATABASE_URL}`,
       '--format=custom',
       '--no-owner',
