@@ -129,6 +129,40 @@ Where the browser offers it, an "Add to your home screen" card appears on a
 child's Profile screen and on parent Settings. On an iPhone there is no such API
 and it is a Safari menu item instead.
 
+## Backups
+
+Every night at 3am the app backs itself up: the database and every chore photo,
+into `backend/storage/backups`. It keeps 14 nightly backups and then 8 weekly
+ones, so roughly four months of history. There is a "Back up now" button on
+System status too.
+
+**Backups on the same disk are not protection against losing the laptop.** To
+keep a copy that survives the machine, set `BACKUP_MIRROR_DIR` in `backend/.env`
+to a folder on a USB drive:
+
+```
+BACKUP_MIRROR_DIR=E:\ChoreQuestBackups
+```
+
+Every backup then copies itself there whenever the drive is plugged in. When it
+is not, the backup still succeeds locally and System status says the drive is
+missing rather than staying quiet about it.
+
+### Restoring
+
+Restoring replaces every chore, point, reward, photo, and PIN with an older copy
+and cannot be undone, so it is a terminal command rather than a button. Stop the
+server first - it refuses to run otherwise, because a database cannot be rebuilt
+underneath the server using it.
+
+```powershell
+npm run restore -- --list
+npm run restore -- --from <folder>
+```
+
+It shows what the backup contains and asks you to type RESTORE before touching
+anything.
+
 ## Secrets
 
 `.env` files are git-ignored. Only `.env.example` is tracked, and it never contains

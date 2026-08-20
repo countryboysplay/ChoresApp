@@ -3,6 +3,7 @@ import type pg from 'pg';
 import type { Env } from '../env.js';
 import { sweepReminders } from './service.js';
 import { drainPushQueue } from './push.js';
+import { backupIfDue } from '../backup/service.js';
 
 /**
  * Runs the reminder sweep and the push drain on a timer.
@@ -18,6 +19,11 @@ import { drainPushQueue } from './push.js';
  * reminder is written, which is the first time the number has meant anything to
  * anybody. Fifteen seconds is chosen for that and nothing else; the sweep is a
  * handful of indexed queries against a household-sized database.
+ *
+ * The nightly backup rides the same tick and is written the same way: it asks
+ * whether today already has one rather than whether 3am has just struck, so a
+ * laptop that was restarting at 3am gets its backup at 3:15 and a laptop that
+ * was off all night gets one when it comes back.
  */
 const TICK_MS = 15_000;
 
@@ -58,6 +64,21 @@ export function startScheduler(
       }
     } catch (error) {
       log.error({ err: error }, 'push drain failed');
+    }
+
+    try {
+      // Separately guarded again. A backup is the slowest thing on this tick by
+      // a wide margin, and a household must not lose its evening reminders
+      // because pg_dump had a bad night.
+      const backup = await backupIfDue(db, env, log);
+      if (backup) {
+        log.info(
+          { bytes: backup.bytes, photos: backup.photoCount, mirrored: backup.mirroredTo !== null },
+          'nightly backup taken',
+        );
+      }
+    } catch (error) {
+      log.error({ err: error }, 'nightly backup failed');
     } finally {
       running = false;
     }

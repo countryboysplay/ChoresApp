@@ -5,6 +5,7 @@ import type {
   PushKeyResponse,
   PushStatusResponse,
   ChildRemindersResponse,
+  BackupsResponse,
   ChoreResolution,
   DashboardResponse,
   ScheduleResponse,
@@ -245,6 +246,17 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ muted }),
       }),
+  },
+
+  backups: {
+    list: () => request<BackupsResponse>('/api/parent/backups'),
+
+    /** Restoring is deliberately absent - it is a terminal command. */
+    runNow: () =>
+      request<{ backup: { id: string; bytes: number; photoCount: number; mirrored: boolean } }>(
+        '/api/parent/backups',
+        { method: 'POST' },
+      ),
   },
 
   dashboard: {

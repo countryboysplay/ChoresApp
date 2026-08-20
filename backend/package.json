@@ -13,6 +13,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "user": "tsx src/cli/manage-user.ts",
     "vapid": "tsx src/cli/vapid-keys.ts",
+    "restore": "tsx src/cli/restore.ts",
     "migrate": "node-pg-migrate up",
     "migrate:down": "node-pg-migrate down",
     "migrate:redo": "node-pg-migrate redo",

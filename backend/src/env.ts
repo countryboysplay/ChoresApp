@@ -36,6 +36,13 @@ const EnvSchema = z.object({
   VAPID_SUBJECT: optionalText,
   PHOTO_STORAGE_DIR: z.string().default('./storage/photos'),
   BACKUP_DIR: z.string().default('./storage/backups'),
+  // The removable drive. A backup on the same disk as the database survives a
+  // mistake and a corrupt table; it does not survive that disk dying, or the
+  // laptop being lost. Owner decision: mirror to a USB drive when it is plugged
+  // in. Absent or not-currently-a-directory means "not plugged in", which is
+  // the ordinary case and never an error - System status says when it last
+  // happened so nobody has to assume.
+  BACKUP_MIRROR_DIR: optionalText,
 });
 
 const EnvSchemaChecked = EnvSchema.superRefine((value, ctx) => {

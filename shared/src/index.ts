@@ -523,3 +523,33 @@ export interface ChildRemindersResponse {
   configured: boolean;
   children: ChildReminderState[];
 }
+
+/**
+ * Backups.
+ *
+ * `mirrorConnected` is reported even when false, and especially then. A
+ * household that believes it has an off-laptop copy and does not is worse off
+ * than one that knows it does not, because the first will never go looking for
+ * the drive.
+ */
+export interface BackupRecord {
+  id: string;
+  status: 'running' | 'ok' | 'failed';
+  kind: 'scheduled' | 'manual';
+  at: string;
+  finishedAt: string | null;
+  bytes: number | null;
+  photoCount: number | null;
+  mirrored: boolean;
+  error: string | null;
+}
+
+export interface BackupsResponse {
+  /** A removable-drive path is set in the environment. */
+  mirrorConfigured: boolean;
+  /** That path exists right now, i.e. the drive is plugged in. */
+  mirrorConnected: boolean;
+  retention: { daily: number; weekly: number };
+  lastGood: BackupRecord | null;
+  backups: BackupRecord[];
+}

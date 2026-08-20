@@ -110,7 +110,7 @@ surface as a wrong chore day weeks later.
 | ~~PWA / service worker strategy~~ | ~~14~~ | Settled in Stage 14: vite-plugin-pwa in injectManifest mode, shell-only precache, update on next launch |
 | Tunnel choice | 16 | Cloudflare Tunnel vs. Tailscale. No router ports either way |
 | Windows startup method | 18 | Scheduled Task at boot vs. NSSM service |
-| Backup retention | 15 | Owner decision |
+| ~~Backup retention~~ | ~~15~~ | Settled in Stage 15: 14 nightly then 8 weekly, mirrored to a USB drive when plugged in |
 
 ---
 
@@ -1181,3 +1181,126 @@ subscription ends up attached to a registration that is about to be replaced.
 That wait is raced against a timeout, since `ready` never rejects and would
 otherwise hang a panel forever. `devOptions.enabled` is on because push is
 tested on localhost, the only secure context available before Stage 16.
+
+---
+
+## 2026-08-19 — The database and the photos are backed up together, always
+
+**Decision.** One backup is one folder: a `pg_dump` custom-format archive, a copy
+of the photo directory, and a manifest naming the schema they came from. Never
+one without the other.
+
+**Reason.** Neither half is a backup of anything on its own. A database restored
+without its photos is a set of approved chores whose proof has vanished, and a
+folder of photos with no database is a pile of unnamed JPEGs. The photos live on
+the filesystem rather than in Postgres precisely so the dump stays small - that
+choice was made in Stage 6 with this stage in mind, and it only works if the two
+are treated as one thing from here on.
+
+**Consequences.** The manifest is what makes a folder trustworthy: a restore
+refuses a folder without one, because that is exactly what a backup interrupted
+half way through looks like from the outside. A failed backup deletes its own
+folder for the same reason - a truncated dump left on disk is worse than no
+folder at all, since a restore would find it and rebuild an incomplete household
+from it. The failure row is kept, because "no backup last night" has to be
+something the System status screen can say out loud rather than something a
+parent infers from an absence.
+
+---
+
+## 2026-08-19 — Fourteen nightly backups, then eight weekly
+
+**Decision.** Owner decision. The fourteen most recent successful backups are
+kept outright, then one per ISO week for eight further weeks. Failed rows are
+kept indefinitely; they hold no files.
+
+**Reason.** Two different mistakes need catching. One is noticed within days - a
+chore approved by accident, a PIN reset on the wrong child - and wants a
+fine-grained recent history. The other is noticed a season later, usually when
+somebody asks where a month of points went, and wants depth rather than
+resolution. Fourteen and eight covers both for roughly fifteen times the size of
+the database, which at 11 MB is nothing against 868 GB free.
+
+**Consequences.** Anything older than about four months is gone, deliberately.
+The prune runs after each nightly backup rather than on its own schedule, so it
+cannot drift from the thing it is pruning. A folder that will not delete is
+logged and left; the next prune reconsiders it rather than failing the night
+over a locked file.
+
+---
+
+## 2026-08-19 — A second copy goes to a removable drive when it is plugged in
+
+**Decision.** Owner decision. `BACKUP_MIRROR_DIR` names a folder on a USB drive.
+When that path exists the finished backup is copied there; when it does not,
+nothing happens and the screen says so.
+
+**Reason.** A backup on the same disk as the database survives a mistake and a
+corrupt table. It does not survive that disk dying, the laptop being stolen, or
+the house it is in burning down. The owner chose a removable drive over syncing
+to OneDrive, which keeps the household's data - including photographs taken
+inside their home - off anybody else's servers, consistent with the laptop-only
+principle the project has held since Stage 1.
+
+**Consequences.** This protects the household exactly as often as somebody
+remembers to plug the drive in, which is the honest trade and has to be stated
+rather than assumed. So System status reports the drive's absence as a plain
+sentence, not a silent omission: a household that believes it has an off-laptop
+copy and does not is worse off than one that knows, because the first will never
+go looking. The mirror is copied last and its failure never fails the backup -
+losing the second copy must not cost the household the first. "Plugged in" is
+"that path is a directory" rather than any Windows drive enumeration, which
+keeps it testable and works for a network folder just as well.
+
+---
+
+## 2026-08-19 — Restoring is a terminal command, not a button
+
+**Decision.** Owner decision. `npm run restore -- --from <folder>` is the only
+way to restore. The System status screen explains where to run it instead of
+offering to do it, which changes an approved Stage 2 screen and is recorded here
+for that reason.
+
+**Reason.** The same argument that keeps parent accounts on the laptop, and
+stronger: restoring replaces every chore, point, reward, photo, and PIN in the
+household with an older copy, and there is no undo. No argument, mis-tap, or
+child holding an unlocked parent phone should be able to reach that. There is a
+second, independent reason - a server cannot sensibly drop and rebuild the
+database it is itself connected to - so the CLI refuses to run while the API is
+answering on its port, and says why.
+
+**Consequences.** The prompt takes the word RESTORE typed in full rather than
+y/n, because the entire purpose of that prompt is that it cannot be got past
+without reading it. Photos are replaced wholesale rather than merged: a photo
+taken after the backup belongs to a chore row that no longer exists, so keeping
+it would leave files nothing points at and a folder no backup describes. The
+restore prints that sessions are gone, since a child signed in on a phone is
+holding a token from a database that has just been replaced.
+
+---
+
+## 2026-08-19 — The nightly backup rides the existing tick
+
+**Decision.** No new timer. The scheduler that sweeps reminders and drains push
+also asks, every tick, whether today's backup has been taken; if it is past 3am
+household time and there is none, it takes one. Each stage of the tick is
+guarded separately.
+
+**Reason.** It is the same reconciliation shape as everything else here, and it
+buys the same property: a laptop restarting at 3am gets its backup at 3:15, and a
+laptop that was off all night gets one when it comes back. A cron-style timer
+would have to be right about the instant, and the one night it is not is a night
+with no backup and nothing saying so.
+
+**Consequences.** A unique index on `chore_date` for scheduled runs makes "one
+per day" a database rule rather than a hope, so overlapping ticks and repeated
+restarts cannot produce two. Manual backups are deliberately outside that index -
+the button exists to be pressed whenever somebody wants, such as before a
+restore. The separate guard matters more here than elsewhere: a backup is by far
+the slowest thing on the tick, and a household must not lose its evening
+reminders because pg_dump had a bad night.
+
+CI installs `postgresql-client-17` because `pg_dump` refuses to talk to a server
+newer than itself and the runner ships an older client. Without it the backup
+tests would skip and the only place backups are exercised automatically would be
+silently doing nothing.

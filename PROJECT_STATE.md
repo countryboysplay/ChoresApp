@@ -4,17 +4,17 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 14 — Offline shell, install, and updates |
-| Stage status | Built and verified in a real browser; awaiting owner approval |
+| Current stage | Stage 15 — Backups |
+| Stage status | Built and verified against the live household; awaiting owner approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
-| Database migration status | 11 migrations applied; 18 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 237 passing (206 backend, 31 frontend); typecheck, lint, build clean, 0 npm vulnerabilities |
-| Last known good commit | `6c43706` — Stage 13 verified end to end; CI and Pages green |
+| Database migration status | 12 migrations applied; 19 tables, 10 enums. Rolls back to empty and forward again cleanly |
+| Test status | 250 passing (219 backend, 31 frontend); typecheck, lint, build clean, 0 npm vulnerabilities |
+| Last known good commit | `84fdaeb` — Stage 14 offline shell; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -133,6 +133,10 @@ and `http://<laptop-ip>:5173` also works.
   sound helper that generates every effect (no audio files, never blocks a flow).
 - Level curve centralized in `frontend/src/config/levels.ts` — the only place a
   level threshold is computed.
+- Backups: the database and every chore photo taken together, nightly at 3am on
+  the same tick as the reminder sweep, kept 14 days then 8 weeks, and mirrored
+  to a USB drive whenever one is plugged in. Restoring is a terminal command
+  that refuses to run while the server is up.
 - Offline shell: the build precaches what it emitted and nothing else, so the
   app opens with the laptop asleep and shows an honest "can't reach home" screen
   rather than a stale copy of the day. A new version waits and takes over on the
@@ -255,7 +259,7 @@ Stage 16.
    filled in.
 2. Remote access approach for Stage 16 (Cloudflare Tunnel vs. Tailscale) — no
    router ports will be opened either way.
-3. Backup retention window.
+3. ~~Backup retention window.~~ Settled in Stage 15.
 
 ## Stage 14 - verified in a real browser
 
@@ -271,6 +275,21 @@ made this stage a security change as much as a caching one.
 Not covered: an actual phone, which needs the https the Stage 16 tunnel will
 provide, and the install prompt, which only fires where Chrome decides a site is
 installable.
+
+## Stage 15 - verified against the live household
+
+A real backup was taken of the household as it stands and the archive was read
+back: 20 tables and both members present in the decoded SQL, including their
+PIN hashes, which is what a restore would rebuild from.
+
+A full restore into a scratch database was not possible - the app's database
+role has no CREATEDB, which is the correct posture and not worth loosening for a
+test. The archive was decoded to SQL with `pg_restore` instead, which proves it
+is complete and readable; a restore into a live database is exercised by the
+test suite rather than against the household.
+
+The restore CLI was run and refused, correctly, because the server was
+answering on its port.
 
 ## Next planned work
 
@@ -291,9 +310,11 @@ To start using it, on the laptop:
    restart. That turns on the evening reminder buzzing a child's phone. Leaving
    the keys unset keeps push off, which is also a valid way to run.
 
-**Stage 15 — Backups.** The database holds everything a household has earned,
-on one laptop, with no copy anywhere. Two things are open and neither is
-technical: how long backups are kept, and where they go.
+**Stage 16 — Remote access.** Everything works on the laptop and on the house
+wifi. What is still missing is https, which the camera and phone notifications
+both need before they work anywhere but the laptop itself. Cloudflare Tunnel
+versus Tailscale is still an open owner decision; no router ports will be opened
+either way.
 
 Also outstanding:
 
@@ -305,6 +326,11 @@ Also outstanding:
 
 Still deliberately unfinished, so it lands where it belongs:
 
+- **Plug the backup drive in.** `BACKUP_MIRROR_DIR` is unset, so backups exist
+  only on this laptop. That covers a mistake or a damaged database and nothing
+  else - not a dead disk, not a stolen laptop. Set it to a folder on a USB drive
+  in `backend/.env` and every nightly backup copies itself there whenever the
+  drive is present.
 - **Points-to-dollars rate and cash-out minimum stay NULL.** The columns exist
   with no defaults and a test asserts they are unset, so the wallet keeps
   rendering its "not configured" state until an owner sets them in Settings.

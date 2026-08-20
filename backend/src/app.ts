@@ -11,6 +11,7 @@ import { applyPushConfig, pushConfig } from './notifications/push.js';
 import { auth } from './auth/plugin.js';
 import { approvalRoutes } from './routes/approvals.js';
 import { authRoutes } from './routes/auth.js';
+import { backupRoutes } from './routes/backups.js';
 import { bonusRoutes } from './routes/bonus.js';
 import { choreAdminRoutes } from './routes/chore-admin.js';
 import { dashboardRoutes } from './routes/dashboard.js';
@@ -105,6 +106,7 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(dashboardRoutes, { env });
   await app.register(notificationRoutes, { env });
   await app.register(pushRoutes, { env });
+  await app.register(backupRoutes, { env });
   await app.register(walletRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
 
