@@ -4,17 +4,17 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 15 — Backups |
-| Stage status | Built and verified against the live household; awaiting owner approval |
+| Current stage | Stage 16 — https on the home wifi |
+| Stage status | Server side built and verified; needs a domain before it can be finished |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
-| Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
+| Production URL | `https://<your-domain>` on the home wifi only. The backend serves the frontend from one origin; the name resolves to this laptop's private address |
 | Database migration status | 12 migrations applied; 19 tables, 10 enums. Rolls back to empty and forward again cleanly |
-| Test status | 250 passing (219 backend, 31 frontend); typecheck, lint, build clean, 0 npm vulnerabilities |
-| Last known good commit | `84fdaeb` — Stage 14 offline shell; CI and Pages green |
+| Test status | 260 passing (229 backend, 31 frontend); typecheck, lint, build clean, 0 npm vulnerabilities |
+| Last known good commit | `cd43561` — Stage 15 backups; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -133,6 +133,11 @@ and `http://<laptop-ip>:5173` also works.
   sound helper that generates every effect (no audio files, never blocks a flow).
 - Level curve centralized in `frontend/src/config/levels.ts` — the only place a
   level threshold is computed.
+- https on the home wifi: the backend serves the built frontend from one origin,
+  reads a certificate at startup, and renews it on the scheduler tick via a
+  DNS-01 challenge. Nothing is exposed to the internet - the hostname resolves
+  to this laptop's private address. Falls back to plain http rather than
+  refusing to start.
 - Backups: the database and every chore photo taken together, nightly at 3am on
   the same tick as the reminder sweep, kept 14 days then 8 weeks, and mirrored
   to a USB drive whenever one is plugged in. Restoring is a terminal command
@@ -291,6 +296,35 @@ test suite rather than against the household.
 The restore CLI was run and refused, correctly, because the server was
 answering on its port.
 
+## Stage 16 - what is done and what is waiting on you
+
+Verified: the backend serves the built frontend on one origin, a deep link like
+`/parent/settings` lands on the app rather than a 404, an unknown `/api/` path
+still returns JSON rather than HTML, and a production bundle no longer carries
+`localhost:4000` inside it.
+
+Not done, because it needs a domain nobody has bought yet: obtaining the actual
+certificate. Everything for it is written and configured - `npm run cert --
+--issue` performs the DNS-01 challenge and the server renews on its own tick -
+but none of it has run against a real zone.
+
+**What you have to do**, in order:
+
+1. Buy a domain, anywhere. A sub-domain of one you already own is fine.
+2. Point its nameservers at Cloudflare (free) and let them take effect.
+3. Add an A record for the hostname pointing at this laptop's address on the
+   wifi - `npm run cert` prints that address. Give the laptop a fixed address in
+   the router first, or it will move and the name will point at nothing.
+4. Make a Cloudflare API token with `Zone:DNS:Edit` on that one zone.
+5. Fill in `PUBLIC_HOSTNAME`, `TLS_DIR`, `FRONTEND_DIST`, `ACME_EMAIL`,
+   `CLOUDFLARE_API_TOKEN`, and `CLOUDFLARE_ZONE_ID` in `backend/.env`.
+6. `npm run cert -- --issue` with `ACME_STAGING=true` first, then again for real.
+7. `npm run serve`, and open the hostname on a phone.
+
+Some routers refuse to return a private address from public DNS - rebinding
+protection - and have to be told not to. That is the one step most likely to
+need the router's manual.
+
 ## Next planned work
 
 **Chore Quest is usable by a real household from here.** Everything from
@@ -310,11 +344,10 @@ To start using it, on the laptop:
    restart. That turns on the evening reminder buzzing a child's phone. Leaving
    the keys unset keeps push off, which is also a valid way to run.
 
-**Stage 16 — Remote access.** Everything works on the laptop and on the house
-wifi. What is still missing is https, which the camera and phone notifications
-both need before they work anywhere but the laptop itself. Cloudflare Tunnel
-versus Tailscale is still an open owner decision; no router ports will be opened
-either way.
+**Stage 17 — Running for real.** The pieces exist; what is missing is the
+production build being the normal way the household runs, rather than something
+assembled by hand. `npm run serve` builds and starts it today. Stage 18 makes
+Windows do that at boot so nobody has to.
 
 Also outstanding:
 

@@ -553,3 +553,23 @@ export interface BackupsResponse {
   lastGood: BackupRecord | null;
   backups: BackupRecord[];
 }
+
+/**
+ * The https certificate.
+ *
+ * Worth its own row on System status because the failure is silent: an expired
+ * certificate does not stop the app, it stops the camera and phone
+ * notifications, on a Tuesday, with no announcement. Days remaining on a screen
+ * is what turns that into something noticed in time.
+ */
+export interface CertificateResponse {
+  present: boolean;
+  hostname: string | null;
+  expiresAt: string | null;
+  daysRemaining: number | null;
+  /** Everything renewal needs is configured, so it happens by itself. */
+  renewable: boolean;
+  hostnameConfigured: boolean;
+  renewWithinDays: number;
+  servingHttps: boolean;
+}

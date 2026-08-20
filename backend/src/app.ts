@@ -2,8 +2,10 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
 import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
+import { isAbsolute, resolve } from 'node:path';
 import { loadEnv, type Env } from './env.js';
 import { loggerOptions } from './logger.js';
 import { registerErrorHandler } from './errors.js';
@@ -22,12 +24,15 @@ import { photoRoutes } from './routes/photos.js';
 import { pushRoutes } from './routes/push.js';
 import { healthRoutes } from './routes/health.js';
 import { rewardRoutes } from './routes/rewards.js';
+import { tlsRoutes } from './routes/tls.js';
 import { walletRoutes } from './routes/wallet.js';
 
 export const APP_VERSION = '0.1.0';
 
 export interface BuildOptions {
   env?: Env;
+  /** Certificate and key. Present turns this into an https server. */
+  https?: { cert: string; key: string } | null;
 }
 
 export async function buildApp(options: BuildOptions = {}): Promise<FastifyInstance> {
@@ -37,6 +42,7 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
     logger: loggerOptions(env),
     trustProxy: true,
     bodyLimit: 12 * 1024 * 1024, // room for a single chore-proof photo later
+    ...(options.https ? { https: options.https } : {}),
   });
 
   await app.register(sensible);
@@ -85,7 +91,7 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
-  registerErrorHandler(app);
+  registerErrorHandler(app, { spaFallback: Boolean(env.FRONTEND_DIST) });
 
   // Applied here rather than at the first send, so a malformed VAPID key is a
   // startup failure instead of a reminder that silently never arrives. Absent
@@ -107,8 +113,29 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(notificationRoutes, { env });
   await app.register(pushRoutes, { env });
   await app.register(backupRoutes, { env });
+  await app.register(tlsRoutes, { env });
   await app.register(walletRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
+
+  // The built frontend, from the same origin as the API.
+  //
+  // Session cookies are the whole reason. A frontend on one hostname and an API
+  // on another makes the cookie third-party, which Safari on iOS blocks
+  // outright - and the kids are the ones on phones, so a login that silently
+  // stops sticking would be the worst failure this app could have. Same origin
+  // removes the problem instead of working around it.
+  //
+  // Only when FRONTEND_DIST is set. Local development keeps Vite on its own
+  // port, which is why CORS still exists above. The SPA fallback for everything
+  // that is not a file lives in the not-found handler, because Fastify allows
+  // exactly one of those and the error handler already owns it.
+  if (env.FRONTEND_DIST) {
+    const root = isAbsolute(env.FRONTEND_DIST)
+      ? env.FRONTEND_DIST
+      : resolve(process.cwd(), env.FRONTEND_DIST);
+
+    await app.register(fastifyStatic, { root });
+  }
 
   app.decorate('env', env);
   return app;

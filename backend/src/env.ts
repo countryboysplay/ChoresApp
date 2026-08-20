@@ -43,6 +43,35 @@ const EnvSchema = z.object({
   // the ordinary case and never an error - System status says when it last
   // happened so nobody has to assume.
   BACKUP_MIRROR_DIR: optionalText,
+
+  // Serving the household over https on the home wifi.
+  //
+  // Owner decision: nothing is exposed to the internet. The name below resolves
+  // to this laptop's address on the LAN, so only devices on the wifi can reach
+  // it - but the certificate is issued by a public authority, so the kids'
+  // phones trust it with nothing installed on them. That is what the camera and
+  // notifications need, and what plain http on a LAN address can never be.
+  PUBLIC_HOSTNAME: optionalText,
+  // Where the certificate and its key live. Written by the renewal, or put
+  // there by hand. Absent means plain http on PORT, exactly as before.
+  TLS_DIR: optionalText,
+  HTTPS_PORT: z.coerce.number().int().positive().default(443),
+  // The built frontend, served from the same origin as the API so the session
+  // cookie is first-party. Safari on iOS blocks third-party cookies outright,
+  // and the kids are the ones on phones.
+  FRONTEND_DIST: optionalText,
+
+  // Automatic renewal. A certificate lasts 90 days, so this cannot be a thing
+  // somebody remembers. DNS-01 because the usual challenge needs the laptop
+  // reachable from the internet, which is the one thing being avoided.
+  ACME_EMAIL: optionalText,
+  CLOUDFLARE_API_TOKEN: optionalText,
+  CLOUDFLARE_ZONE_ID: optionalText,
+  // Let's Encrypt staging, for testing renewal without burning rate limits.
+  ACME_STAGING: z
+    .string()
+    .optional()
+    .transform((value) => value === 'true'),
 });
 
 const EnvSchemaChecked = EnvSchema.superRefine((value, ctx) => {

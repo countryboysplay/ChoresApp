@@ -25,6 +25,8 @@
     "db:new": "npm run migrate:create -w backend --",
     "vapid": "npm run vapid -w backend",
     "restore": "npm run restore -w backend --",
+    "cert": "npm run cert -w backend --",
+    "serve": "npm run build && npm run start -w backend",
     "icons": "node scripts/generate-icons.mjs",
     "screenshots": "node scripts/screenshots.mjs",
     "review-sheet": "node scripts/review-sheet.mjs"

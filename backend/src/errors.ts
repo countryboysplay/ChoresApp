@@ -13,9 +13,28 @@ export interface ApiErrorBody {
  * Every thrown error becomes a client-safe response here. Internal messages are
  * never forwarded to the browser.
  */
-export function registerErrorHandler(app: FastifyInstance): void {
+export interface ErrorHandlerOptions {
+  /**
+   * Serve the built frontend's index.html for anything that is not an API
+   * path. Production runs the app and its API on one origin, so the two share
+   * this handler: a mistyped endpoint must still come back as JSON, while a
+   * saved home-screen shortcut or a hard refresh has to land on the app.
+   *
+   * There is one not-found handler per Fastify instance, which is why this is a
+   * parameter rather than a second registration somewhere nearer the static
+   * plugin - the second call throws at startup.
+   */
+  spaFallback?: boolean;
+}
+
+export function registerErrorHandler(app: FastifyInstance, options: ErrorHandlerOptions = {}): void {
   app.setNotFoundHandler((request, reply) => {
-    reply.code(404).send({
+    if (options.spaFallback && !request.url.startsWith('/api/')) {
+      // Every screen lives after the hash, so this only ever sends the one
+      // document; React decides what to draw once it has it.
+      return reply.sendFile('index.html');
+    }
+    return reply.code(404).send({
       error: { code: 'not_found', message: `No route for ${request.method} ${request.url}` },
     } satisfies ApiErrorBody);
   });

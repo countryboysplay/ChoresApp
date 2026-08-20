@@ -4,6 +4,7 @@ import type { Env } from '../env.js';
 import { sweepReminders } from './service.js';
 import { drainPushQueue } from './push.js';
 import { backupIfDue } from '../backup/service.js';
+import { renewIfDue } from '../tls/certificate.js';
 
 /**
  * Runs the reminder sweep and the push drain on a timer.
@@ -79,6 +80,20 @@ export function startScheduler(
       }
     } catch (error) {
       log.error({ err: error }, 'nightly backup failed');
+    }
+
+    try {
+      // Guarded separately again, and it matters most here: a certificate has
+      // thirty days of slack by the time this starts trying, so a failure is
+      // something to log and retry tomorrow rather than anything to interrupt
+      // an evening's reminders over.
+      if (await renewIfDue(env, log)) {
+        log.warn(
+          'certificate renewed - restart the server to serve it, until then the old one is still in use',
+        );
+      }
+    } catch (error) {
+      log.error({ err: error }, 'certificate renewal failed');
     } finally {
       running = false;
     }

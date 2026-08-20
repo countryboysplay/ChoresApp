@@ -25,7 +25,11 @@ export function cookieOptions(env: Env) {
     // cookie is first-party and 'lax' is enough. It also survives the return
     // trip from an external link, which 'strict' would not.
     sameSite: 'lax' as const,
-    secure: env.NODE_ENV === 'production',
+    // Secure whenever the household is served over https, which is what TLS_DIR
+    // means. Keyed off that rather than NODE_ENV, because the laptop runs in
+    // development mode and would otherwise hand out a cookie the browser is
+    // free to send in the clear - on the one network the kids' phones use.
+    secure: env.NODE_ENV === 'production' || Boolean(env.TLS_DIR),
     path: '/',
     signed: true,
   };

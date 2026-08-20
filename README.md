@@ -163,6 +163,47 @@ npm run restore -- --from <folder>
 It shows what the backup contains and asks you to type RESTORE before touching
 anything.
 
+## Running it for the household (https on the wifi)
+
+Chores, points, and rewards work fine over plain http. The camera and phone
+notifications do not - browsers only allow either in a secure context, which is
+why photo capture has only ever worked on the laptop itself.
+
+Nothing is exposed to the internet. The fix is a real certificate for a real
+hostname whose DNS points at this laptop's **private** address, so the name works
+on your wifi and nowhere else.
+
+You need a domain (about $10/yr) with its DNS at Cloudflare. Then:
+
+1. Give this laptop a fixed address in your router.
+2. Add an A record for your hostname pointing at that address.
+   `npm run cert` prints the address to use.
+3. Create a Cloudflare API token with `Zone:DNS:Edit` on that zone only.
+4. Fill in `PUBLIC_HOSTNAME`, `TLS_DIR`, `FRONTEND_DIST`, `ACME_EMAIL`,
+   `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ZONE_ID` in `backend/.env`.
+5. Get the certificate, using staging first so mistakes are free:
+
+```powershell
+$env:ACME_STAGING='true'; npm run cert -- --issue   # rehearsal
+npm run cert -- --issue                             # the real one
+```
+
+6. Build and serve it:
+
+```powershell
+npm run serve
+```
+
+Renewal then happens by itself - the server checks every tick and renews inside
+30 days of expiry. System status shows the days remaining, because an expired
+certificate fails quietly and takes the camera with it.
+
+If phones cannot resolve the name, the usual cause is the router refusing to
+return a private address from public DNS. It is called DNS rebinding protection
+and has to be switched off, or the hostname added to its exception list.
+
+Without any of this the app still runs on plain http exactly as before.
+
 ## Secrets
 
 `.env` files are git-ignored. Only `.env.example` is tracked, and it never contains

@@ -92,17 +92,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // best-effort; the switch on the inbox screen repairs it either way.
       void resyncPush();
     } catch (error) {
-      if (error instanceof ApiRequestError && error.isUnreachable) {
+      // The demo build has no backend at all, so any failure means the same
+      // thing there - including a 404, which is what a relative /api/ path
+      // returns from GitHub Pages. Checked before the unreachable case, which
+      // only covers a connection that could not be made.
+      if (isPreviewBuild()) {
         setUser(null);
-        if (isPreviewBuild()) {
-          // The Pages demo, which has no backend by design.
-          setProfiles(previewProfiles());
-          setMode('preview');
-          return;
-        }
+        setProfiles(previewProfiles());
+        setMode('preview');
+        return;
+      }
+
+      if (error instanceof ApiRequestError && error.isUnreachable) {
         // A real build that cannot reach home: the laptop is asleep, the wifi
         // is down, or the server is restarting. Nobody is signed in and nobody
         // gets through - see the note above on why this is not preview mode.
+        setUser(null);
         setProfiles([]);
         setMode('offline');
         return;

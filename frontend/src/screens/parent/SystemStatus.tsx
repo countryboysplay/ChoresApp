@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { BackupsResponse, PushStatusResponse } from '@chore-quest/shared';
+import type { BackupsResponse, CertificateResponse, PushStatusResponse } from '@chore-quest/shared';
 import { Icon } from '../../design/icons';
 import { Badge, Button } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
@@ -32,6 +32,28 @@ function size(bytes: number | null): string {
   return mb < 1 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${mb.toFixed(1)} MB`;
 }
 
+/**
+ * The certificate is what makes the camera and phone notifications work off
+ * this laptop, and its failure is silent - it expires on a Tuesday and takes
+ * those two things with it. A number of days on a screen is what turns that
+ * into something noticed a month early rather than discovered.
+ */
+function certificateRow(cert: CertificateResponse | null): { value: string; tone: Tone } {
+  if (!cert) return { value: 'Checking…', tone: 'neutral' };
+  if (!cert.hostnameConfigured) return { value: 'Not set up', tone: 'waiting' };
+  if (!cert.present) return { value: 'No certificate yet', tone: 'waiting' };
+
+  const days = cert.daysRemaining ?? 0;
+  if (days <= 0) return { value: 'Expired', tone: 'late' };
+  // Past the renewal window with no renewal having happened means something is
+  // wrong that will not fix itself.
+  if (days <= cert.renewWithinDays && !cert.renewable) {
+    return { value: `${days} days left, renew by hand`, tone: 'late' };
+  }
+  if (days <= 7) return { value: `${days} days left`, tone: 'late' };
+  return { value: `${days} days left`, tone: 'done' };
+}
+
 function backupRow(data: BackupsResponse | null): { value: string; tone: Tone } {
   if (!data) return { value: 'Checking…', tone: 'neutral' };
   const failed = data.backups[0]?.status === 'failed';
@@ -52,6 +74,7 @@ function backupRow(data: BackupsResponse | null): { value: string; tone: Tone } 
 export function SystemStatus() {
   const [push, setPush] = useState<PushStatusResponse | null>(null);
   const [backups, setBackups] = useState<BackupsResponse | null>(null);
+  const [cert, setCert] = useState<CertificateResponse | null>(null);
   const [working, setWorking] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +83,7 @@ export function SystemStatus() {
     await Promise.all([
       api.push.status().then(setPush).catch(() => undefined),
       api.backups.list().then(setBackups).catch(() => undefined),
+      api.certificate.status().then(setCert).catch(() => undefined),
     ]);
   }, []);
 
@@ -88,6 +112,7 @@ export function SystemStatus() {
 
   const pushState = pushRow(push);
   const backupState = backupRow(backups);
+  const certState = certificateRow(cert);
 
   const rows: { label: string; value: string; tone: Tone }[] = [
     { label: 'Backend', value: 'Online', tone: 'done' },
@@ -95,6 +120,7 @@ export function SystemStatus() {
     { label: 'Database', value: 'Not configured yet', tone: 'waiting' },
     { label: 'Push notifications', value: pushState.value, tone: pushState.tone },
     { label: 'Last successful backup', value: backupState.value, tone: backupState.tone },
+    { label: 'Certificate', value: certState.value, tone: certState.tone },
     { label: 'App version', value: '0.1.0 (Stage 2 preview)', tone: 'neutral' },
     { label: 'Household timezone', value: settings.timezone, tone: 'neutral' },
   ];
@@ -119,6 +145,21 @@ export function SystemStatus() {
             Reminders reach the inbox either way. To make them reach a phone, run{' '}
             <code>npm run vapid</code> on the laptop, put the three lines it prints into{' '}
             <code>backend/.env</code>, and restart the server.
+          </p>
+        )}
+
+        {cert && !cert.present && (
+          <p className="muted" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-3)' }}>
+            Without a certificate the app runs on plain http, so the camera and phone reminders
+            only work on this laptop — browsers allow neither over http on a wifi address. Run{' '}
+            <code>npm run cert -- --issue</code> on the laptop once the domain is set up.
+          </p>
+        )}
+
+        {cert && cert.present && !cert.renewable && (
+          <p className="muted" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-3)' }}>
+            <Icon name="alert" size={14} /> Automatic renewal is not configured, so this
+            certificate has to be replaced by hand before it expires.
           </p>
         )}
 

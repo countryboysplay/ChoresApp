@@ -6,6 +6,7 @@ import type {
   PushStatusResponse,
   ChildRemindersResponse,
   BackupsResponse,
+  CertificateResponse,
   ChoreResolution,
   DashboardResponse,
   ScheduleResponse,
@@ -28,7 +29,23 @@ import type {
   ProfilesResponse,
 } from '@chore-quest/shared';
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000').replace(/\/$/, '');
+/**
+ * Where the API is.
+ *
+ * A built app defaults to its own origin, because that is the architecture:
+ * the backend serves the frontend so the session cookie is first-party, which
+ * Safari on iOS requires and the kids are the ones on phones. Development is
+ * the exception - Vite is a separate port there - and VITE_API_BASE_URL still
+ * overrides both.
+ *
+ * Defaulting rather than requiring an empty env var is deliberate. An empty
+ * string is not something every shell can even pass: PowerShell deletes a
+ * variable set to one, which silently baked localhost:4000 into a production
+ * bundle the first time this was tried.
+ */
+const BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://localhost:4000' : '')
+).replace(/\/$/, '');
 
 export class ApiRequestError extends Error {
   constructor(
@@ -257,6 +274,10 @@ export const api = {
         '/api/parent/backups',
         { method: 'POST' },
       ),
+  },
+
+  certificate: {
+    status: () => request<CertificateResponse>('/api/parent/certificate'),
   },
 
   dashboard: {

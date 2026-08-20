@@ -108,7 +108,7 @@ surface as a wrong chore day weeks later.
 | Topic | Stage | Notes |
 | --- | --- | --- |
 | ~~PWA / service worker strategy~~ | ~~14~~ | Settled in Stage 14: vite-plugin-pwa in injectManifest mode, shell-only precache, update on next launch |
-| Tunnel choice | 16 | Cloudflare Tunnel vs. Tailscale. No router ports either way |
+| ~~Tunnel choice~~ | ~~16~~ | Settled in Stage 16: neither. Nothing is exposed; https on the home wifi via a public certificate for a private address |
 | Windows startup method | 18 | Scheduled Task at boot vs. NSSM service |
 | ~~Backup retention~~ | ~~15~~ | Settled in Stage 15: 14 nightly then 8 weekly, mirrored to a USB drive when plugged in |
 
@@ -1304,3 +1304,123 @@ CI installs `postgresql-client-17` because `pg_dump` refuses to talk to a server
 newer than itself and the runner ships an older client. Without it the backup
 tests would skip and the only place backups are exercised automatically would be
 silently doing nothing.
+
+---
+
+## 2026-08-19 — There is no tunnel. Nothing is exposed to the internet.
+
+**Decision.** Owner decision, closing the Cloudflare-versus-Tailscale question
+that had been open since the plan was written: neither. The household does not
+need the app away from home, so nothing is published. The app is reachable on
+the house wifi and nowhere else.
+
+**Reason.** The question was framed as "which tunnel" and the right answer was
+"none". Every option on the table traded some exposure for access nobody wanted:
+a public URL puts a household app behind a four-digit PIN on the open internet,
+and a private mesh puts an app on every phone to solve a problem that does not
+exist. Asking what access was actually needed removed the whole category.
+
+**Consequences.** The best consequence is one this project had already written
+down and been uneasy about. The Stage 5 note on the hero-select screen said the
+lifetime totals it shows before sign-in were acceptable because "the tunnel
+hostname is effectively the secret protecting it", and that if the API ever
+became reachable from outside the household, it should be revisited first. There
+is now no tunnel and no such reachability, so the concern is answered rather than
+mitigated - the LAN is the boundary, and a four-digit PIN is being asked to hold
+a line that a home network is already holding.
+
+What is still needed is https, because browsers expose neither the camera nor
+the Push API in an insecure context, which is why photo capture has only ever
+worked on the laptop. That is a certificate problem, not an access problem, and
+it is solved separately below.
+
+---
+
+## 2026-08-19 — A publicly trusted certificate for a private address
+
+**Decision.** Owner decision. A domain name, with DNS hosted at Cloudflare, whose
+A record points at this laptop's address on the home wifi. The certificate comes
+from Let's Encrypt via the DNS-01 challenge and renews itself.
+
+**Reason.** The phones need a certificate they already trust. The alternatives
+were worse: running a private certificate authority means installing a root
+certificate on every phone, and that certificate can then vouch for *any* website
+to that phone - a key on this laptop worth more than the app it exists for. A
+mesh VPN means an app on every phone and an account for every child. A public
+certificate for a private address costs about ten dollars a year and needs
+nothing installed anywhere.
+
+DNS-01 is forced rather than chosen. The ordinary HTTP-01 challenge asks the
+authority to fetch a file from the server over the public internet, which cannot
+happen here and must not start happening - it would undo the decision above.
+Proving ownership through a TXT record keeps the laptop unreachable throughout.
+
+**Consequences.** The domain resolves publicly to a private address, which is
+harmless - the address is unroutable from outside - but some consumer routers
+refuse to return private addresses from public DNS as rebinding protection, and
+have to be told not to. Renewal rides the scheduler tick as a reconciliation: it
+asks how much life the certificate has left, not whether a timer fired, so a
+laptop that was off for a fortnight renews when it comes back. The Cloudflare
+token needs `Zone:DNS:Edit` on the one zone and nothing else; it can create the
+challenge record and delete it, and that is all it can ever do.
+
+A renewed certificate is not hot-swapped into the running listener. Swapping
+under a live server is fiddly and rare, and a household restarting the app after
+a renewal every two months is a much smaller problem than a hot-swap that half
+works. The log says so, and System status shows the days remaining.
+
+---
+
+## 2026-08-19 — The backend serves the frontend, and a built app assumes its own origin
+
+**Decision.** Pulled forward from Stage 17 because Stage 16 cannot work without
+it. `FRONTEND_DIST` makes the backend serve the built frontend, and a production
+bundle now defaults its API base to the empty string - its own origin - rather
+than to `http://localhost:4000`.
+
+**Reason.** The same-origin decision was already made and its reasoning has not
+changed: a frontend and API on different hostnames make the session cookie
+third-party, Safari on iOS blocks those outright, and the kids are the ones on
+phones. A login that silently stops sticking would be the worst failure this app
+could have. Two hostnames behind one certificate would have reintroduced exactly
+that.
+
+**Consequences.** Defaulting rather than requiring an empty environment variable
+is the part worth recording, because the obvious approach failed in a way that
+was invisible: PowerShell deletes a variable set to an empty string, so
+`VITE_API_BASE_URL=''` silently fell through to the localhost default and baked
+it into a production bundle. The build now assumes same-origin unless told
+otherwise, and development is the exception rather than the rule.
+
+The dev override moved from `frontend/.env.local` to
+`frontend/.env.development.local` for the same class of reason. Vite loads
+`.env.local` in *every* mode, including production builds, so the file meant to
+help on the laptop was pinning the household's real bundle to localhost.
+
+The SPA fallback lives in the not-found handler that `errors.ts` already owns,
+because Fastify permits exactly one per instance and registering a second throws
+at startup. `/api/` paths keep returning JSON there; anything else gets
+index.html, so a saved home-screen shortcut and a hard refresh both land on the
+app instead of a 404.
+
+---
+
+## 2026-08-19 — No certificate means plain http, not a refusal to start
+
+**Decision.** The server reads the certificate at startup. If there is none it
+serves plain http on the old port and says so in the log. `TLS_DIR` being set
+with no certificate present is a warning, not a fatal error.
+
+**Reason.** A household whose certificate expired should lose the camera, not
+the app. Chores, points, approvals, and rewards all work perfectly over http on
+the home wifi; only photo capture and phone notifications need the secure
+context. Refusing to start would turn a degraded feature into a total outage,
+and it would do it at the exact moment nobody is watching.
+
+**Consequences.** The failure is quiet by nature, so it is reported in three
+places rather than left to be noticed: the log at startup, a certificate row on
+System status showing days remaining, and a plain sentence when there is no
+certificate at all. The session cookie's `Secure` flag is keyed off `TLS_DIR`
+rather than `NODE_ENV`, because the laptop runs in development mode and would
+otherwise hand the kids' phones a cookie the browser is free to send in the
+clear on the one network they use.
