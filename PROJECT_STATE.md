@@ -5,7 +5,7 @@ _Last updated: 2026-08-19_
 | Field | Value |
 | --- | --- |
 | Current stage | Stage 13 — Push notifications |
-| Stage status | Built and tested; awaiting approval |
+| Stage status | Verified end to end on the laptop; awaiting owner approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
@@ -14,7 +14,7 @@ _Last updated: 2026-08-19_
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
 | Database migration status | 11 migrations applied; 18 tables, 8 enums. Rolls back to empty and forward again cleanly |
 | Test status | 233 passing (206 backend, 27 frontend); typecheck, lint, build clean, 0 npm vulnerabilities |
-| Last known good commit | `08164b2` — Stage 13 push notifications; CI and Pages green |
+| Last known good commit | `cf33b6c` — Stage 13 push notifications; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -140,6 +140,24 @@ and `http://<laptop-ip>:5173` also works.
   the app. A child has no off switch and is asked for permission unprompted; a
   parent can mute a child, and sees any child whose phone has stopped being
   reached.
+
+## Stage 13 - verified on real infrastructure
+
+Push was proven end to end on the laptop on 2026-08-19, not only in tests. A
+reminder was written to a child's inbox; the running server's own scheduler
+drained it on its next tick; `web-push` sent it and Google's FCM accepted it,
+which is what writes `last_sent_at`; the service worker showed it; and the
+notification appeared on screen with the app closed.
+
+Worth recording because it exercised the parts a test suite cannot: real VAPID
+keys, a real FCM endpoint, a registered service worker, and Chrome's own
+permission flow. The child was prompted automatically at sign-in and never had
+to find a button, which is the behavior the no-off-switch rule depends on.
+
+Two things this did not cover. The `notificationclick` deep link was not
+confirmed, so opening the right chore from a tap is still unproven. And every
+phone so far has been the laptop itself - a real phone needs https, which is
+Stage 16.
 
 ## Known issues
 
