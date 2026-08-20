@@ -140,8 +140,9 @@ and `http://<laptop-ip>:5173` also works.
   refusing to start.
 - A laptop dashboard (`npm run admin`): start/stop/restart, back up to a USB
   drive, add a parent, reset a PIN, renew the certificate, rebuild, and read the
-  log. Loopback only, token per launch, its own process so it works when the app
-  does not. No restore button - that stays terminal-only.
+  log. Bookmarkable at `http://127.0.0.1:4100/`; loopback only, closed to other
+  pages, its own process so it works when the app does not. No restore button -
+  that stays terminal-only.
 - Backups: the database and every chore photo taken together, nightly at 3am on
   the same tick as the reminder sweep, kept 14 days then 8 weeks, and mirrored
   to a USB drive whenever one is plugged in. Restoring is a terminal command

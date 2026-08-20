@@ -227,16 +227,29 @@ Most servicing has a button now:
 npm run admin
 ```
 
-It prints a link and opens it. Start, stop and restart the server; take a backup
-and copy it to a plugged-in USB drive; add a parent; reset anyone's PIN; renew
-the certificate; rebuild after pulling changes; and read the recent log.
+It opens at the same address every time, which is worth a bookmark:
+
+```
+http://127.0.0.1:4100/
+```
+
+Start, stop and restart the server; take a backup and copy it to a plugged-in USB
+drive; add a parent; reset anyone's PIN; renew the certificate; rebuild after
+pulling changes; and read the recent log. If the dashboard is not running, the
+bookmark simply will not connect - start it with `npm run admin` and reload.
 
 It runs as its own process on `127.0.0.1` only, deliberately independent of the
 app - a tool for servicing the server is needed exactly when the server is
-unwell. Each launch mints a token that is part of the link. That is not about the
-person at the laptop, who could run all of this from a terminal anyway; it is
-about the browser they have open, so no website they visit can quietly POST to
-localhost and add itself a parent account.
+unwell. There is no login, and no token to copy out of the terminal. That is not
+a gap: anybody sitting at this laptop could run all of this from a terminal
+anyway. What has to be kept out is the browser they have open, so that no website
+they visit can quietly POST to localhost and add itself a parent account. Two
+things do that. The page is served only to a navigation the browser itself
+labels as unattributed or same-origin - a bookmark or a reload qualifies, a link
+or a `fetch()` from another site does not - and every action the page then takes
+carries a token minted at launch that never appears in the address bar. A tab
+left open across a restart is holding the previous launch's token; it says so and
+asks to be reloaded.
 
 **Restoring is not on it.** That replaces every chore, point and photo with no
 undo, so it stays a terminal command.

@@ -19,12 +19,18 @@ const run = promisify(execFile);
  * backend/.env directly and shells out to the same commands a person would. If
  * Chore Quest will not start, this still opens and still says why.
  *
- * IT IS LOOPBACK ONLY, AND UNGUESSABLE. It can create a parent account and stop
- * the household's server, so it binds 127.0.0.1 and nothing else, and every
- * request carries a token minted at launch. The token is not about the person at
- * the laptop - they could run these commands anyway - it is about the browser
- * they have open: without it, any website they visit could quietly POST to
- * localhost and add itself a parent account.
+ * IT IS LOOPBACK ONLY, AND CLOSED TO OTHER PAGES. It can create a parent account
+ * and stop the household's server, so it binds 127.0.0.1 and nothing else. What
+ * has to be kept out is not the person at the laptop - they could run every one
+ * of these commands from a terminal anyway - it is the browser they have open:
+ * without a guard, any website they visit could quietly POST to localhost and
+ * add itself a parent account.
+ *
+ * The guard is two-part, so that the address can be a permanent bookmark. Every
+ * action carries a token minted at launch and delivered inside the page, never
+ * in the link. The page itself is served without one, but only to a navigation
+ * the browser labels as unattributed or our own - see isOwnNavigation - which a
+ * page on another site cannot forge.
  *
  * IT DOES NOT DO THE IRREVERSIBLE ONE. Restoring a backup replaces every chore,
  * point, and photo with an older copy, and that decision has always been a
@@ -394,9 +400,28 @@ const routes = {
   },
 };
 
-function unauthorised(response) {
+function unauthorised(response, message) {
   response.writeHead(403, { 'content-type': 'application/json' });
-  response.end(JSON.stringify({ error: 'Open this dashboard from the link printed in the terminal.' }));
+  response.end(JSON.stringify({ error: message ?? 'That request did not come from this dashboard.' }));
+}
+
+/**
+ * Whether this is the browser opening the dashboard itself - a bookmark, the
+ * address bar, the launch below, or a reload of the page - rather than a
+ * request set off by a page on some other site.
+ *
+ * Sec-Fetch-Site is filled in by the browser and is unreachable from script, so
+ * a page on another site that links to, opens, or fetches this address is
+ * labelled 'cross-site' and turned away, while a bookmark arrives as 'none' and
+ * the dashboard's own reload as 'same-origin'. That is what lets the link be
+ * permanent: the token no longer has to ride in the URL to keep pages out.
+ *
+ * A browser too old to send these headers gets no exemption and falls back to
+ * the token, which is still printed at launch.
+ */
+function isOwnNavigation(request) {
+  const { 'sec-fetch-site': site, 'sec-fetch-mode': mode, 'sec-fetch-dest': dest } = request.headers;
+  return (site === 'none' || site === 'same-origin') && mode === 'navigate' && dest === 'document';
 }
 
 const server = createServer(async (request, response) => {
@@ -406,10 +431,19 @@ const server = createServer(async (request, response) => {
   if (!['127.0.0.1', 'localhost', '[::1]'].includes(host)) return unauthorised(response);
 
   const url = new URL(request.url, `http://127.0.0.1:${PORT}`);
+  const isPage = request.method === 'GET' && url.pathname === '/';
   const token = url.searchParams.get('token') ?? request.headers['x-admin-token'];
-  if (token !== TOKEN) return unauthorised(response);
 
-  if (request.method === 'GET' && url.pathname === '/') {
+  if (token !== TOKEN && !(isPage && isOwnNavigation(request))) {
+    // A token that is present but wrong is almost always a tab left open across
+    // a restart. The page is fine; its token belongs to the previous launch.
+    return unauthorised(
+      response,
+      token ? 'This page is from an earlier run of the dashboard. Reload it to carry on.' : undefined,
+    );
+  }
+
+  if (isPage) {
     const page = await readFile(join(here, 'page.html'), 'utf8');
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     response.end(page.replace('__TOKEN__', TOKEN));
@@ -459,10 +493,9 @@ server.on('error', (error) => {
     console.error(`
 The dashboard is already running on port ${PORT}.
 
-Look for the window it was started in - the link with the token is printed
-there, and a new one would not match.
+Open it at http://127.0.0.1:${PORT}/ - this second copy is not needed.
 
-If that window is gone, close the leftover process and start this again:
+If it does not answer there, close the leftover process and start this again:
   Get-NetTCPConnection -LocalPort ${PORT} -State Listen |
     ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 `);
@@ -475,13 +508,13 @@ The dashboard could not start: ${error.message}
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-  const link = `http://127.0.0.1:${PORT}/?token=${TOKEN}`;
+  const link = `http://127.0.0.1:${PORT}/`;
   console.log(`\nChore Quest laptop dashboard\n\n  ${link}\n`);
-  console.log('Loopback only, and the link is good until this window is closed.');
+  console.log('Loopback only, and the same address every launch - worth a bookmark.');
   console.log('Ctrl+C to stop the dashboard. It does not stop Chore Quest itself.\n');
 
   // Opening it is the whole point of a dashboard; failing to is not worth an
-  // error, since the link is right there.
+  // error, since the address is right there.
   run('powershell', ['-NoProfile', '-Command', `Start-Process '${link}'`], {
     windowsHide: true,
   }).catch(() => undefined);

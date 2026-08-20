@@ -1746,3 +1746,39 @@ backup is for. Both are fixed by resolving `BACKUP_DIR` and `PHOTO_STORAGE_DIR`
 against `backend/` before handing them to the app's own loader. Verified by
 taking a real backup to a real USB drive and checking the child's chore photo
 was inside it.
+
+
+---
+
+## 2026-08-20 — The dashboard address is permanent; the token moved into the page
+
+**Decision.** `http://127.0.0.1:4100/` is a stable, bookmarkable address. The
+per-launch token is still required for every action, but it is delivered inside
+the page rather than in the link. The page itself is served without a token, and
+only to a request the browser labels `Sec-Fetch-Site: none` or `same-origin`
+with `Sec-Fetch-Mode: navigate` and `Sec-Fetch-Dest: document`.
+
+**Reason.** The owner has to service this laptop, and a link that changes every
+launch cannot be bookmarked - it meant finding the terminal window and copying a
+token out of it before touching any button. That is friction on exactly the tool
+that is reached for when something is already wrong.
+
+The token was never the point in itself; keeping other pages out was. Sec-Fetch
+headers do that directly. They are set by the browser and cannot be written from
+script, so a page on another site that links to, opens, or fetches this address
+arrives as `cross-site` and is refused, while a bookmark arrives as `none` and a
+reload as `same-origin`. The dangerous requests - the POSTs that add a parent or
+stop the server - additionally still need the token, which a cross-origin page
+cannot read even if it manages to make the browser load the page.
+
+**Consequences.** A browser too old to send Sec-Fetch headers gets no exemption
+and falls back to the token, which is still printed at launch, so nothing is
+weakened for it. The loopback-hostname check stays and is what refuses a DNS
+rebinding attempt, where an attacker's name resolves to 127.0.0.1 and the
+browser would otherwise consider it same-origin.
+
+A tab left open across a restart now holds a stale token. Rather than the old
+generic refusal it is told so by name and asked to reload, which mints it a
+current one. Verified by probing the running server with each shape of request:
+bookmark, cross-site navigation, cross-site `fetch`, no Sec-Fetch headers, stale
+token, and a forged `Host` header.
