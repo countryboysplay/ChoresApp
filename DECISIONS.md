@@ -1705,3 +1705,44 @@ single file covering a whole season is one nobody opens.
 same reason: it is long enough to look into something noticed the same
 fortnight. Output still goes to the console as well, because the person standing
 at the laptop should not have to open a file to see what just happened.
+
+---
+
+## 2026-08-20 — The laptop dashboard is its own process, on loopback, with a token
+
+**Decision.** `npm run admin` starts a small dependency-free HTTP server on
+`127.0.0.1:4100` that can start, stop and restart the household's server, take a
+backup and copy it to a removable drive, add a parent, reset a PIN, renew the
+certificate, rebuild after an update, and show the recent log. It is not part of
+the app and does not import anything the app compiles at runtime.
+
+**Reason.** Servicing the laptop had accumulated a dozen commands across
+PowerShell, npm scripts and Task Scheduler, and the owner asked for buttons.
+
+Being a separate process is the load-bearing part. A tool for servicing the
+server is wanted precisely when the server is unwell, so anything that made it
+depend on the app being healthy would make it useless at the moment it matters.
+It reads `backend/.env` itself and shells out to the same commands a person
+would.
+
+Loopback plus a per-launch token is the other. The dashboard can create a parent
+account and stop the household's app, and it has no login - which is right,
+because anybody sitting at this laptop could run every one of these commands
+from a terminal already. The token is not defending against the person; it is
+defending against their browser. Without it, any page they happened to visit
+could POST to `localhost:4100` and quietly grant itself a parent account.
+
+**Consequences.** Restoring a backup is deliberately absent. It replaces every
+chore, point and photo with no undo, and the decision that it stays a terminal
+command was made for exactly the reasons a button undoes. The dashboard says so
+rather than leaving its absence to be wondered about.
+
+Two bugs surfaced while testing it, both from the dashboard running in the
+repository root while the server runs in `backend/`. Relative paths in
+`backend/.env` are relative to the server's directory, so a backup taken from
+the dashboard landed beside the repository instead of in `backend/storage` - and
+found no photos, producing a complete-looking backup missing half of what a
+backup is for. Both are fixed by resolving `BACKUP_DIR` and `PHOTO_STORAGE_DIR`
+against `backend/` before handing them to the app's own loader. Verified by
+taking a real backup to a real USB drive and checking the child's chore photo
+was inside it.

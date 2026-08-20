@@ -18,7 +18,7 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   {
-    files: ['backend/**/*.ts', 'scripts/**/*.mjs', '**/vite.config.ts'],
+    files: ['backend/**/*.ts', 'scripts/**/*.mjs', 'scripts/admin/*.mjs', '**/vite.config.ts'],
     languageOptions: { globals: globals.node },
   },
   {

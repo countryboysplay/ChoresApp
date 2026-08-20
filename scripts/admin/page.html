@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chore Quest — laptop dashboard</title>
+<style>
+  /* Deliberately not the app's design system. This is a tool for the laptop,
+     not part of Chore Quest, and looking different is how you can tell at a
+     glance which one you are looking at. */
+  :root {
+    --bg: #12141c; --panel: #1b1e2a; --line: #2c3040;
+    --text: #e8eaf2; --muted: #9aa1b8;
+    --ok: #3ecf8e; --warn: #f0b429; --bad: #f2555a; --accent: #5b8cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  }
+  header {
+    padding: 18px 22px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  h1 { font-size: 17px; margin: 0; font-weight: 650; }
+  header .where { color: var(--muted); font-size: 13px; }
+  main { padding: 22px; display: grid; gap: 18px; max-width: 1100px; }
+  @media (min-width: 900px) { main { grid-template-columns: 1fr 1fr; } .wide { grid-column: 1 / -1; } }
+  section {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px 18px;
+  }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+       color: var(--muted); margin: 0 0 12px; font-weight: 650; }
+  .row { display: flex; justify-content: space-between; gap: 12px;
+         padding: 5px 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row span:first-child { color: var(--muted); }
+  .pill { padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 650; }
+  .ok { background: rgba(62,207,142,.15); color: var(--ok); }
+  .warn { background: rgba(240,180,41,.15); color: var(--warn); }
+  .bad { background: rgba(242,85,90,.15); color: var(--bad); }
+  button {
+    background: #262b3b; color: var(--text); border: 1px solid var(--line);
+    border-radius: 7px; padding: 8px 14px; font: inherit; font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.go { background: #1e3a2c; border-color: #2c6b4b; }
+  button.stop { background: #3a1e21; border-color: #6b2c31; }
+  .buttons { display: flex; gap: 9px; flex-wrap: wrap; }
+  label { display: block; color: var(--muted); font-size: 13px; margin: 10px 0 4px; }
+  input, select {
+    width: 100%; background: #12141c; color: var(--text);
+    border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; font: inherit;
+  }
+  .note { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+  pre {
+    background: #0d0f16; border: 1px solid var(--line); border-radius: 7px;
+    padding: 12px; overflow: auto; max-height: 320px; font-size: 12.5px;
+    margin: 0; white-space: pre-wrap; word-break: break-word;
+  }
+  .msg { margin-top: 10px; padding: 9px 11px; border-radius: 7px; font-size: 13.5px; }
+  .msg.ok { background: rgba(62,207,142,.12); }
+  .msg.bad { background: rgba(242,85,90,.12); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Chore Quest — laptop dashboard</h1>
+  <span class="where" id="where"></span>
+  <span class="where" style="margin-left:auto">refreshes every 10s</span>
+</header>
+
+<main>
+  <section>
+    <h2>The server</h2>
+    <div id="serverRows"></div>
+    <div class="buttons" style="margin-top:14px">
+      <button class="go" data-act="start">Start</button>
+      <button class="stop" data-act="stop">Stop</button>
+      <button data-act="restart">Restart</button>
+      <button id="openApp">Open the app</button>
+    </div>
+    <p class="note">Stopping takes the household's chores offline until it is started again.</p>
+    <div id="taskMsg"></div>
+  </section>
+
+  <section>
+    <h2>Back up now</h2>
+    <div id="backupRows"></div>
+    <label for="drive">Also copy to a plugged-in drive</label>
+    <select id="drive"><option value="">Just this laptop</option></select>
+    <div class="buttons" style="margin-top:12px">
+      <button class="go" data-act="backup">Back up</button>
+    </div>
+    <p class="note">
+      Backups on this laptop survive a mistake, not a dead disk. Copying to a drive is the
+      only part that survives losing the machine.
+    </p>
+    <div id="backupMsg"></div>
+  </section>
+
+  <section>
+    <h2>Household</h2>
+    <div id="members"></div>
+    <label for="parentName">Add a parent</label>
+    <input id="parentName" placeholder="Name" autocomplete="off" />
+    <label for="parentPin">Their PIN (four digits)</label>
+    <input id="parentPin" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" />
+    <div class="buttons" style="margin-top:12px">
+      <button data-act="addParent">Add parent</button>
+    </div>
+    <p class="note">
+      Parents are added here rather than in the app so nothing inside it can lock every parent
+      out. Children are added in the app, on the Kids screen.
+    </p>
+    <div id="parentMsg"></div>
+  </section>
+
+  <section>
+    <h2>Reset a PIN</h2>
+    <label for="pinUser">Who</label>
+    <select id="pinUser"></select>
+    <label for="newPin">New PIN</label>
+    <input id="newPin" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" />
+    <div class="buttons" style="margin-top:12px">
+      <button data-act="setPin">Set PIN</button>
+    </div>
+    <p class="note">Signs that person out everywhere, which is the point after a lost phone.</p>
+    <div id="pinMsg"></div>
+  </section>
+
+  <section>
+    <h2>Certificate &amp; updates</h2>
+    <div id="certRows"></div>
+    <div class="buttons" style="margin-top:14px">
+      <button data-act="renew">Renew certificate</button>
+      <button data-act="rebuild">Rebuild and restart</button>
+    </div>
+    <p class="note">
+      Renewal happens by itself inside 30 days of expiry. Rebuild after pulling changes from
+      GitHub.
+    </p>
+    <div id="opMsg"></div>
+  </section>
+
+  <section class="wide">
+    <h2>Recent log <span id="logFile" class="where"></span></h2>
+    <pre id="log">Loading…</pre>
+    <p class="note">
+      Restoring a backup is deliberately not here — it replaces every chore, point and photo
+      with no undo, so it stays a terminal command:
+      <code>npm run restore -- --list</code>
+    </p>
+  </section>
+</main>
+
+<script>
+const TOKEN = '__TOKEN__';
+
+async function api(path, body) {
+  const response = await fetch(path + '?token=' + TOKEN, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'That did not work.');
+  return data;
+}
+
+function pill(text, kind) { return `<span class="pill ${kind}">${text}</span>`; }
+function row(label, value) { return `<div class="row"><span>${label}</span><span>${value}</span></div>`; }
+function say(id, text, ok) {
+  document.getElementById(id).innerHTML = `<div class="msg ${ok ? 'ok' : 'bad'}">${text}</div>`;
+}
+
+let appUrl = null;
+
+async function refresh() {
+  let s;
+  try { s = await api('/api/status'); }
+  catch { document.getElementById('serverRows').innerHTML = row('Dashboard', pill('lost the server', 'bad')); return; }
+
+  appUrl = s.config.hostname ? `https://${s.config.hostname}/` : null;
+  document.getElementById('where').textContent = appUrl ? appUrl.replace(/\/$/, '') : 'no hostname configured';
+
+  const running = s.task.state === 'Running';
+  const up = s.health.reachable;
+  document.getElementById('serverRows').innerHTML =
+    row('Windows task', s.task.registered ? pill(s.task.state, running ? 'ok' : 'warn') : pill('not registered', 'bad')) +
+    row('Answering', up ? pill('yes', 'ok') : pill('no', 'bad')) +
+    (up ? row('Up for', formatUptime(s.health.uptimeSeconds)) : '') +
+    (up ? row('Database', pill(s.health.database, s.health.database === 'connected' ? 'ok' : 'bad')) : '') +
+    (up ? row('Version', `${s.health.version} (${s.health.environment})`) : '') +
+    (up ? row('Household date', `${s.health.household.choreDate} ${s.health.household.localTime.slice(11,16)}`) : '') +
+    row('Phone reminders', s.config.pushConfigured ? pill('keys set', 'ok') : pill('no keys', 'warn'));
+
+  const newest = s.backups.found[0];
+  document.getElementById('backupRows').innerHTML =
+    row('Backups kept', s.backups.found.length ? `${s.backups.found.length} on disk` : pill('none yet', 'warn')) +
+    (newest ? row('Newest', newest.manifest ? `${newest.manifest.choreDate} · ${newest.manifest.photoCount} photos` : pill('unfinished', 'bad')) : '') +
+    row('Copy off the laptop', s.config.mirror ? pill('configured', 'ok') : pill('not set up', 'warn'));
+
+  const select = document.getElementById('drive');
+  const chosen = select.value;
+  select.innerHTML = '<option value="">Just this laptop</option>' +
+    s.drives.map((d) => `<option value="${d.letter}">${d.letter}: ${d.label} — ${d.freeGb} GB free</option>`).join('');
+  select.value = chosen;
+
+  const c = s.certificate;
+  document.getElementById('certRows').innerHTML =
+    row('Certificate', c.present
+      ? pill(`${c.daysRemaining} days left`, c.daysRemaining > 30 ? 'ok' : c.daysRemaining > 0 ? 'warn' : 'bad')
+      : pill(c.reason, 'warn')) +
+    (c.present ? row('For', c.hostname ?? '—') : '');
+
+  if (s.household.available) {
+    document.getElementById('members').innerHTML = s.household.members.map((m) =>
+      row(`${m.display_name} <span class="where">(${m.role})</span>`,
+        (m.has_pin ? pill('PIN set', 'ok') : pill('no PIN', 'warn')) +
+        (m.is_active ? '' : ' ' + pill('inactive', 'warn')))).join('') || row('Nobody yet', '');
+    const who = document.getElementById('pinUser');
+    const previous = who.value;
+    who.innerHTML = s.household.members.map((m) =>
+      `<option value="${m.id}">${m.display_name} (${m.role})</option>`).join('');
+    who.value = previous;
+  } else {
+    document.getElementById('members').innerHTML = row('Household', pill(s.household.reason, 'bad'));
+  }
+
+  try {
+    const l = await api('/api/logs');
+    document.getElementById('logFile').textContent = l.file ? l.file : '';
+    document.getElementById('log').textContent = l.lines.join('\n') || 'Nothing logged yet.';
+  } catch { /* the log is the least important thing on the page */ }
+}
+
+function formatUptime(seconds) {
+  if (seconds < 90) return seconds + 's';
+  const m = Math.round(seconds / 60);
+  if (m < 90) return m + ' min';
+  const h = Math.round(m / 60);
+  return h < 48 ? h + ' hours' : Math.round(h / 24) + ' days';
+}
+
+async function act(button) {
+  const what = button.dataset.act;
+  const all = [...document.querySelectorAll('button[data-act]')];
+  all.forEach((b) => (b.disabled = true));
+  const label = button.textContent;
+  button.textContent = 'Working…';
+
+  try {
+    if (what === 'start' || what === 'stop' || what === 'restart') {
+      await api('/api/task/' + what);
+      say('taskMsg', what === 'stop' ? 'Stopped. The household cannot reach it now.' : 'Done.', true);
+    } else if (what === 'backup') {
+      const drive = document.getElementById('drive').value;
+      const r = await api('/api/backup', { drive });
+      say('backupMsg',
+        `Backed up ${r.megabytes} MB, ${r.photos} photos.` +
+        (r.copiedTo ? ` Copied to ${r.copiedTo}.` : drive ? ' The drive copy did not happen.' : ''), true);
+    } else if (what === 'addParent') {
+      const name = document.getElementById('parentName').value;
+      const pin = document.getElementById('parentPin').value;
+      await api('/api/parent', { name, pin });
+      document.getElementById('parentName').value = '';
+      document.getElementById('parentPin').value = '';
+      say('parentMsg', `Added ${name}. They can sign in on the hero screen now.`, true);
+    } else if (what === 'setPin') {
+      const userId = document.getElementById('pinUser').value;
+      const pin = document.getElementById('newPin').value;
+      await api('/api/pin', { userId, pin });
+      document.getElementById('newPin').value = '';
+      say('pinMsg', 'PIN set. That person has been signed out everywhere.', true);
+    } else if (what === 'renew') {
+      const r = await api('/api/cert/renew');
+      say('opMsg', '<pre>' + r.output.replace(/</g, '&lt;') + '</pre>', true);
+    } else if (what === 'rebuild') {
+      const r = await api('/api/rebuild');
+      say('opMsg', 'Rebuilt and restarted.<pre>' + r.output.replace(/</g, '&lt;') + '</pre>', true);
+    }
+  } catch (error) {
+    const target = { start: 'taskMsg', stop: 'taskMsg', restart: 'taskMsg', backup: 'backupMsg',
+                     addParent: 'parentMsg', setPin: 'pinMsg' }[what] || 'opMsg';
+    say(target, error.message, false);
+  } finally {
+    button.textContent = label;
+    all.forEach((b) => (b.disabled = false));
+    refresh();
+  }
+}
+
+document.querySelectorAll('button[data-act]').forEach((b) => b.addEventListener('click', () => act(b)));
+document.getElementById('openApp').addEventListener('click', () => {
+  if (appUrl) window.open(appUrl, '_blank');
+});
+
+refresh();
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>

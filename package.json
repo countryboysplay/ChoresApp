@@ -29,6 +29,7 @@
     "serve": "npm run build && node scripts/serve.mjs",
     "serve:only": "node scripts/serve.mjs",
     "startup": "powershell -ExecutionPolicy Bypass -File scripts/install-startup.ps1",
+    "admin": "node scripts/admin/server.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "screenshots": "node scripts/screenshots.mjs",
     "review-sheet": "node scripts/review-sheet.mjs"

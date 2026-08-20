@@ -64,6 +64,7 @@ npm run dev
 | `npm run user -w backend -- --role parent --name "N"` | Creates a member and sets their PIN |
 | `npm run serve` | Builds everything and runs it for the household, in production mode |
 | `npm run startup` | Registers the Windows task that starts it at boot (needs admin) |
+| `npm run admin` | Opens the laptop dashboard: start/stop, backups, add a parent |
 | `npm run vapid` | Prints a fresh VAPID key pair for push notifications |
 | `npm run cert -- --issue` | Obtains or renews the https certificate |
 | `npm run restore -- --list` | Lists backups; `--from <folder>` restores one |
@@ -217,6 +218,28 @@ Also reserve the laptop's address in the router. The A record points at a fixed
 address, so a DHCP lease that moves takes the whole household off the air.
 
 Without any of this the app still runs on plain http exactly as before.
+
+## The laptop dashboard
+
+Most servicing has a button now:
+
+```powershell
+npm run admin
+```
+
+It prints a link and opens it. Start, stop and restart the server; take a backup
+and copy it to a plugged-in USB drive; add a parent; reset anyone's PIN; renew
+the certificate; rebuild after pulling changes; and read the recent log.
+
+It runs as its own process on `127.0.0.1` only, deliberately independent of the
+app - a tool for servicing the server is needed exactly when the server is
+unwell. Each launch mints a token that is part of the link. That is not about the
+person at the laptop, who could run all of this from a terminal anyway; it is
+about the browser they have open, so no website they visit can quietly POST to
+localhost and add itself a parent account.
+
+**Restoring is not on it.** That replaces every chore, point and photo with no
+undo, so it stays a terminal command.
 
 ## Starting automatically
 
