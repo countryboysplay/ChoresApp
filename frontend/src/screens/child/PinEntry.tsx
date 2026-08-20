@@ -32,7 +32,9 @@ export function PinEntry() {
 
   const submit = async (candidate: string) => {
     // The Pages preview has no server to check against, so it walks through.
-    // There is no household data behind these screens in that mode.
+    // There is no household data behind these screens in that mode, and it is a
+    // build-time flag rather than a guess about why a request failed - an
+    // unreachable server gives 'offline', which never walks through.
     if (mode === 'preview') {
       window.setTimeout(goHome, 220);
       return;

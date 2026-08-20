@@ -5,6 +5,7 @@ import { Icon } from '../../design/icons';
 import { Button } from '../../design/primitives';
 import { levelForLifetimePoints } from '../../config/levels';
 import { useAuth } from '../../lib/auth';
+import { Offline } from '../Offline';
 import { useSkyBackground } from '../../hooks/useSkyBackground';
 import { playSound } from '../../design/sound';
 
@@ -15,6 +16,10 @@ export function ProfileSelect() {
 
   const childProfiles = profiles.filter((profile) => profile.role === 'child');
   const parentProfiles = profiles.filter((profile) => profile.role === 'parent');
+
+  // Ahead of the loading branch: with no server there are no profiles to wait
+  // for, and "Loading profiles..." forever is the worst of both answers.
+  if (mode === 'offline') return <Offline />;
 
   if (mode === 'loading') {
     return (

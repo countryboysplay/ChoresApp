@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { App } from './App';
 import { AuthProvider } from './lib/auth';
+import { registerServiceWorker } from './lib/serviceWorker';
 import './styles/global.css';
 import './design/system.css';
 
@@ -20,3 +21,7 @@ createRoot(container).render(
     </HashRouter>
   </StrictMode>,
 );
+
+// After the app is handed to React, so the worker never competes with first
+// paint. What it caches is for the next launch, not this one.
+registerServiceWorker();

@@ -3,6 +3,7 @@ import type { HouseholdSettings } from '@chore-quest/shared';
 import { Icon } from '../../design/icons';
 import { Badge, Button } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
+import { InstallPrompt } from '../../components/InstallPrompt';
 import { api, ApiRequestError } from '../../lib/api';
 
 /**
@@ -230,6 +231,10 @@ export function Settings() {
             </Button>
           </div>
         </section>
+
+        <div style={{ marginTop: 'var(--space-4)' }}>
+          <InstallPrompt />
+        </div>
 
         <section className="card stack" style={{ marginTop: 'var(--space-4)' }}>
           <h2 className="subtitle">Household</h2>

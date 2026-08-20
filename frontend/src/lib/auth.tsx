@@ -10,16 +10,35 @@ import { DEFAULT_AVATAR } from '../design/Avatar';
  *
  * 'preview' is the state the GitHub Pages build runs in. That deployment is a
  * design review artifact with no backend behind it, so a hard failure there
- * would break the one way the screens get looked at on a phone. When the API
- * cannot be reached the app falls back to mock profiles and lets navigation
- * through, rather than trapping the reviewer on a login screen that can never
- * succeed.
+ * would break the one way the screens get looked at on a phone. It shows mock
+ * profiles and lets navigation through, rather than trapping the reviewer on a
+ * login screen that can never succeed.
  *
- * It is deliberately not a way to bypass the login. Nothing sensitive exists in
- * preview mode - there is no household data to reach, because there is no
- * server holding any.
+ * It is decided at BUILD time and never inferred from a failed request. That
+ * distinction is the whole point. Until Stage 14 the app fell into preview
+ * whenever the API was unreachable, which was harmless only because an app with
+ * no cached shell does not open at all without a server. Caching removes that
+ * accident: the shell now loads offline, so a runtime fallback would mean
+ * anyone who can make the API unreachable - pull the wifi, wait for the laptop
+ * to sleep, and after Stage 16, from outside the house - lands inside the app
+ * with no PIN. A demo flag is not worth an authentication hole.
+ *
+ * 'offline' is what a real build does instead: no user, no mock data, no way
+ * through, and a screen that says plainly it cannot reach home.
  */
-export type AuthMode = 'loading' | 'preview' | 'live';
+export type AuthMode = 'loading' | 'preview' | 'live' | 'offline';
+
+/**
+ * True only in a build made for the Pages demo.
+ *
+ * Vite replaces `import.meta.env.VITE_PREVIEW_MODE` with a literal when it
+ * builds, so a production bundle has `'undefined' === 'true'` compiled in and
+ * cannot be argued into preview mode at runtime, whatever the browser does. A
+ * function rather than a constant so a test can prove both sides of it.
+ */
+export function isPreviewBuild(): boolean {
+  return import.meta.env.VITE_PREVIEW_MODE === 'true';
+}
 
 export type AuthUser = MeResponse['user'];
 
@@ -74,10 +93,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void resyncPush();
     } catch (error) {
       if (error instanceof ApiRequestError && error.isUnreachable) {
-        // No server. This is the Pages preview, or the laptop is asleep.
         setUser(null);
-        setProfiles(previewProfiles());
-        setMode('preview');
+        if (isPreviewBuild()) {
+          // The Pages demo, which has no backend by design.
+          setProfiles(previewProfiles());
+          setMode('preview');
+          return;
+        }
+        // A real build that cannot reach home: the laptop is asleep, the wifi
+        // is down, or the server is restarting. Nobody is signed in and nobody
+        // gets through - see the note above on why this is not preview mode.
+        setProfiles([]);
+        setMode('offline');
         return;
       }
       // A 401 is the ordinary signed-out case, not a failure.

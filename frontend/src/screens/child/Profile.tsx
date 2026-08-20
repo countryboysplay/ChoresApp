@@ -3,6 +3,7 @@ import { Avatar, BACKGROUNDS, HAIR_COLORS, SHIRT_COLORS, SKIN_TONES, type Avatar
 import { Icon } from '../../design/icons';
 import { Button, Meter, PointsPill, Tile } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
+import { InstallPrompt } from '../../components/InstallPrompt';
 import { levelForLifetimePoints } from '../../config/levels';
 import { achievements, children, rewards } from '../../mock/data';
 import { playSound } from '../../design/sound';
@@ -25,6 +26,10 @@ export function Profile() {
     <>
       <ScreenTop title="Profile" />
       <main className="screen">
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <InstallPrompt />
+        </div>
+
         <section className="panel panel--navy" style={{ display: 'grid', justifyItems: 'center', gap: 'var(--space-3)' }}>
           <Avatar config={config} size={132} label={`${me.name} avatar`} />
           <h2 className="title" style={{ margin: 0 }}>{me.name}</h2>

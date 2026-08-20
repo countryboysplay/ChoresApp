@@ -9,9 +9,9 @@ import { api } from './api';
  * and "you said no once" are four different problems, and a switch that just
  * fails to move is how a parent ends up believing the app is broken.
  *
- * There is no caching or offline behavior here and none in the worker. Push
- * needed a registered service worker; Stage 14 is what makes the app work
- * offline.
+ * Nothing here registers a worker any more. Stage 14 made the same worker carry
+ * the cached shell, so registration moved to one place at startup and this waits
+ * for whatever that produced.
  */
 
 export type PushState =
@@ -27,9 +27,15 @@ export type PushState =
   | 'off'
   | 'on';
 
-/** Where the worker lives, honoring the Pages base path. */
-const WORKER_URL = `${import.meta.env.BASE_URL}sw.js`;
-const WORKER_SCOPE = import.meta.env.BASE_URL;
+/**
+ * How long to wait for the worker the app registered at startup.
+ *
+ * `navigator.serviceWorker.ready` never rejects - it simply does not settle if
+ * nothing is ever registered - so every use of it here is raced against this.
+ * A child tapping into their inbox must not meet a panel that hangs on
+ * "Loading" because a worker failed to install.
+ */
+const WORKER_TIMEOUT_MS = 5_000;
 
 export function isPushSupported(): boolean {
   return (
@@ -57,13 +63,18 @@ function decodeKey(base64Url: string): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * Registers the worker, once. Safe to call on every load: the browser returns
- * the existing registration rather than installing a second one.
+ * The worker the app registered at startup, or null if it never arrived.
+ *
+ * Push used to register its own. It does not any more: caching needs the same
+ * worker on every load, so registration moved to one place at startup and this
+ * waits for it. Two callers racing to register is how a subscription ends up
+ * attached to a registration that is about to be replaced.
  */
-async function register(): Promise<ServiceWorkerRegistration> {
-  const existing = await navigator.serviceWorker.getRegistration(WORKER_SCOPE);
-  if (existing) return existing;
-  return navigator.serviceWorker.register(WORKER_URL, { scope: WORKER_SCOPE });
+async function worker(): Promise<ServiceWorkerRegistration | null> {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), WORKER_TIMEOUT_MS)),
+  ]);
 }
 
 /** What to draw, without asking for anything or prompting anybody. */
@@ -85,7 +96,8 @@ export async function readPushState(): Promise<PushState> {
 
   if (Notification.permission === 'denied') return 'blocked';
 
-  const registration = await register();
+  const registration = await worker();
+  if (!registration) return 'unsupported';
   const subscription = await registration.pushManager.getSubscription();
   return subscription ? 'on' : 'off';
 }
@@ -105,7 +117,8 @@ export async function enablePush(): Promise<PushState> {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return permission === 'denied' ? 'blocked' : 'off';
 
-  const registration = await register();
+  const registration = await worker();
+  if (!registration) return 'unsupported';
   const subscription =
     (await registration.pushManager.getSubscription()) ??
     (await registration.pushManager.subscribe({
@@ -127,7 +140,7 @@ export async function enablePush(): Promise<PushState> {
 export async function disablePush(): Promise<PushState> {
   if (!isPushSupported()) return 'unsupported';
 
-  const registration = await navigator.serviceWorker.getRegistration(WORKER_SCOPE);
+  const registration = await worker();
   const subscription = await registration?.pushManager.getSubscription();
   if (!subscription) return 'off';
 
@@ -151,7 +164,7 @@ export async function resyncPush(): Promise<void> {
   if (!isPushSupported() || !window.isSecureContext) return;
   if (Notification.permission !== 'granted') return;
 
-  const registration = await navigator.serviceWorker.getRegistration(WORKER_SCOPE);
+  const registration = await worker();
   const subscription = await registration?.pushManager.getSubscription();
   if (!subscription) return;
 

@@ -38,6 +38,12 @@ jobs:
         env:
           # Must match the repository name exactly - Pages paths are case-sensitive.
           VITE_BASE_PATH: /ChoresApp/
+          # This build, and only this build, may fall back to mock profiles and
+          # let navigation through when there is no API. It is set here rather
+          # than inferred from a failed request because the app now caches its
+          # shell: without the distinction, anyone who could make the API
+          # unreachable would be inside a real household's app with no PIN.
+          VITE_PREVIEW_MODE: 'true'
 
       - name: Add 404 fallback
         run: cp frontend/dist/index.html frontend/dist/404.html

@@ -29,9 +29,10 @@ export default tseslint.config(
   },
   {
     // The service worker runs in its own global scope, where `self` is the
-    // registration rather than a window. It is plain JS because it is served
-    // as-is rather than bundled.
-    files: ['frontend/public/sw.js'],
+    // registration rather than a window. It moved from public/ into src/ in
+    // Stage 14 so the build can inject the precache manifest into it, which is
+    // also why it is plain JS with a bundler pass rather than served as-is.
+    files: ['frontend/src/sw.js'],
     languageOptions: { globals: globals.serviceworker },
   },
   {

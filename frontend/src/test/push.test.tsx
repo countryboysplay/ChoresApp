@@ -42,16 +42,16 @@ function stubBrowserPush(options: { permission?: NotificationPermission; subscri
     requestPermission,
   });
   Object.defineProperty(window, 'PushManager', { value: class {}, configurable: true });
-  Object.defineProperty(navigator, 'serviceWorker', {
-    value: {
-      getRegistration: vi.fn().mockResolvedValue({
-        pushManager: {
-          getSubscription: vi.fn().mockResolvedValue(existing),
-          subscribe,
-        },
-      }),
-      register: vi.fn(),
+  const registration = {
+    pushManager: {
+      getSubscription: vi.fn().mockResolvedValue(existing),
+      subscribe,
     },
+  };
+  Object.defineProperty(navigator, 'serviceWorker', {
+    // `ready` is what the app waits on now that one place registers the worker
+    // for both push and the cached shell.
+    value: { ready: Promise.resolve(registration), register: vi.fn() },
     configurable: true,
   });
   return { requestPermission, subscribe };

@@ -113,6 +113,22 @@ Browsers only allow notifications over https or on the laptop itself, so a phone
 on the house wifi gets this once the Stage 16 tunnel is in place. Signing out, or
 a parent resetting a child's PIN, stops that phone buzzing immediately.
 
+## Offline and installing
+
+The app caches its own shell, so it opens with the laptop asleep and shows a
+plain "can't reach home" screen instead of the browser's error page. It never
+caches chores, points, or photos: a cached list cannot be told apart from a live
+one by the person reading it, and an app that quietly lies about what has been
+done is worse than one that admits it is offline. Nothing is lost either way -
+everything lives on the laptop.
+
+A new version installs in the background and takes over the next time the app is
+opened fresh, so nobody is reloaded out from under a half-finished chore.
+
+Where the browser offers it, an "Add to your home screen" card appears on a
+child's Profile screen and on parent Settings. On an iPhone there is no such API
+and it is a Safari menu item instead.
+
 ## Secrets
 
 `.env` files are git-ignored. Only `.env.example` is tracked, and it never contains

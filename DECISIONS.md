@@ -107,7 +107,7 @@ surface as a wrong chore day weeks later.
 
 | Topic | Stage | Notes |
 | --- | --- | --- |
-| PWA / service worker strategy | 14 | A push-only worker landed in Stage 13; caching, install prompt, and update flow still open. Likely `vite-plugin-pwa` |
+| ~~PWA / service worker strategy~~ | ~~14~~ | Settled in Stage 14: vite-plugin-pwa in injectManifest mode, shell-only precache, update on next launch |
 | Tunnel choice | 16 | Cloudflare Tunnel vs. Tailscale. No router ports either way |
 | Windows startup method | 18 | Scheduled Task at boot vs. NSSM service |
 | Backup retention | 15 | Owner decision |
@@ -1075,3 +1075,109 @@ send, on a row already being read.
 The blocked-permission copy tells the child their grown-up can see it. That is
 deliberate: a rule enforced by visibility only works if the person it applies to
 knows they are visible.
+
+---
+
+## 2026-08-19 — Preview mode is a build flag, never a guess about a failed request
+
+**Decision.** `preview` is set by `VITE_PREVIEW_MODE`, which only the GitHub
+Pages workflow passes. A real build that cannot reach the API enters a new
+`offline` mode: no user, no mock profiles, no route let through.
+
+**Reason.** Until Stage 14 the app fell into preview whenever a request failed,
+and `RequireRole` lets everything through in preview. That was harmless for one
+reason only - an app with no cached shell does not open at all without a server,
+so the state was unreachable. Stage 14 is precisely the change that removes that
+protection. Once the shell is cached the app **opens** with the API unreachable,
+which turns "the server did not answer" into a way in: pull the wifi, wait for
+the laptop to sleep, and after the Stage 16 tunnel, from outside the house.
+
+A demo convenience is not worth an authentication hole, and the two states are
+not actually the same question. "Was this built for the demo" is knowable at
+build time. "Why did this request fail" is not knowable at all.
+
+**Consequences.** `isPreviewBuild()` reads an env var Vite replaces with a
+literal, so a production bundle compiles to `'undefined' === 'true'` and cannot
+be argued into preview mode at runtime whatever the browser does. It is a
+function rather than a constant so a test can prove both sides. Three tests in
+`offline.test.tsx` pin it shut, and all three were confirmed to fail against the
+old behavior before being kept - a security test that would pass anyway is worse
+than none. The vitest config sets the flag on, because the screen tests review
+the design on mock data with no server, which is exactly what the Pages build is.
+
+---
+
+## 2026-08-19 — The shell is cached; the data never is
+
+**Decision.** Owner decision. The service worker precaches only what the build
+emitted - HTML, JS, CSS, fonts, icons. No API response is stored, and nothing is
+queued for later. Offline, the app opens and says plainly that it cannot reach
+home.
+
+**Reason.** A cached chore list cannot be told apart from a live one by the
+person reading it. A chore approved ten minutes ago still shows as pending, a
+tick goes nowhere, and a child can believe work was submitted when it was not.
+An app that quietly lies about what has been done is worse than one that admits
+it is offline. Queuing actions for later sync was considered and rejected on the
+same grounds, with conflicts and stale photos on top.
+
+**Consequences.** What caching buys is narrow and worth stating exactly: the app
+opens instantly, and offline it wears its own face instead of the browser's
+error page. That is all, and it is enough. The offline screen carries the
+sentence that matters to a child - nothing is lost, everything is safe at home -
+and retries by itself when the `online` event fires, because a phone that
+regains wifi should not need anybody to press anything.
+
+Navigations are served from the cached `index.html` through Workbox's
+`NavigationRoute`, not a hand-rolled `fetch` listener: Workbox already installs
+one and its precache route resolves a bare `/` to `index.html` on its own, so a
+second listener would be the second handler to call `respondWith` on the same
+navigation, which throws. `/api/` is on the route's denylist so an unreachable
+server always reaches the app as an unreachable server.
+
+---
+
+## 2026-08-19 — A new version waits for the next launch
+
+**Decision.** Owner decision. The worker does not call `skipWaiting()` or
+`clients.claim()`. A new version installs, waits, and takes over once every tab
+has closed.
+
+**Reason.** Stage 13 called both, which was safe only because nothing was cached
+and there was no older version for a new one to disagree with. With a precache
+that is no longer true. The alternatives are worse in a household: a reload
+forced as soon as the download lands can pull the page out from under a
+half-finished checklist or a photo capture, and a "new version available" prompt
+is something a child dismisses forever and a parent meets mid-approval.
+
+**Consequences.** The cost is running yesterday's build for one more session,
+which is the cheaper failure by a wide margin. There is deliberately no
+`onNeedRefresh` handler - with no `skipWaiting` there is nothing to tell anybody
+about. Anything that ever needs a version live immediately, such as a fix to the
+money rules, has to be treated as a deliberate exception rather than assumed.
+
+---
+
+## 2026-08-19 — vite-plugin-pwa in injectManifest mode, not generateSW
+
+**Decision.** The worker stays hand-written and moves from `public/` to `src/`.
+The build's only job is to inject the precache manifest into it. The Stage 2
+`manifest.webmanifest` is kept as-is rather than regenerated.
+
+**Reason.** The worker already carried the push and notification-click handlers
+from Stage 13, and a generated worker would have to be taught them anyway
+through the same injection point - at which point the generator is adding
+configuration rather than removing code. Hand-rolling the precache itself was
+the other option and is the worse one: cache invalidation across hashed
+filenames is exactly the kind of thing that looks finished and then serves a
+stale bundle for a week.
+
+**Consequences.** The worker is now bundled rather than served as written, so
+`eslint` points at `frontend/src/sw.js` and the file may use imports.
+Registration moved out of `push.ts` into `lib/serviceWorker.ts` and happens once
+at startup for the whole app - push now waits on `navigator.serviceWorker.ready`
+rather than registering its own, because two callers racing to register is how a
+subscription ends up attached to a registration that is about to be replaced.
+That wait is raced against a timeout, since `ready` never rejects and would
+otherwise hang a panel forever. `devOptions.enabled` is on because push is
+tested on localhost, the only secure context available before Stage 16.

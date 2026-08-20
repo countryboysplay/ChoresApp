@@ -4,8 +4,8 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 13 — Push notifications |
-| Stage status | Verified end to end on the laptop; awaiting owner approval |
+| Current stage | Stage 14 — Offline shell, install, and updates |
+| Stage status | Built and verified in a real browser; awaiting owner approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
@@ -13,8 +13,8 @@ _Last updated: 2026-08-19_
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
 | Database migration status | 11 migrations applied; 18 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 233 passing (206 backend, 27 frontend); typecheck, lint, build clean, 0 npm vulnerabilities |
-| Last known good commit | `cf33b6c` — Stage 13 push notifications; CI and Pages green |
+| Test status | 237 passing (206 backend, 31 frontend); typecheck, lint, build clean, 0 npm vulnerabilities |
+| Last known good commit | `6c43706` — Stage 13 verified end to end; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -133,7 +133,11 @@ and `http://<laptop-ip>:5173` also works.
   sound helper that generates every effect (no audio files, never blocks a flow).
 - Level curve centralized in `frontend/src/config/levels.ts` — the only place a
   level threshold is computed.
-- Push notifications: a push-only service worker, per-browser subscriptions that
+- Offline shell: the build precaches what it emitted and nothing else, so the
+  app opens with the laptop asleep and shows an honest "can't reach home" screen
+  rather than a stale copy of the day. A new version waits and takes over on the
+  next launch. An install card appears where the browser offers one.
+- Push notifications: a service worker that now also carries the cached shell, per-browser subscriptions that
   move with whoever signs in and die with the sign-in, and a drain that runs on
   the same tick as the reminder sweep. One notification kind reaches a phone;
   everything else stays in the inbox, which now has a screen on both sides of
@@ -230,11 +234,18 @@ Stage 16.
   Resolved: `npm run screenshots` captures all 25 routes at phone and desktop
   sizes into `screenshots/`, and fails if any screen logs a console error or
   overflows horizontally. Needs the dev server running.
-- **The service worker does push and nothing else**, so Chrome still will not
-  offer a true "Install" prompt — that wants a worker with a fetch handler. The
-  manifest and icons are in place, which is what Add to Home Screen needs.
-  Offline caching, the install prompt, and the prompt-to-update flow are still
-  Stage 14, which may replace `frontend/public/sw.js` wholesale.
+- **Offline shows an honest screen, not the day.** The shell is cached so the app
+  opens instantly and wears its own face rather than the browser's error page,
+  but no API response is ever stored and nothing is queued for later. A cached
+  chore list cannot be told apart from a live one by the child reading it.
+- **A new version takes over on the next launch, not immediately.** No
+  `skipWaiting`, no update prompt. The cost is running yesterday's build for one
+  more session; anything needing to be live at once is a deliberate exception.
+- **`preview` is now a build-time flag.** It used to be entered whenever a
+  request failed, which combined with caching would have let anyone into the app
+  with no PIN by making the API unreachable. Only the Pages workflow sets it;
+  everything else gets `offline`, which lets nobody through. Three tests pin
+  this shut.
 
 ## Pending owner decisions
 
@@ -245,6 +256,21 @@ Stage 16.
 2. Remote access approach for Stage 16 (Cloudflare Tunnel vs. Tailscale) — no
    router ports will be opened either way.
 3. Backup retention window.
+
+## Stage 14 - verified in a real browser
+
+Checked against a genuinely dead server, not a mocked one: the built app was
+served from a throwaway static server, the worker registered and precached 61
+entries, then the server was stopped and every socket destroyed.
+
+With nothing to connect to, the app still opened from cache, and `#/profiles`,
+`#/child/home`, and `#/parent` all showed the offline screen. None of them
+leaked a mock profile or let anybody past the guard, which is the property that
+made this stage a security change as much as a caching one.
+
+Not covered: an actual phone, which needs the https the Stage 16 tunnel will
+provide, and the install prompt, which only fires where Chrome decides a site is
+installable.
 
 ## Next planned work
 
@@ -265,18 +291,9 @@ To start using it, on the laptop:
    restart. That turns on the evening reminder buzzing a child's phone. Leaving
    the keys unset keeps push off, which is also a valid way to run.
 
-**Stage 14 — The rest of the PWA.** Stage 13 brought forward a push-only service
-worker; everything else that file was going to do is still ahead.
-
-What it has to settle:
-
-- **Caching strategy**, and the update flow that goes with it. The current
-  worker calls `skipWaiting` and `clients.claim`, which is safe only because
-  nothing is cached. The moment something is, that line needs revisiting.
-- **Whether `vite-plugin-pwa` replaces the hand-written worker** or wraps it.
-  The push and click handlers have to survive either way.
-- **The install prompt**, which wants a fetch handler before Chrome will offer
-  it.
+**Stage 15 — Backups.** The database holds everything a household has earned,
+on one laptop, with no copy anywhere. Two things are open and neither is
+technical: how long backups are kept, and where they go.
 
 Also outstanding:
 
