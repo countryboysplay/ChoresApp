@@ -16,8 +16,27 @@ import { join } from 'node:path';
  * because it is the one that works everywhere else.
  */
 
-const WINDOWS_ROOTS = ['C:\\Program Files\\PostgreSQL', 'C:\\Program Files (x86)\\PostgreSQL'];
-const UNIX_DIRS = ['/usr/lib/postgresql', '/usr/local/pgsql/bin', '/usr/bin', '/usr/local/bin'];
+/**
+ * Roots holding one directory per major version, e.g. `.../17/bin`.
+ *
+ * Both platforms lay PostgreSQL out this way, which the first version of this
+ * file got wrong on Linux: it treated `/usr/lib/postgresql` as a flat directory,
+ * found nothing there, and fell through to `/usr/bin` - where the distribution's
+ * older client lives. CI caught it immediately, with a 16 client refusing the 17
+ * server that CI had just installed a 17 client for.
+ */
+const VERSIONED_ROOTS =
+  process.platform === 'win32'
+    ? ['C:\\Program Files\\PostgreSQL', 'C:\\Program Files (x86)\\PostgreSQL']
+    : ['/usr/lib/postgresql', '/usr/local/pgsql'];
+
+/**
+ * Checked only after the versioned roots, because these hold whatever the
+ * system happened to install rather than the newest thing available - and
+ * newest is the only safe choice when pg_dump refuses a newer server.
+ */
+const FLAT_DIRS =
+  process.platform === 'win32' ? [] : ['/usr/local/pgsql/bin', '/usr/bin', '/usr/local/bin'];
 
 async function isExecutable(path: string): Promise<boolean> {
   try {
@@ -65,15 +84,14 @@ export async function findPgTool(tool: 'pg_dump' | 'pg_restore', explicitDir?: s
     throw new Error(`PG_BIN_DIR is set to ${explicitDir}, but ${name} is not there.`);
   }
 
-  const roots = process.platform === 'win32' ? WINDOWS_ROOTS : [];
-  for (const root of roots) {
+  for (const root of VERSIONED_ROOTS) {
     for (const dir of await versionsUnder(root)) {
       const candidate = join(dir, name);
       if (await isExecutable(candidate)) return candidate;
     }
   }
 
-  for (const dir of process.platform === 'win32' ? [] : UNIX_DIRS) {
+  for (const dir of FLAT_DIRS) {
     const candidate = join(dir, name);
     if (await isExecutable(candidate)) return candidate;
   }
