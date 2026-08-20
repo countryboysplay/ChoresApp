@@ -8,6 +8,7 @@ import { useSkyBackground } from '../../hooks/useSkyBackground';
 import { playSound } from '../../design/sound';
 import { ApiRequestError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { enablePush } from '../../lib/push';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'back'];
 const PIN_LENGTH = 4;
@@ -39,8 +40,15 @@ export function PinEntry() {
 
     setBusy(true);
     try {
-      await login(userId, candidate);
+      const signedIn = await login(userId, candidate);
       playSound('success');
+      // Reminders are not optional for a child, so this asks rather than
+      // waiting to be asked. It runs here, in the chain the PIN tap started,
+      // because Chrome treats a permission request that followed a tap more
+      // generously than one that arrived on its own. Deliberately not awaited:
+      // a browser prompt must never stand between a child and their chores, and
+      // the panel on the inbox screen tries again if this comes to nothing.
+      if (signedIn.role === 'child') void enablePush().catch(() => undefined);
       goHome();
     } catch (caught) {
       // No sound on failure. The design system has five effects and none of

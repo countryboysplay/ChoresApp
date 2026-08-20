@@ -996,6 +996,10 @@ parent phone navigation keeps its five tabs - the inbox is not a
 several-times-a-day destination and should not displace one that is - so the
 bell on the dashboard, with an unread count, is the way in.
 
+Superseded in part the same day - see "Reminders are not optional for a child"
+below, which removed the child's off switch and moved the only remaining one to
+the parent side.
+
 This is a deliberate change to an approved Stage 2 screen, so it is recorded
 here rather than left as drift: the inbox now carries a "Reminders on this
 phone" panel above the list. It sits there because the inbox is where somebody
@@ -1026,3 +1030,48 @@ has no keys yet, and System status says so too. Regenerating the pair
 invalidates every existing subscription, because the push services tie each one
 to the key that created it - recoverable, since each phone resubscribes on its
 next sign-in, but not silent.
+
+---
+
+## 2026-08-19 — Reminders are not optional for a child, and the app says so honestly
+
+**Decision.** Owner decision, replacing the opt-in switch shipped earlier the
+same day. A child's app has no way to turn reminders off, and asks for
+permission by itself rather than waiting to be asked - on sign-in, from inside
+the tap that submitted the PIN, and again from the inbox panel. The only off
+switch in the system is `users.reminders_muted`, on a parent screen a child
+cannot reach.
+
+**Reason.** The owner's requirement was that reminders be on by default and not
+turned off. Half of that is not achievable and the app must not pretend
+otherwise: notification permission belongs to whoever is holding the phone.
+Chrome will not let a site grant itself permission, and Chrome's own settings
+can always take it back. An app claiming to prevent that would simply move the
+off switch to a place a parent never looks, which is worse than not claiming it -
+the rule would appear to hold while quietly failing.
+
+So the requirement is met the only way a browser permits: never offer a way out,
+take the decision away from the child where the platform allows, and make the
+platform's own way out **visible**. A child who switches notifications off in
+Chrome appears on the parent dashboard as "not reaching" within a page load.
+Enforcement it is not; accountability it is, and that is the honest version.
+
+**Consequences.** Three surfaces changed. The child panel lost its off button
+and gained an unprompted request - `enablePush` is attempted once per mount, and
+once more at sign-in inside the PIN tap, because Chrome treats a permission
+request that followed a gesture more generously than one that arrived alone. The
+parent inbox no longer shows a switch for the parent's own phone, which was
+always a button that could do nothing - parents are never pushed to - and shows
+the per-child state instead. The parent dashboard carries a red banner naming
+any child whose reminders have stopped arriving, and stays silent otherwise,
+including for a child the parent muted deliberately.
+
+Muting stops the phone, not the record: a muted child's reminders still land in
+their inbox, and the drain closes those rows rather than holding them, because
+unmuting is not a licence to replay yesterday. `reminders_muted` sits on `users`
+rather than in its own table - it is one fact about a person, checked on every
+send, on a row already being read.
+
+The blocked-permission copy tells the child their grown-up can see it. That is
+deliberate: a rule enforced by visibility only works if the person it applies to
+knows they are visible.

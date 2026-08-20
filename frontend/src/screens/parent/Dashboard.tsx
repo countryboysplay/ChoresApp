@@ -7,6 +7,7 @@ import { Icon, type IconName } from '../../design/icons';
 import { Badge, Button, EmptyState, PointsPill, Sheet, StatRow } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { InboxBell } from '../../components/InboxBell';
+import { ReminderWarning } from '../../components/ReminderWarning';
 import { api, ApiRequestError } from '../../lib/api';
 
 /**
@@ -75,6 +76,8 @@ export function ParentDashboard() {
             {error}
           </p>
         )}
+
+        <ReminderWarning />
 
         <section className="stack stack--tight" style={{ marginTop: 'var(--space-3)' }}>
           <StatRow

@@ -5,6 +5,8 @@ import { Icon, type IconName } from '../design/icons';
 import { Badge, Button, EmptyState } from '../design/primitives';
 import { ScreenTop } from '../components/ScreenTop';
 import { PushSetup } from '../components/PushSetup';
+import { ChildReminders } from '../components/ChildReminders';
+import { useAuth } from '../lib/auth';
 import { relativeTime } from '../config/format';
 import { api, ApiRequestError } from '../lib/api';
 
@@ -33,6 +35,8 @@ const COLOR_FOR: Record<InboxNotification['tone'], string> = {
  */
 export function Inbox({ back }: { back?: string } = {}) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isParent = user?.role === 'parent';
   const [items, setItems] = useState<InboxNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -85,8 +89,12 @@ export function Inbox({ back }: { back?: string } = {}) {
           </p>
         )}
 
+        {/* A parent is never pushed to - only the child's evening reminder is -
+            so offering them a switch for their own phone would be a button that
+            does nothing. They get the view of whose phone is actually being
+            reached instead. */}
         <div style={{ marginBottom: 'var(--space-4)' }}>
-          <PushSetup />
+          {isParent ? <ChildReminders /> : <PushSetup />}
         </div>
 
         {loading ? (

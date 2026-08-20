@@ -499,3 +499,27 @@ export interface PushStatusResponse {
   /** Phones subscribed across the whole household. Never endpoints. */
   devices: number;
 }
+
+/**
+ * Per-child reminder state, for the parent app.
+ *
+ * The child app has no off switch, but a browser always does - notification
+ * permission belongs to whoever holds the phone and Chrome can take it back at
+ * any time. Since that cannot be prevented, it is reported: a child whose
+ * reminders stop reaching them shows up here rather than going quiet unnoticed.
+ */
+export interface ChildReminderState {
+  id: string;
+  displayName: string;
+  /** Phones currently subscribed for this child. */
+  devices: number;
+  /** A parent turned reminders off deliberately. The inbox still fills. */
+  mutedByParent: boolean;
+  /** False when muted, or when no phone is subscribed at all. */
+  remindersReaching: boolean;
+}
+
+export interface ChildRemindersResponse {
+  configured: boolean;
+  children: ChildReminderState[];
+}

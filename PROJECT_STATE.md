@@ -12,8 +12,8 @@ _Last updated: 2026-08-19_
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | None yet — Stage 17. It will serve the frontend and the API from one origin |
-| Database migration status | 10 migrations applied; 18 tables, 8 enums. Rolls back to empty and forward again cleanly |
-| Test status | 224 passing (201 backend, 23 frontend); typecheck, lint, build clean, 0 npm vulnerabilities; CI green |
+| Database migration status | 11 migrations applied; 18 tables, 8 enums. Rolls back to empty and forward again cleanly |
+| Test status | 233 passing (206 backend, 27 frontend); typecheck, lint, build clean, 0 npm vulnerabilities |
 | Last known good commit | `08164b2` — Stage 13 push notifications; CI and Pages green |
 
 ## Stage 0 findings
@@ -137,7 +137,9 @@ and `http://<laptop-ip>:5173` also works.
   move with whoever signs in and die with the sign-in, and a drain that runs on
   the same tick as the reminder sweep. One notification kind reaches a phone;
   everything else stays in the inbox, which now has a screen on both sides of
-  the app.
+  the app. A child has no off switch and is asked for permission unprompted; a
+  parent can mute a child, and sees any child whose phone has stopped being
+  reached.
 
 ## Known issues
 
@@ -148,6 +150,13 @@ and `http://<laptop-ip>:5173` also works.
   mock any more.
 - **Two child screens are still mock:** leaderboard and achievements, plus the
   avatar builder on the profile screen. Everything else on both sides is real.
+- **A child cannot turn reminders off in the app, and the app cannot stop them
+  turning them off in the browser.** Owner decision: reminders are not optional
+  for a child, so the child app has no off switch and asks for permission by
+  itself. Notification permission belongs to whoever holds the phone, though -
+  Chrome can always revoke it - so the rule is kept by visibility instead: a
+  child whose phone has gone quiet is named on the parent dashboard. The one
+  deliberate off switch is `users.reminders_muted`, on a parent screen.
 - **One notification buzzes a phone; the rest wait in the inbox.** Owner
   decision: only the child's evening `chore_reminder` is pushed, because it is
   the only one whose whole purpose is to reach somebody who is not looking.

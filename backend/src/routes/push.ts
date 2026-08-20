@@ -128,4 +128,68 @@ export async function pushRoutes(app: FastifyInstance, opts: { env: Env }): Prom
       devices: rows[0]?.devices ?? 0,
     };
   });
+
+  /**
+   * Which children's reminders are actually working, and which are not.
+   *
+   * This exists because the app cannot enforce what a parent would like it to.
+   * Notification permission belongs to whoever is holding the phone: Chrome will
+   * not let a site grant itself permission, and its settings can always take it
+   * back. So the child app offers no way out of its own, and this endpoint makes
+   * the browser's way out visible instead of silent. A child who switches
+   * reminders off in Chrome shows up here as "no phone", which is a conversation
+   * rather than a mystery.
+   */
+  app.get('/api/parent/push/children', { onRequest: requireParent }, async () => {
+    const { rows } = await pool().query<{
+      id: string;
+      display_name: string;
+      reminders_muted: boolean;
+      devices: number;
+    }>(
+      `SELECT u.id, u.display_name, u.reminders_muted,
+              (SELECT count(*)::int FROM push_subscriptions p WHERE p.user_id = u.id) AS devices
+         FROM users u
+        WHERE u.role = 'child' AND u.is_active
+        ORDER BY u.sort_order, u.display_name`,
+    );
+
+    return {
+      configured: pushConfig(env) !== null,
+      children: rows.map((row) => ({
+        id: row.id,
+        displayName: row.display_name,
+        devices: row.devices,
+        mutedByParent: row.reminders_muted,
+        // The single question a parent is actually asking. Muted wins over
+        // device count, because a silenced child with three phones is still
+        // silenced and saying "on" would be a lie.
+        remindersReaching: !row.reminders_muted && row.devices > 0,
+      })),
+    };
+  });
+
+  /**
+   * The one deliberate off switch, on a screen no child can reach.
+   *
+   * For a child who is away, ill, or on a device that should not buzz. The
+   * inbox still fills either way - muting stops the phone, not the record.
+   */
+  app.patch('/api/parent/push/children/:userId', { onRequest: requireParent }, async (request) => {
+    const { userId } = request.params as { userId: string };
+    if (!z.string().uuid().safeParse(userId).success) {
+      throw app.httpErrors.notFound('No such person.');
+    }
+
+    const body = z.object({ muted: z.boolean() }).safeParse(request.body);
+    if (!body.success) throw app.httpErrors.badRequest('Say whether reminders are muted.');
+
+    const { rowCount } = await pool().query(
+      `UPDATE users SET reminders_muted = $2 WHERE id = $1 AND role = 'child'`,
+      [userId, body.data.muted],
+    );
+    if (!rowCount) throw app.httpErrors.notFound('No such child.');
+
+    return { ok: true, muted: body.data.muted };
+  });
 }

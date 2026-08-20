@@ -266,6 +266,45 @@ describeDb('what reaches a phone', () => {
     expect(result.sent).toBe(1);
   });
 
+  it('goes quiet for a child a parent has muted, but still fills the inbox', async () => {
+    const child = await makeUser('child', 'Muted Child');
+    await subscribe(child, 'https://push.example.com/subscription/muted');
+    await pool.query('UPDATE users SET reminders_muted = true WHERE id = $1', [child]);
+    const reminder = await putInInbox(child, 'chore_reminder');
+
+    const result = await drainPushQueue(pool, envWithKeys, log);
+
+    expect(result.sent).toBe(0);
+    expect(sendNotification).not.toHaveBeenCalled();
+    // Closed rather than held: muting stops the phone, not the record, and the
+    // reminder is sitting in the inbox waiting to be read.
+    expect(await pushedAt(reminder)).not.toBeNull();
+  });
+
+  it('sends again the moment a parent unmutes', async () => {
+    const child = await makeUser('child', 'Unmuted Child');
+    await subscribe(child, 'https://push.example.com/subscription/unmuted');
+    await pool.query('UPDATE users SET reminders_muted = true WHERE id = $1', [child]);
+    await putInInbox(child, 'chore_reminder');
+
+    await drainPushQueue(pool, envWithKeys, log);
+    expect(sendNotification).not.toHaveBeenCalled();
+
+    // The old reminder stays closed - unmuting is not a licence to replay
+    // yesterday - so a fresh one is what proves the switch works.
+    await pool.query('UPDATE users SET reminders_muted = false WHERE id = $1', [child]);
+    await putInInbox(child, 'chore_escalation');
+    await pool.query(
+      `UPDATE notifications SET kind = 'chore_reminder', chore_instance_id = NULL
+        WHERE user_id = $1 AND kind = 'chore_escalation'`,
+      [child],
+    );
+
+    sendNotification.mockResolvedValue({ statusCode: 201 });
+    const result = await drainPushQueue(pool, envWithKeys, log);
+    expect(result.sent).toBe(1);
+  });
+
   it('forgets a subscription the push service says is gone', async () => {
     const child = await makeUser('child', 'Gone Child');
     await subscribe(child, 'https://push.example.com/subscription/gone');
@@ -396,6 +435,90 @@ describeDb('subscribing a phone', () => {
     });
     expect(reset.statusCode).toBe(200);
     expect(await subscriptionCount(child)).toBe(0);
+  });
+
+  it('tells a parent whose reminders are not reaching, and only a parent', async () => {
+    const parent = await makeUser('parent', 'Checking Parent');
+    const reachable = await makeUser('child', 'Reachable Child');
+    const silent = await makeUser('child', 'Silent Child');
+    await subscribe(reachable, 'https://push.example.com/subscription/reachable');
+
+    const childCookie = await signIn(app, silent);
+    const refused = await app.inject({
+      method: 'GET',
+      url: '/api/parent/push/children',
+      headers: { cookie: childCookie },
+    });
+    expect(refused.statusCode).toBe(403);
+
+    const parentCookie = await signIn(app, parent);
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/parent/push/children',
+      headers: { cookie: parentCookie },
+    });
+    expect(response.statusCode).toBe(200);
+
+    const listed = response.json().children as {
+      id: string;
+      remindersReaching: boolean;
+      devices: number;
+    }[];
+    expect(listed.find((c) => c.id === reachable)?.remindersReaching).toBe(true);
+    // The whole point of the screen: a child with no phone signed up is
+    // visible rather than quietly missing their reminders.
+    expect(listed.find((c) => c.id === silent)?.remindersReaching).toBe(false);
+    expect(listed.find((c) => c.id === silent)?.devices).toBe(0);
+  });
+
+  it('lets a parent mute a child, and nobody else', async () => {
+    const parent = await makeUser('parent', 'Muting Parent');
+    const child = await makeUser('child', 'Mutable Child');
+    await subscribe(child, 'https://push.example.com/subscription/mutable');
+
+    // A child cannot reach their own switch. That is the entire arrangement.
+    const childCookie = await signIn(app, child);
+    const refused = await app.inject({
+      method: 'PATCH',
+      url: `/api/parent/push/children/${child}`,
+      headers: { cookie: childCookie },
+      payload: { muted: true },
+    });
+    expect(refused.statusCode).toBe(403);
+
+    const parentCookie = await signIn(app, parent);
+    const muted = await app.inject({
+      method: 'PATCH',
+      url: `/api/parent/push/children/${child}`,
+      headers: { cookie: parentCookie },
+      payload: { muted: true },
+    });
+    expect(muted.statusCode).toBe(200);
+
+    const after = await app.inject({
+      method: 'GET',
+      url: '/api/parent/push/children',
+      headers: { cookie: parentCookie },
+    });
+    const row = (after.json().children as { id: string; mutedByParent: boolean; remindersReaching: boolean }[])
+      .find((c) => c.id === child);
+    expect(row?.mutedByParent).toBe(true);
+    // Muted beats a subscribed phone: saying "on" would be a lie.
+    expect(row?.remindersReaching).toBe(false);
+  });
+
+  it('refuses to mute a parent', async () => {
+    const parent = await makeUser('parent', 'Immune Parent');
+    const other = await makeUser('parent', 'Other Parent');
+    const cookie = await signIn(app, parent);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/parent/push/children/${other}`,
+      headers: { cookie },
+      payload: { muted: true },
+    });
+    expect(response.statusCode).toBe(404);
   });
 
   it('counts phones for the system screen, and only for a parent', async () => {

@@ -103,10 +103,15 @@ evening reminder reaches a child's phone without the app being open - it is the
 only notification that does. Everything else lands in the inbox and is read when
 the app is next opened.
 
-Each phone opts in separately, on the Inbox screen. Browsers only allow
-notifications over https or on the laptop itself, so a phone on the house wifi
-gets this once the Stage 16 tunnel is in place. Signing out, or a parent
-resetting a child's PIN, stops that phone buzzing immediately.
+Reminders are not optional for a child: their app has no off switch and asks for
+permission by itself when they sign in. What no app can do is stop a phone's
+owner revoking that permission in the browser's own settings - so instead, a
+child whose phone has gone quiet is named on the parent dashboard, and the only
+deliberate off switch is on the parent's Inbox screen.
+
+Browsers only allow notifications over https or on the laptop itself, so a phone
+on the house wifi gets this once the Stage 16 tunnel is in place. Signing out, or
+a parent resetting a child's PIN, stops that phone buzzing immediately.
 
 ## Secrets
 

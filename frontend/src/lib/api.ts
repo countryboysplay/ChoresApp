@@ -4,6 +4,7 @@ import type {
   NotificationsResponse,
   PushKeyResponse,
   PushStatusResponse,
+  ChildRemindersResponse,
   ChoreResolution,
   DashboardResponse,
   ScheduleResponse,
@@ -234,6 +235,16 @@ export const api = {
       }),
 
     status: () => request<PushStatusResponse>('/api/push/status'),
+
+    /** Which children's reminders are actually reaching a phone. Parent only. */
+    children: () => request<ChildRemindersResponse>('/api/parent/push/children'),
+
+    /** The one off switch, on a screen no child can reach. */
+    setMuted: (userId: string, muted: boolean) =>
+      request<{ ok: true; muted: boolean }>(`/api/parent/push/children/${userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ muted }),
+      }),
   },
 
   dashboard: {

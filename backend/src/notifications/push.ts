@@ -112,13 +112,20 @@ export async function drainPushQueue(
   const staleBefore = new Date(now.getTime() - STALE_AFTER_MINUTES * 60_000);
 
   // Close out everything that is not going anywhere, in one statement: the
-  // kinds that never buzz, anything already read on another device, and
-  // anything old enough that a buzz would be an alarm about yesterday.
+  // kinds that never buzz, anything already read on another device, anything
+  // old enough that a buzz would be an alarm about yesterday, and anyone a
+  // parent has deliberately silenced.
   const { rowCount: closed } = await db.query(
-    `UPDATE notifications
+    `UPDATE notifications n
         SET pushed_at = $1
-      WHERE pushed_at IS NULL
-        AND (kind <> ALL($2::text[]) OR read_at IS NOT NULL OR created_at < $3)`,
+      WHERE n.pushed_at IS NULL
+        AND (n.kind <> ALL($2::text[])
+             OR n.read_at IS NOT NULL
+             OR n.created_at < $3
+             OR EXISTS (
+               SELECT 1 FROM users u
+                WHERE u.id = n.user_id AND u.reminders_muted
+             ))`,
     [now, PUSHABLE_KINDS, staleBefore],
   );
 
