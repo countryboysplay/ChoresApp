@@ -7,7 +7,13 @@
 .screen {
   max-width: 480px;
   margin: 0 auto;
-  padding: var(--space-4) var(--space-4) 108px;
+  /*
+   * The bottom navigation is fixed, so every screen has to reserve its height
+   * or its last row hides underneath. On a phone with a home indicator the bar
+   * grows by that inset, which is why it is added here rather than baked into
+   * the 108px.
+   */
+  padding: var(--space-4) var(--space-4) calc(108px + env(safe-area-inset-bottom, 0px));
 }
 
 .screen--wide { max-width: 1120px; }
@@ -588,7 +594,13 @@
 }
 
 /* ---------- Forms ---------- */
-.field { display: grid; gap: var(--space-2); }
+/*
+ * min-width: 0 because a field is usually a flex child sharing a .row with a
+ * sibling. Without it the column floors at the input's intrinsic width - and a
+ * date or time input's is wide - so a pair of them overflows the card instead
+ * of splitting the space.
+ */
+.field { display: grid; gap: var(--space-2); min-width: 0; }
 
 .field__label { font-weight: 800; font-size: var(--text-sm); color: var(--text); }
 
@@ -596,6 +608,7 @@
 .textarea,
 .select {
   width: 100%;
+  min-width: 0;
   min-height: var(--touch-min);
   padding: var(--space-3);
   border-radius: var(--radius-md);

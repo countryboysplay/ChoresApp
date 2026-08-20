@@ -118,8 +118,8 @@ export function Settings() {
 
         <section className="card stack" style={{ marginTop: 'var(--space-4)' }}>
           <h2 className="subtitle">Points</h2>
-          <div className="row" style={{ gap: 'var(--space-3)' }}>
-            <label className="field" style={{ flex: 1 }}>
+          <div className="grid-2">
+            <label className="field">
               <span className="field__label">Points per core chore</span>
               <input
                 className="input numeric"
@@ -129,7 +129,7 @@ export function Settings() {
                 onChange={(event) => setCorePoints(event.target.value)}
               />
             </label>
-            <label className="field" style={{ flex: 1 }}>
+            <label className="field">
               <span className="field__label">Punctuality bonus</span>
               <input
                 className="input numeric"
@@ -141,8 +141,8 @@ export function Settings() {
             </label>
           </div>
 
-          <div className="row" style={{ gap: 'var(--space-3)' }}>
-            <label className="field" style={{ flex: 1 }}>
+          <div className="grid-2">
+            <label className="field">
               <span className="field__label">Reminder</span>
               <input
                 className="input"
@@ -151,7 +151,7 @@ export function Settings() {
                 onChange={(event) => setReminder(event.target.value)}
               />
             </label>
-            <label className="field" style={{ flex: 1 }}>
+            <label className="field">
               <span className="field__label">Escalation</span>
               <input
                 className="input"
@@ -187,8 +187,8 @@ export function Settings() {
             show cash out as turned off.
           </p>
 
-          <div className="row" style={{ gap: 'var(--space-3)' }}>
-            <label className="field" style={{ flex: 1 }}>
+          <div className="grid-2">
+            <label className="field">
               <span className="field__label">Points per dollar</span>
               <input
                 className="input numeric"
@@ -199,7 +199,7 @@ export function Settings() {
                 placeholder="Not set"
               />
             </label>
-            <label className="field" style={{ flex: 1 }}>
+            <label className="field">
               <span className="field__label">Minimum to cash out</span>
               <input
                 className="input numeric"
