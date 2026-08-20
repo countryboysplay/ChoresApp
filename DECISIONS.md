@@ -1829,3 +1829,56 @@ have come from hand-written SQL, and editing one here would flatten it.
 there is no `TEST_DATABASE_URL`, and the app's Postgres role cannot create the
 scratch database to point it at. Typecheck, lint, the 53 tests that run without
 a database, and the production build all pass.
+
+---
+
+## 2026-08-20 — A parent can install a waiting update; the phones still cannot be interrupted
+
+**Decision.** The service worker gains a `SKIP_WAITING` message listener, and the
+parent System status screen gains an "Install it now" button that posts it. The
+Stage 14 rule is otherwise untouched: a new version still installs, waits, and
+never activates on its own.
+
+**Reason.** "Takes over when every tab has closed" assumed tabs close. On iOS they
+do not. A home-screen app is suspended rather than terminated and a pinned Safari
+tab survives for weeks, so the waiting worker waits indefinitely while the old
+one keeps serving its own precached `index.html` and its own precached assets.
+That stale app is entirely self-consistent, so reloading cannot escape it, and no
+fix shipped in the app's own JavaScript can reach it either — the stale worker is
+what decides which JavaScript runs. Clearing Website Data by hand was the only
+way out, and it signs everybody on that phone back out.
+
+**Consequences.** The guarantee the kids were given is unchanged: nothing on a
+child's phone reloads itself, and no child is shown a dialog. The listener is
+inert unless something posts to it, and the only thing that does is a button on a
+screen children cannot reach. `onNeedRefresh` is now supplied but deliberately
+renders nothing — it sets a flag that exactly one screen reads.
+
+The recovery path for a phone already captured is `GET /api/reset`. It is under
+`/api/` on purpose: the worker's navigation route denies that prefix, so it is
+the one URL on the origin that reaches the network whatever the worker thinks.
+The page it returns unregisters every worker and deletes every cache. It is
+unauthenticated because it reads nothing, writes nothing, and affects only the
+browser that asked — the same thing that browser could already do through its own
+settings, in one tap instead of six.
+
+Two things that made this invisible for as long as it was, both now closed. The
+SPA fallback answered *any* non-`/api/` path with `index.html`, so a `dist`
+missing `sw.js` served the browser HTML with a 200 and a registration that failed
+on MIME type alone — it now 404s anything whose last path segment contains a dot,
+which is safe here because routing is entirely in the hash and no real route has
+an extension. And `serve.mjs` now says so at startup when `frontend/dist/sw.js` is
+absent, which is the signature of a build cut short: `vite-plugin-pwa` emits the
+worker in a second pass *after* Vite reports the build succeeded.
+
+**Also.** `npm run build:frontend` and a "Rebuild the app" button beside the
+existing one in the dashboard. The backend reads `frontend/dist` off disk on
+every request, so a frontend change needs no restart at all; stopping the server
+to publish a stylesheet only ever bought an outage. Reach for "Rebuild everything
+and restart" when backend code changed.
+
+**Not verified on a phone.** Typecheck, lint, the 55 backend tests that run
+without a database, the 31 frontend tests, and the production build all pass, and
+`/api/reset` and the tightened fallback are covered by tests. Whether
+workbox-window raises `waiting` for a worker that was already waiting when the
+page loaded — the common case — is the one thing only a real handset can settle.

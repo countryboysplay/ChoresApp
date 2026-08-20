@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type {
   BackupsResponse,
   CertificateResponse,
@@ -9,6 +9,7 @@ import { Icon } from '../../design/icons';
 import { Badge, Button } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { api, ApiRequestError } from '../../lib/api';
+import { installWaitingUpdate, isUpdateWaiting, subscribeToUpdates } from '../../lib/appUpdate';
 
 type Tone = 'done' | 'waiting' | 'late' | 'neutral';
 
@@ -101,6 +102,10 @@ export function SystemStatus() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // The one place in the app that admits an update is waiting. A child's phone
+  // never asks, so a child is never offered a reload they did not want.
+  const updateWaiting = useSyncExternalStore(subscribeToUpdates, isUpdateWaiting);
+
   const load = useCallback(async () => {
     await Promise.all([
       api.push.status().then(setPush).catch(() => undefined),
@@ -173,6 +178,30 @@ export function SystemStatus() {
     <>
       <ScreenTop title="System status" back="/parent/settings" />
       <main className="screen">
+        {/*
+          Above everything else, because a parent who came here to work out why
+          the app looks wrong has usually found their answer in this one line.
+        */}
+        {updateWaiting && (
+          <section className="card stack stack--tight" style={{ marginBottom: 'var(--space-4)' }}>
+            <div className="row row--between">
+              <span className="row" style={{ gap: 'var(--space-2)' }}>
+                <Icon name="alert" size={18} />
+                <strong>A new version is ready</strong>
+              </span>
+              <Badge tone="info">Waiting</Badge>
+            </div>
+            <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+              It installs itself once every tab of the app has been closed, which on a phone can
+              mean never. This takes it now and reloads. Only this phone is affected — nobody
+              else is interrupted.
+            </p>
+            <Button tone="go" block icon="check" onClick={() => installWaitingUpdate()}>
+              Install it now
+            </Button>
+          </section>
+        )}
+
         <div className="stack stack--tight">
           {rows.map((row) => (
             <div key={row.label} className="card row">

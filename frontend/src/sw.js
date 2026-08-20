@@ -27,6 +27,15 @@ import { NavigationRoute, registerRoute } from 'workbox-routing';
  *    half-finished checklist or a photo capture, and no kid is shown a dialog
  *    they will dismiss forever. The cost is running yesterday's build for one
  *    more session, which is the cheaper failure.
+ *
+ *    Amended, because on iOS "every tab has closed" can mean never: a
+ *    home-screen app is suspended rather than terminated and a pinned tab lives
+ *    for weeks, so the waiting worker waits for good and the old build is not
+ *    yesterday's but forever's. The listener below is the release valve. It
+ *    stays silent unless something posts to it, and the only thing that does is
+ *    a button on the parent System status screen - so the guarantee the kids
+ *    were given is unchanged, and a parent who wants the new version now can
+ *    have it without closing every tab on the phone.
  */
 
 // The build replaces this with the list of files it emitted, each with its own
@@ -56,6 +65,18 @@ registerRoute(
     denylist: [/^\/api\//],
   }),
 );
+
+/*
+ * Take over now, when asked.
+ *
+ * Workbox's messageSkipWaiting() posts this; an injectManifest worker has to
+ * answer it itself, because Workbox only wires this up for the workers it
+ * generates. Nothing else sends it, so this is inert until a parent presses the
+ * button.
+ */
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
 
 /**
  * The scope this worker was registered under - "/" in dev, "/ChoresApp/" on

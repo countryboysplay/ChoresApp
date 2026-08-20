@@ -78,6 +78,22 @@ if (!(await exists(distIndex))) {
   );
 }
 
+// The service worker is emitted after Vite reports the build succeeded, so a
+// build cut short at the wrong second leaves a dist that looks complete and is
+// missing only this. It is a note rather than a problem because the app runs
+// without it - but it is the loudest note here, because the failure it causes
+// is invisible from the laptop and permanent on the phones: /sw.js falls
+// through to index.html, the browser refuses to register a worker served as
+// HTML, and every phone keeps running an orphaned worker from an earlier build
+// that nothing can replace.
+if ((await exists(distIndex)) && !(await exists(join(root, 'frontend', 'dist', 'sw.js')))) {
+  notes.push(
+    'frontend/dist has no sw.js, so the app cannot update itself on a phone and has\n' +
+      '    no offline screen. The last build did not finish. Fix: npm run build',
+  );
+}
+
+
 if (!(await exists(join(backend, 'dist', 'server.js')))) {
   problems.push('backend/dist is missing. Run: npm run build');
 }

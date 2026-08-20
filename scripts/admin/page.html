@@ -138,11 +138,15 @@
     <div id="certRows"></div>
     <div class="buttons" style="margin-top:14px">
       <button data-act="renew">Renew certificate</button>
-      <button data-act="rebuild">Rebuild and restart</button>
+      <button data-act="rebuildApp">Rebuild the app</button>
+      <button data-act="rebuild">Rebuild everything and restart</button>
     </div>
     <p class="note">
-      Renewal happens by itself inside 30 days of expiry. Rebuild after pulling changes from
-      GitHub.
+      Renewal happens by itself inside 30 days of expiry. <strong>Rebuild the app</strong> is the
+      one to reach for after changing a screen: it rebuilds the frontend only and nobody is
+      signed out, because the server reads those files fresh on every request. Use
+      <strong>Rebuild everything and restart</strong> when backend code changed, which includes
+      most pulls from GitHub.
     </p>
     <div id="opMsg"></div>
   </section>
@@ -280,6 +284,11 @@ async function act(button) {
     } else if (what === 'renew') {
       const r = await api('/api/cert/renew');
       say('opMsg', '<pre>' + r.output.replace(/</g, '&lt;') + '</pre>', true);
+    } else if (what === 'rebuildApp') {
+      const r = await api('/api/rebuild/app');
+      say('opMsg', 'The app is rebuilt and already live. On a phone that has it open, ' +
+        'System status now offers to install it.<pre>' +
+        r.output.replace(/</g, '&lt;') + '</pre>', true);
     } else if (what === 'rebuild') {
       const r = await api('/api/rebuild');
       say('opMsg', 'Rebuilt and restarted.<pre>' + r.output.replace(/</g, '&lt;') + '</pre>', true);

@@ -27,9 +27,26 @@ export interface ErrorHandlerOptions {
   spaFallback?: boolean;
 }
 
+/**
+ * Whether a path is asking for a file rather than a screen.
+ *
+ * Routing is entirely in the hash, so a real navigation is always the bare
+ * origin and never has a dot in its last segment. Anything that does is asking
+ * for something the build was supposed to emit.
+ *
+ * The distinction earns its keep: a dist missing sw.js once answered
+ * /sw.js with index.html and a 200, the browser refused to register a worker
+ * served as HTML, and the phones kept running an orphaned worker from an
+ * earlier build that nothing could replace. A 404 would have said so at once.
+ */
+function looksLikeAFile(url: string): boolean {
+  const path = url.split(/[?#]/)[0] ?? '';
+  return path.slice(path.lastIndexOf('/') + 1).includes('.');
+}
+
 export function registerErrorHandler(app: FastifyInstance, options: ErrorHandlerOptions = {}): void {
   app.setNotFoundHandler((request, reply) => {
-    if (options.spaFallback && !request.url.startsWith('/api/')) {
+    if (options.spaFallback && !request.url.startsWith('/api/') && !looksLikeAFile(request.url)) {
       // Every screen lives after the hash, so this only ever sends the one
       // document; React decides what to draw once it has it.
       return reply.sendFile('index.html');

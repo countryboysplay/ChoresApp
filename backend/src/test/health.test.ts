@@ -37,6 +37,22 @@ describe('GET /api/health', () => {
   });
 });
 
+describe('GET /api/reset', () => {
+  it('answers with a page rather than JSON, so a captured phone can escape', async () => {
+    const app = await buildApp({ env: testEnv });
+    const response = await app.inject({ method: 'GET', url: '/api/reset' });
+
+    // The service worker's navigation route denies /api/, which is the whole
+    // reason this lives under it: a phone running a stale worker reaches this
+    // and nothing else. It has to arrive as a document, not as an API error.
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('text/html');
+    expect(response.body).toContain('getRegistrations');
+    expect(response.body).toContain('caches.delete');
+    await app.close();
+  });
+});
+
 describe('household time', () => {
   it('uses the household timezone, not UTC, across the DST boundary', () => {
     // 2026-03-08 06:30 UTC is still 2026-03-08 00:30 in Chicago (CST, UTC-6).

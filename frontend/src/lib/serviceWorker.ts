@@ -1,4 +1,5 @@
 import { registerSW } from 'virtual:pwa-register';
+import { reportUpdateWaiting } from './appUpdate';
 
 /**
  * Registers the service worker, once, for the whole app.
@@ -19,11 +20,15 @@ export function registerServiceWorker(): void {
   // can do neither, and that is the common way in on the house wifi.
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
 
-  registerSW({
+  const takeOver = registerSW({
     immediate: false,
-    // No onNeedRefresh handler on purpose. Owner decision: a new version waits
-    // and takes over on the next launch, so there is nothing to tell anybody
-    // about. The worker does not call skipWaiting, so this stays quiet.
+    // Named onNeedRefresh, but it refreshes nothing. Owner decision, unchanged:
+    // a new version waits and takes over on the next launch, and nobody is
+    // shown a dialog they will dismiss forever. All this does is record that
+    // there is something to take over to, for the one screen that offers it.
+    onNeedRefresh() {
+      reportUpdateWaiting(takeOver);
+    },
     onRegisterError(error) {
       // Not fatal. Without a worker the app still works whenever the laptop is
       // reachable, which is almost always - it just loses offline and push.

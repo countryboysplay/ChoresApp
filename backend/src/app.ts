@@ -23,6 +23,7 @@ import { householdRoutes } from './routes/household.js';
 import { choreRoutes } from './routes/chores.js';
 import { photoRoutes } from './routes/photos.js';
 import { pushRoutes } from './routes/push.js';
+import { resetRoutes } from './routes/reset.js';
 import { healthRoutes } from './routes/health.js';
 import { rewardRoutes } from './routes/rewards.js';
 import { tlsRoutes } from './routes/tls.js';
@@ -117,6 +118,7 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(tlsRoutes, { env });
   await app.register(walletRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
+  await app.register(resetRoutes);
 
   // The built frontend, from the same origin as the API.
   //

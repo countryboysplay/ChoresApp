@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
@@ -385,6 +386,36 @@ const routes = {
       maxBuffer: 4 * 1024 * 1024,
     });
     return { output: `${stdout}\n${stderr}`.trim() };
+  },
+
+  /*
+   * The app only, and without a restart.
+   *
+   * The backend reads frontend/dist off disk on every request, so a rebuilt app
+   * is live the moment the files land - stopping the server to publish a
+   * stylesheet only ever bought an outage. This skips the backend's tsc too,
+   * which nothing in a frontend change can have invalidated. Seconds instead of
+   * the better part of a minute, and nobody is signed out.
+   *
+   * Use the one below instead when backend code changed, which includes any
+   * git pull that touched more than the app.
+   */
+  'POST /api/rebuild/app': async () => {
+    const { stdout, stderr } = await run('npm', ['run', 'build:frontend'], {
+      cwd: root,
+      shell: true,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    // The service worker is emitted after Vite says the build succeeded, so its
+    // absence is the signature of a build that was cut short - and a dist
+    // without one leaves every phone on an orphaned worker it cannot replace.
+    if (!existsSync(join(root, 'frontend', 'dist', 'sw.js'))) {
+      throw new Error(
+        'The build finished without emitting frontend/dist/sw.js, so phones would never ' +
+          'see this change. Run npm run build:frontend on the laptop and read the output.',
+      );
+    }
+    return { output: `${stdout}\n${stderr}`.trim().split('\n').slice(-12).join('\n') };
   },
 
   'POST /api/rebuild': async () => {

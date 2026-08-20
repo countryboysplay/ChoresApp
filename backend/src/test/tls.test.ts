@@ -102,6 +102,30 @@ describe('serving the frontend from the backend', () => {
     await app.close();
   });
 
+  it('answers a missing file with a 404 rather than the app', async () => {
+    const dist = join(workDir, 'dist3');
+    await mkdir(dist, { recursive: true });
+    await writeFile(join(dist, 'index.html'), '<!doctype html><title>Chore Quest</title>');
+
+    const app = await buildApp({
+      env: loadEnv({ ...base, FRONTEND_DIST: dist } as NodeJS.ProcessEnv),
+    });
+
+    // A build that forgets to emit the service worker used to be invisible:
+    // /sw.js came back as index.html with a 200, the browser refused to
+    // register a worker served as HTML, and every phone stayed on an orphaned
+    // worker from an earlier build. Saying "not here" is what makes it fixable.
+    const response = await app.inject({ method: 'GET', url: '/sw.js' });
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error.code).toBe('not_found');
+
+    // A screen still lands on the app: no dot, so it is a route, not a file.
+    const screen = await app.inject({ method: 'GET', url: '/parent/settings' });
+    expect(screen.statusCode).toBe(200);
+
+    await app.close();
+  });
+
   it('does not serve anything when no frontend is configured', async () => {
     const app = await buildApp({ env: loadEnv(base) });
     // Local development keeps Vite on its own port; the backend serving a stale
