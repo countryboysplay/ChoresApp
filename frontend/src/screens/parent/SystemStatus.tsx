@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { BackupsResponse, CertificateResponse, PushStatusResponse } from '@chore-quest/shared';
+import type {
+  BackupsResponse,
+  CertificateResponse,
+  HealthResponse,
+  PushStatusResponse,
+} from '@chore-quest/shared';
 import { Icon } from '../../design/icons';
 import { Badge, Button } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { api, ApiRequestError } from '../../lib/api';
-import { settings } from '../../mock/data';
 
 type Tone = 'done' | 'waiting' | 'late' | 'neutral';
 
@@ -62,19 +66,37 @@ function backupRow(data: BackupsResponse | null): { value: string; tone: Tone } 
   return { value: ago(data.lastGood.at), tone: 'done' };
 }
 
+/** How long the server has been up, in words a person reads at a glance. */
+function uptime(seconds: number): string {
+  if (seconds < 90) return `${seconds}s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 90) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} hours`;
+  return `${Math.round(hours / 24)} days`;
+}
+
+const DATABASE_LABEL: Record<HealthResponse['database'], { value: string; tone: Tone }> = {
+  connected: { value: 'Connected', tone: 'done' },
+  unreachable: { value: 'Unreachable', tone: 'late' },
+  not_configured: { value: 'Not configured', tone: 'waiting' },
+};
+
 /**
- * The rows that are real, and the ones that are not.
+ * Every row here now reads something real.
  *
- * Push and backups read the API. Backend uptime, database, and app version are
- * still the Stage 2 placeholders and belong with the Stage 17 production build;
- * they are left visibly as they were rather than half-wired, because a status
- * screen that reports a comforting guess is worse than one that has not been
- * written yet.
+ * Until Stage 17 the top four were Stage 2 placeholders - a fixed "Online", a
+ * fixed "30 seconds ago", a database that always claimed to be unconfigured,
+ * and a version string still saying "Stage 2 preview" four stages later. A
+ * status screen that reports a comforting guess is worse than one that admits
+ * it does not know, because it is read precisely when somebody is trying to
+ * find out what is wrong.
  */
 export function SystemStatus() {
   const [push, setPush] = useState<PushStatusResponse | null>(null);
   const [backups, setBackups] = useState<BackupsResponse | null>(null);
   const [cert, setCert] = useState<CertificateResponse | null>(null);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
   const [working, setWorking] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +106,7 @@ export function SystemStatus() {
       api.push.status().then(setPush).catch(() => undefined),
       api.backups.list().then(setBackups).catch(() => undefined),
       api.certificate.status().then(setCert).catch(() => undefined),
+      api.health().then(setHealth).catch(() => setHealth(null)),
     ]);
   }, []);
 
@@ -114,15 +137,36 @@ export function SystemStatus() {
   const backupState = backupRow(backups);
   const certState = certificateRow(cert);
 
+  const database = health ? DATABASE_LABEL[health.database] : { value: 'Checking…', tone: 'neutral' as Tone };
+
   const rows: { label: string; value: string; tone: Tone }[] = [
-    { label: 'Backend', value: 'Online', tone: 'done' },
-    { label: 'Last contact with server', value: '30 seconds ago', tone: 'done' },
-    { label: 'Database', value: 'Not configured yet', tone: 'waiting' },
+    // If this screen rendered at all the server answered, so "Online" is not a
+    // guess - but it is only worth saying alongside how long it has been up,
+    // which is what tells a parent whether it has been restarting all evening.
+    {
+      label: 'Backend',
+      value: health ? `Online, up ${uptime(health.uptimeSeconds)}` : 'Not answering',
+      tone: health ? 'done' : 'late',
+    },
+    { label: 'Database', value: database.value, tone: database.tone },
     { label: 'Push notifications', value: pushState.value, tone: pushState.tone },
     { label: 'Last successful backup', value: backupState.value, tone: backupState.tone },
     { label: 'Certificate', value: certState.value, tone: certState.tone },
-    { label: 'App version', value: '0.1.0 (Stage 2 preview)', tone: 'neutral' },
-    { label: 'Household timezone', value: settings.timezone, tone: 'neutral' },
+    {
+      label: 'App version',
+      value: health ? `${health.version} (${health.environment})` : 'Unknown',
+      tone: 'neutral',
+    },
+    {
+      label: 'Household timezone',
+      value: health?.household.timezone ?? 'Unknown',
+      tone: 'neutral',
+    },
+    {
+      label: 'Household date',
+      value: health ? `${health.household.choreDate}, ${health.household.localTime.slice(11, 16)}` : 'Unknown',
+      tone: 'neutral',
+    },
   ];
 
   return (

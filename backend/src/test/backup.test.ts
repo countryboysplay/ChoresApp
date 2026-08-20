@@ -27,10 +27,11 @@ import {
   runBackup,
   type BackupManifest,
 } from '../backup/service.js';
+import { testConnectionString } from './database.js';
 
 const run = promisify(execFile);
 
-const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = testConnectionString;
 
 /**
  * pg_dump refuses to talk to a server newer than itself, so a laptop with an

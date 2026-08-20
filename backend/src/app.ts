@@ -8,6 +8,7 @@ import sensible from '@fastify/sensible';
 import { isAbsolute, resolve } from 'node:path';
 import { loadEnv, type Env } from './env.js';
 import { loggerOptions } from './logger.js';
+import { APP_VERSION } from './version.js';
 import { registerErrorHandler } from './errors.js';
 import { applyPushConfig, pushConfig } from './notifications/push.js';
 import { auth } from './auth/plugin.js';
@@ -27,7 +28,7 @@ import { rewardRoutes } from './routes/rewards.js';
 import { tlsRoutes } from './routes/tls.js';
 import { walletRoutes } from './routes/wallet.js';
 
-export const APP_VERSION = '0.1.0';
+export { APP_VERSION } from './version.js';
 
 export interface BuildOptions {
   env?: Env;

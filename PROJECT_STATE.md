@@ -4,8 +4,8 @@ _Last updated: 2026-08-19_
 
 | Field | Value |
 | --- | --- |
-| Current stage | Stage 16 — https on the home wifi |
-| Stage status | Live at https://chores.lindsayfam.org on the home wifi; awaiting owner approval |
+| Current stage | Stage 17 — Running for real |
+| Stage status | Serving the household from the compiled build; awaiting owner approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
@@ -13,8 +13,8 @@ _Last updated: 2026-08-19_
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | https://chores.lindsayfam.org — home wifi only. Resolves to 192.168.0.178, this laptop's reserved address. Certificate from Let's Encrypt, renews itself |
 | Database migration status | 12 migrations applied; 19 tables, 10 enums. Rolls back to empty and forward again cleanly |
-| Test status | 260 passing (229 backend, 31 frontend); typecheck, lint, build clean, 0 npm vulnerabilities |
-| Last known good commit | `1965184` — Stage 16 https; CI and Pages green |
+| Test status | 263 in CI (232 backend, 31 frontend). On the laptop 179 skip by design - tests may not touch the household database |
+| Last known good commit | `8dcbfef` — Stage 16 live; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -325,6 +325,38 @@ resolve the hostname. The router's DHCP now hands out `1.1.1.1` and `8.8.8.8`
 instead. The trade is that router-level filtering and `.local` names no longer
 apply, neither of which this household was using.
 
+## Stage 17 - running for real
+
+`npm run serve` builds everything and starts the compiled server in production
+mode. It is the household's command; `npm run dev` remains the development pair
+on separate ports.
+
+The launcher checks what it can before starting and separates what stops it from
+what merely reduces it. A missing SESSION_SECRET or a frontend built for the
+Pages base path is a refusal with a sentence saying which; no certificate, no
+push keys, and no backup drive are printed as "starting, with these things
+switched off". Verified both ways, including deliberately breaking the frontend
+build to watch it refuse.
+
+Every row on System status now reads something real. Four of them were Stage 2
+placeholders - a fixed "Online", a fixed "30 seconds ago", a database that always
+claimed to be unconfigured, and a version still saying "Stage 2 preview".
+
+### The thing this stage found
+
+Running the test suite on this laptop was operating on the household's own
+database. Every suite fell back to `DATABASE_URL` when `TEST_DATABASE_URL` was
+unset - correct in Stage 3, wrong from the moment this machine started serving
+the family. `npm test` created users, ran approve-all across the real approval
+queue, and cleared the backup log, against a household with Kayden's chore photo
+in it.
+
+Nothing was lost. Approve-all did not pay out his submission only because a
+parent has to see a photo first, and the backup rows were re-registered from the
+folders on disk. But the fallback is gone, a guard refuses a test database whose
+name is not obviously a test database, and a regression test greps the suites so
+it cannot come back.
+
 ## Next planned work## Next planned work
 
 **Chore Quest is usable by a real household from here.** Everything from
@@ -344,10 +376,11 @@ To start using it, on the laptop:
    restart. That turns on the evening reminder buzzing a child's phone. Leaving
    the keys unset keeps push off, which is also a valid way to run.
 
-**Stage 17 — Running for real.** The pieces exist; what is missing is the
-production build being the normal way the household runs, rather than something
-assembled by hand. `npm run serve` builds and starts it today. Stage 18 makes
-Windows do that at boot so nobody has to.
+**Stage 18 — Starting by itself.** The household currently depends on somebody
+having run `npm run serve` in a window and not closed it. A power cut, a Windows
+update, or a stray Ctrl+C takes the app down until a person notices. Windows has
+to start it at boot and restart it if it dies. Scheduled Task versus NSSM
+service is still an open owner decision.
 
 Also outstanding:
 

@@ -16,6 +16,7 @@ import { loadEnv } from '../env.js';
 import { hashPin } from '../auth/pin.js';
 import { SESSION_COOKIE } from '../auth/plugin.js';
 import { isPunctual, householdMinutesOfDay, minutesFromClockTime } from '../time.js';
+import { testConnectionString } from './database.js';
 
 describe('the punctuality rule', () => {
   const TZ = 'America/Chicago';
@@ -54,7 +55,7 @@ describe('the punctuality rule', () => {
 
 // --- Needs a database --------------------------------------------------------
 
-const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = testConnectionString;
 const describeDb = connectionString ? describe : describe.skip;
 
 const storageRoot = resolve(tmpdir(), `cq-approvals-test-${process.pid}`);

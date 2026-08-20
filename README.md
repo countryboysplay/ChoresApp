@@ -62,7 +62,10 @@ npm run dev
 | `npm run db:new -- <name>` | Creates a new empty `.sql` migration |
 | `npm run user -w backend -- --list` | Lists household members |
 | `npm run user -w backend -- --role parent --name "N"` | Creates a member and sets their PIN |
+| `npm run serve` | Builds everything and runs it for the household, in production mode |
 | `npm run vapid` | Prints a fresh VAPID key pair for push notifications |
+| `npm run cert -- --issue` | Obtains or renews the https certificate |
+| `npm run restore -- --list` | Lists backups; `--from <folder>` restores one |
 | `npm run screenshots` | Captures every screen to `screenshots/` (needs the dev server) |
 | `npm run icons` | Regenerates the home-screen icons from code |
 
@@ -213,6 +216,31 @@ Also reserve the laptop's address in the router. The A record points at a fixed
 address, so a DHCP lease that moves takes the whole household off the air.
 
 Without any of this the app still runs on plain http exactly as before.
+
+## Running tests
+
+`npm test` needs a database of its own. It will **not** fall back to the
+household's, and skips the database-backed suites when there is none:
+
+```powershell
+$env:TEST_DATABASE_URL='postgres://chore_quest:PASSWORD@127.0.0.1:5432/chore_quest_test'
+npm test
+```
+
+Create that database once, as the `postgres` superuser:
+
+```powershell
+& "C:\Program Files\PostgreSQLin\createdb.exe" -U postgres chore_quest_test
+& "C:\Program Files\PostgreSQLin\psql.exe" -U postgres -c "GRANT ALL ON DATABASE chore_quest_test TO chore_quest"
+npm run db:migrate    # with TEST_DATABASE_URL also set as DATABASE_URL
+```
+
+This exists because it went wrong. The suites used to fall back to
+`DATABASE_URL`, which was harmless until this laptop became the machine serving
+the family - at which point `npm test` was creating users, approving chores, and
+clearing the backup log against real household data. A guard now refuses a test
+database whose name does not look like one, and a test greps the suites so the
+fallback cannot come back.
 
 ## Secrets
 

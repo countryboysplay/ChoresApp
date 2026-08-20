@@ -1424,3 +1424,96 @@ certificate at all. The session cookie's `Secure` flag is keyed off `TLS_DIR`
 rather than `NODE_ENV`, because the laptop runs in development mode and would
 otherwise hand the kids' phones a cookie the browser is free to send in the
 clear on the one network they use.
+
+---
+
+## 2026-08-19 — The tests may not touch the household's database
+
+**Decision.** Every suite reads `TEST_DATABASE_URL` or skips. The fallback to
+`DATABASE_URL` is gone, and a guard refuses outright if somebody points the two
+at the same database without "test" in its name. A regression test greps the
+suites for `process.env.DATABASE_URL` and fails if one ever reads it again.
+
+**Reason.** Not hypothetical - this happened, in this stage, and was caught by a
+test failing for the wrong reason. Every suite fell back to `DATABASE_URL` when
+`TEST_DATABASE_URL` was unset. That was harmless while the laptop was a
+development machine and stopped being harmless the moment it became the machine
+serving the family. `npm test` then created users, ran approve-all across the
+real approval queue, and deleted every row from `backups` - against a household
+containing a child's chore photo taken that afternoon.
+
+Nothing was destroyed, and only by luck: the rule that a parent must see a photo
+before a chore is approved happened to stop approve-all paying out Kayden's real
+submission. The backup log was cleared, which then made the nightly job take
+duplicate backups, because the record it checks for had gone.
+
+**Consequences.** The laptop can no longer run the database-backed suites
+without a second database, and skips 179 of them. That is the right trade: a
+suite that silently stops running is recoverable, and a household whose points
+ledger was rewritten by a test is not. CI is unaffected - it sets
+`TEST_DATABASE_URL` at a scratch database, which is also why the guard keys on
+the database *name* rather than on equality. Migrating a throwaway database
+through `DATABASE_URL` and then testing it is exactly what CI does and is
+legitimate.
+
+The regression test is worth more than the comment it replaces. A comment saying
+"never read DATABASE_URL here" would not have caught this, because nobody added
+the fallback deliberately - it was there from Stage 3, correct at the time, and
+became wrong when the world around it changed.
+
+---
+
+## 2026-08-19 — `npm run serve` is how the household runs, and it checks before it starts
+
+**Decision.** One command builds everything and starts the compiled server in
+production mode, after verifying what it can. `npm run dev` stays the
+development pair on separate ports.
+
+**Reason.** `npm run build && node dist/server.js` did the same work and could
+not say why it failed. Everything that goes wrong here goes wrong the same way -
+a missing file, an unset variable, a frontend built for the wrong base path -
+and every one of them surfaces as either a stack trace or, worse, a blank page.
+At ten at night, to whoever is trying to get the kids' chores back, "frontend/dist
+was built for the GitHub Pages preview, rebuild with npm run build" is worth more
+than the entire stack.
+
+Production mode is not tidiness either: it switches logging from pretty-printed
+to JSON lines the Windows host can tail to a file, which Stage 18 needs. Setting
+it portably is the other reason a launcher exists - `NODE_ENV=production node ...`
+is not something cmd.exe understands, and dotenv never overrides a variable that
+is already set, so the launcher's value wins over the `development` in
+`backend/.env` that `npm run dev` still needs.
+
+**Consequences.** The launcher distinguishes things that stop it from things
+that merely reduce it. A missing `SESSION_SECRET` is a refusal; no certificate,
+no push keys, and no backup mirror are printed as "starting, with these things
+switched off" and then it starts anyway. That split is the same judgement made
+in Stage 16 about serving http when the certificate has expired: a household
+should lose a feature, not the app.
+
+It also forwards SIGINT to the child, because Windows leaves orphans when the
+parent dies - which is exactly how ports 4000 and 5173 ended up held by
+processes nobody could find earlier in this project.
+
+---
+
+## 2026-08-19 — Every row on System status reads something real
+
+**Decision.** Backend state, uptime, database, app version, timezone, and the
+household's own date all come from `/api/health`. The Stage 2 placeholders are
+gone, and the version is read from `package.json` rather than repeated in a
+constant.
+
+**Reason.** Four rows were lying. "Online" and "30 seconds ago" were fixed
+strings that would have said the same thing with the server on fire; the
+database row always claimed to be unconfigured; and the version said "0.1.0
+(Stage 2 preview)" four stages after Stage 2. A status screen that reports a
+comforting guess is worse than one that has not been written, because it is read
+precisely when somebody is trying to work out what is wrong.
+
+**Consequences.** Two copies of a version number are one copy and one lie, so
+there is now one - read from `package.json` by walking up from wherever the
+module ended up, which works the same under `tsx` and compiled. Uptime is shown
+alongside "Online" because the useful question is not whether the server is up,
+which is obvious from the screen having rendered, but whether it has been
+restarting all evening.

@@ -5,6 +5,7 @@
  * and skips without it, as elsewhere.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { testConnectionString } from './database.js';
 import pg from 'pg';
 import '../pg-parsers.js';
 import { buildApp } from '../app.js';
@@ -61,7 +62,7 @@ describe('household date arithmetic', () => {
 
 // --- Needs a database --------------------------------------------------------
 
-const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = testConnectionString;
 const describeDb = connectionString ? describe : describe.skip;
 
 const testEnv = loadEnv({

@@ -17,8 +17,9 @@ import pg from 'pg';
 // Same type parsing the app uses. Without this the test would be asserting
 // against different JavaScript types than production sees.
 import '../pg-parsers.js';
+import { testConnectionString } from './database.js';
 
-const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = testConnectionString;
 const describeDb = connectionString ? describe : describe.skip;
 
 let pool: pg.Pool;

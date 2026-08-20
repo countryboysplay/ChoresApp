@@ -16,6 +16,7 @@ import { loadEnv } from '../env.js';
 import { hashPin } from '../auth/pin.js';
 import { SESSION_COOKIE } from '../auth/plugin.js';
 import { detectFormat, resolveStoredPath, storePhoto } from '../photos/storage.js';
+import { testConnectionString } from './database.js';
 
 /** Smallest bytes that still sniff as each format. */
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 7)]);
@@ -109,7 +110,7 @@ describe('writing a photo', () => {
 
 // --- Needs a database --------------------------------------------------------
 
-const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = testConnectionString;
 const describeDb = connectionString ? describe : describe.skip;
 
 const storageRoot = resolve(tmpdir(), `cq-photos-test-${process.pid}`);

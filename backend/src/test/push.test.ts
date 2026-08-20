@@ -19,6 +19,7 @@ import { buildApp } from '../app.js';
 import { loadEnv } from '../env.js';
 import { hashPin } from '../auth/pin.js';
 import { SESSION_COOKIE } from '../auth/plugin.js';
+import { testConnectionString } from './database.js';
 
 const sendNotification = vi.fn();
 
@@ -44,7 +45,7 @@ vi.mock('web-push', () => {
 const { drainPushQueue } = await import('../notifications/push.js');
 const webpush = await import('web-push');
 
-const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = testConnectionString;
 const describeDb = connectionString ? describe : describe.skip;
 
 const TZ = 'America/Chicago';

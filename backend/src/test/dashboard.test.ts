@@ -13,8 +13,9 @@ import { loadEnv } from '../env.js';
 import { hashPin } from '../auth/pin.js';
 import { SESSION_COOKIE } from '../auth/plugin.js';
 import { addHouseholdDays, householdToday } from '../time.js';
+import { testConnectionString } from './database.js';
 
-const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = testConnectionString;
 const describeDb = connectionString ? describe : describe.skip;
 
 const TZ = 'America/Chicago';

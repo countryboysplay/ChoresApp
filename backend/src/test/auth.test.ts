@@ -20,6 +20,7 @@ import {
   hashToken,
 } from '../auth/sessions.js';
 import { SESSION_COOKIE } from '../auth/plugin.js';
+import { testConnectionString } from './database.js';
 
 describe('PIN hashing', () => {
   it('accepts exactly four digits and nothing else', () => {
@@ -129,7 +130,7 @@ describe('session tokens', () => {
 
 // --- End-to-end, needs a database -------------------------------------------
 
-const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = testConnectionString;
 const describeDb = connectionString ? describe : describe.skip;
 
 const testEnv = loadEnv({

@@ -12,8 +12,9 @@ import { buildApp } from '../app.js';
 import { loadEnv } from '../env.js';
 import { hashPin, verifyPin } from '../auth/pin.js';
 import { SESSION_COOKIE } from '../auth/plugin.js';
+import { testConnectionString } from './database.js';
 
-const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = testConnectionString;
 const describeDb = connectionString ? describe : describe.skip;
 
 const testEnv = loadEnv({

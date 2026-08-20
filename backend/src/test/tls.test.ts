@@ -16,8 +16,9 @@ import { buildApp } from '../app.js';
 import { loadEnv } from '../env.js';
 import { cookieOptions } from '../auth/plugin.js';
 import { canRenew, certificatePaths, readCertificateState } from '../tls/certificate.js';
+import { testConnectionString } from './database.js';
 
-const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = testConnectionString;
 
 const base = {
   NODE_ENV: 'test',
