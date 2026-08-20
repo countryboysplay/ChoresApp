@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ChoreDefinition, HouseholdMember } from '@chore-quest/shared';
 import { Icon, type IconName } from '../../design/icons';
 import { Button, EmptyState, PointsPill, Segmented, Sheet } from '../../design/primitives';
@@ -51,6 +51,7 @@ function summarise(chore: ChoreDefinition): string {
  */
 export function ChoreManage() {
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const [chores, setChores] = useState<ChoreDefinition[]>([]);
   const [children, setChildren] = useState<HouseholdMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +96,17 @@ export function ChoreManage() {
     });
     setError(null);
   };
+
+  // The schedule links here with ?edit=<id> so a parent who taps a chore on the
+  // week lands on that chore, not on the list. The parameter is spent once:
+  // dropping it stops the sheet reopening every time the list reloads.
+  useEffect(() => {
+    const wanted = params.get('edit');
+    if (!wanted || chores.length === 0) return;
+    const chore = chores.find((candidate) => candidate.id === wanted);
+    setParams({}, { replace: true });
+    if (chore) edit(chore);
+  }, [chores, params, setParams]);
 
   const save = async () => {
     if (!draft) return;

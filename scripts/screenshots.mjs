@@ -40,6 +40,7 @@ const ROUTES = [
   ['#/parent/approvals', 'parent-approvals'],
   ['#/parent/approvals/sub1', 'parent-approval-review'],
   ['#/parent/schedule', 'parent-schedule'],
+  ['#/parent/chores', 'parent-chores'],
   ['#/parent/chores/new', 'parent-chore-wizard'],
   ['#/parent/bonus', 'parent-bonus'],
   ['#/parent/rewards', 'parent-rewards'],

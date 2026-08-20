@@ -1,11 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { HouseholdMember } from '@chore-quest/shared';
 import type { AvatarConfig } from '../../design/Avatar';
 import { Avatar, DEFAULT_AVATAR } from '../../design/Avatar';
-import { Icon } from '../../design/icons';
+import { Icon, type IconName } from '../../design/icons';
 import { Badge, Button, EmptyState, PointsPill, Sheet } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { api, ApiRequestError } from '../../lib/api';
+
+/**
+ * The parent screens the five-tab bar has no room for.
+ *
+ * They are all on the desktop sidebar, which a phone never shows, so without
+ * this list the only way to reach the chore editor on a phone was to type the
+ * URL. This screen is the one already labelled "Manage", so it is where a
+ * parent looks for them.
+ */
+const MORE: { to: string; label: string; hint: string; icon: IconName }[] = [
+  { to: '/parent/chores', label: 'Chores', hint: 'Edit, reassign, or retire a chore', icon: 'missions' },
+  { to: '/parent/bonus', label: 'Bonus chores', hint: 'Post something extra for points', icon: 'star' },
+  { to: '/parent/rewards', label: 'Rewards', hint: 'What points can be spent on', icon: 'gift' },
+  { to: '/parent/notifications', label: 'Inbox', hint: 'Everything the app has sent', icon: 'bell' },
+  { to: '/parent/system', label: 'System status', hint: 'Backups, reminders, and the server', icon: 'alert' },
+];
 
 /**
  * Who is in the household.
@@ -225,6 +242,29 @@ export function ChildManage() {
             parent out. Add one or change a parent PIN on the laptop with{' '}
             <code>npm run user -w backend</code>.
           </p>
+        </section>
+
+        <section style={{ marginTop: 'var(--space-6)' }}>
+          <h2 className="subtitle">More</h2>
+          <div className="card stack stack--tight">
+            {MORE.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="row rowbtn"
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
+                <span className="tile-icon tile-icon--slate tile-icon--sm">
+                  <Icon name={item.icon} size={18} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontWeight: 700, display: 'block' }}>{item.label}</span>
+                  <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>{item.hint}</span>
+                </span>
+                <Icon name="chevron" size={18} style={{ flexShrink: 0, opacity: 0.7 }} />
+              </Link>
+            ))}
+          </div>
         </section>
       </main>
 

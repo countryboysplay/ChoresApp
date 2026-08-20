@@ -58,6 +58,27 @@
 .row { display: flex; align-items: center; gap: var(--space-3); }
 .row--between { justify-content: space-between; }
 
+/*
+ * A .row that is itself the tap target - a list line inside a card that opens
+ * something. It keeps the row's spacing and strips everything a button brings
+ * with it, so the line reads as content until it is pressed.
+ */
+.rowbtn {
+  min-height: var(--touch-min);
+  padding: var(--space-2);
+  margin-inline: calc(var(--space-2) * -1);
+  width: calc(100% + var(--space-2) * 2);
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: inherit;
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.rowbtn:hover { background: rgba(255, 255, 255, 0.06); }
+.rowbtn:active { background: rgba(255, 255, 255, 0.1); }
+
 .grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

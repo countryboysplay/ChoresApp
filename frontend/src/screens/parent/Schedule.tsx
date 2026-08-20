@@ -87,8 +87,19 @@ export function Schedule() {
                     </Badge>
                   </div>
 
+                  {/*
+                    Every chore here is tappable, because this is where a parent
+                    looks when they want to change one. The row hands off to the
+                    chore editor with that chore already open.
+                  */}
                   {onThisDay.map((entry) => (
-                    <div key={`${entry.id}-${day.iso}`} className="row" style={{ gap: 'var(--space-3)' }}>
+                    <button
+                      key={`${entry.id}-${day.iso}`}
+                      type="button"
+                      className="row rowbtn"
+                      aria-label={`Edit ${entry.choreName}`}
+                      onClick={() => navigate(`/parent/chores?edit=${entry.choreId}`)}
+                    >
                       <span className="tile-icon tile-icon--gold tile-icon--sm">
                         <Icon name={entry.choreIcon as IconName} size={18} />
                       </span>
@@ -99,7 +110,8 @@ export function Schedule() {
                         </span>
                       </span>
                       <PointsPill value={entry.points} small />
-                    </div>
+                      <Icon name="chevron" size={18} style={{ flexShrink: 0, opacity: 0.7 }} />
+                    </button>
                   ))}
                 </section>
               );
@@ -107,16 +119,14 @@ export function Schedule() {
           </div>
         )}
 
-        <Button
-          tone="purple"
-          size="lg"
-          block
-          icon="plus"
-          style={{ marginTop: 'var(--space-5)' }}
-          onClick={() => navigate('/parent/chores/new')}
-        >
-          Add a chore
-        </Button>
+        <div className="stack stack--tight" style={{ marginTop: 'var(--space-5)' }}>
+          <Button tone="purple" size="lg" block icon="plus" onClick={() => navigate('/parent/chores/new')}>
+            Add a chore
+          </Button>
+          <Button tone="quiet" block icon="missions" onClick={() => navigate('/parent/chores')}>
+            Edit or retire a chore
+          </Button>
+        </div>
       </main>
     </>
   );
