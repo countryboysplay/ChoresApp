@@ -5,16 +5,16 @@ _Last updated: 2026-08-19_
 | Field | Value |
 | --- | --- |
 | Current stage | Stage 16 — https on the home wifi |
-| Stage status | Server side built and verified; needs a domain before it can be finished |
+| Stage status | Live at https://chores.lindsayfam.org on the home wifi; awaiting owner approval |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
-| Production URL | `https://<your-domain>` on the home wifi only. The backend serves the frontend from one origin; the name resolves to this laptop's private address |
+| Production URL | https://chores.lindsayfam.org — home wifi only. Resolves to 192.168.0.178, this laptop's reserved address. Certificate from Let's Encrypt, renews itself |
 | Database migration status | 12 migrations applied; 19 tables, 10 enums. Rolls back to empty and forward again cleanly |
 | Test status | 260 passing (229 backend, 31 frontend); typecheck, lint, build clean, 0 npm vulnerabilities |
-| Last known good commit | `cd43561` — Stage 15 backups; CI and Pages green |
+| Last known good commit | `1965184` — Stage 16 https; CI and Pages green |
 
 ## Stage 0 findings
 
@@ -296,36 +296,36 @@ test suite rather than against the household.
 The restore CLI was run and refused, correctly, because the server was
 answering on its port.
 
-## Stage 16 - what is done and what is waiting on you
+## Stage 16 - live and verified
 
-Verified: the backend serves the built frontend on one origin, a deep link like
-`/parent/settings` lands on the app rather than a 404, an unknown `/api/` path
-still returns JSON rather than HTML, and a production bundle no longer carries
-`localhost:4000` inside it.
+`https://chores.lindsayfam.org` serves the household from this laptop, over the
+home wifi and nowhere else. Verified the way a phone experiences it - real DNS,
+real certificate, no local overrides:
 
-Not done, because it needs a domain nobody has bought yet: obtaining the actual
-certificate. Everything for it is written and configured - `npm run cert --
---issue` performs the DNS-01 challenge and the server renews on its own tick -
-but none of it has run against a real zone.
+- the certificate validates against the public trust store, so nothing is
+  installed on any device
+- the app and the API answer on one origin, so the session cookie is first-party
+- a deep link like `/child/home` lands on the app rather than a 404
+- port 80 redirects to https, because nobody types a scheme
+- the DNS-01 challenge worked and removed its own TXT record afterwards
 
-**What you have to do**, in order:
+Issued 2026-08-19, expires 2026-11-18. Renewal is automatic on the scheduler
+tick inside 30 days of expiry; System status shows the days remaining, because
+an expired certificate fails quietly and takes the camera with it.
 
-1. Buy a domain, anywhere. A sub-domain of one you already own is fine.
-2. Point its nameservers at Cloudflare (free) and let them take effect.
-3. Add an A record for the hostname pointing at this laptop's address on the
-   wifi - `npm run cert` prints that address. Give the laptop a fixed address in
-   the router first, or it will move and the name will point at nothing.
-4. Make a Cloudflare API token with `Zone:DNS:Edit` on that one zone.
-5. Fill in `PUBLIC_HOSTNAME`, `TLS_DIR`, `FRONTEND_DIST`, `ACME_EMAIL`,
-   `CLOUDFLARE_API_TOKEN`, and `CLOUDFLARE_ZONE_ID` in `backend/.env`.
-6. `npm run cert -- --issue` with `ACME_STAGING=true` first, then again for real.
-7. `npm run serve`, and open the hostname on a phone.
+### The two things that had to change outside the app
 
-Some routers refuse to return a private address from public DNS - rebinding
-protection - and have to be told not to. That is the one step most likely to
-need the router's manual.
+**The laptop's address is reserved.** `192.168.0.178`, bound in the router. The
+A record points at it, so a changed address would take the whole household off
+the air.
 
-## Next planned work
+**The router no longer answers DNS.** It was refusing to return a private
+address from public DNS - rebinding protection - so nothing on the wifi could
+resolve the hostname. The router's DHCP now hands out `1.1.1.1` and `8.8.8.8`
+instead. The trade is that router-level filtering and `.local` names no longer
+apply, neither of which this household was using.
+
+## Next planned work## Next planned work
 
 **Chore Quest is usable by a real household from here.** Everything from
 creating the family to a child earning and spending points works through the app,

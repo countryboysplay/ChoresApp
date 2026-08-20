@@ -198,9 +198,19 @@ Renewal then happens by itself - the server checks every tick and renews inside
 30 days of expiry. System status shows the days remaining, because an expired
 certificate fails quietly and takes the camera with it.
 
-If phones cannot resolve the name, the usual cause is the router refusing to
-return a private address from public DNS. It is called DNS rebinding protection
-and has to be switched off, or the hostname added to its exception list.
+### If phones cannot resolve the name
+
+The usual cause is the router refusing to return a private address from public
+DNS - rebinding protection. Most consumer routers do not expose a switch for it,
+and the reliable fix is to stop devices asking the router at all: set the DHCP
+server's Primary and Secondary DNS to `1.1.1.1` and `8.8.8.8`, then reconnect
+each device so it picks up the change.
+
+The trade is that router-level filtering and `.local` device names stop working,
+since nothing is asking the router any more.
+
+Also reserve the laptop's address in the router. The A record points at a fixed
+address, so a DHCP lease that moves takes the whole household off the air.
 
 Without any of this the app still runs on plain http exactly as before.
 
