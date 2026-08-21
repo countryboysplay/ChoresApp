@@ -1,5 +1,9 @@
 node_modules/
 dist/
+# Scratch and rollback copies from scripts/build-frontend.mjs, which builds
+# beside the live app and swaps, so a rebuild is never an outage.
+dist.next/
+dist.old/
 build/
 coverage/
 .vite/
