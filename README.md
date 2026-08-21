@@ -68,6 +68,7 @@ npm run dev
 | `npm run vapid` | Prints a fresh VAPID key pair for push notifications |
 | `npm run cert -- --issue` | Obtains or renews the https certificate |
 | `npm run restore -- --list` | Lists backups; `--from <folder>` restores one |
+| `npm run reset-activity` | Clears the children's history and points, keeping the household |
 | `npm run screenshots` | Captures every screen to `screenshots/` (needs the dev server) |
 | `npm run icons` | Regenerates the home-screen icons from code |
 
@@ -167,6 +168,30 @@ npm run restore -- --from <folder>
 
 It shows what the backup contains and asks you to type RESTORE before touching
 anything.
+
+### Handing a tested household to the children
+
+Building a household means using it, and afterwards that practice run is
+indistinguishable from the real thing: somebody's streak, somebody's balance,
+photographs of a kitchen cleaned to prove a button worked.
+
+```powershell
+npm run reset-activity -- --dry-run
+npm run reset-activity
+```
+
+It clears every chore instance, point, photo, reward request and notification,
+and keeps the household - both children and their PINs, the chores and their
+schedules, the rewards, and everything in Settings. It counts what will go
+first, takes a backup either way, and asks you to type RESET.
+
+It also moves each child's join date to today, which is not cosmetic: with no
+chore history left, the materialiser fills forward from the day a child was
+added, so without it they would wake up to every day since you created their
+account sitting in Needs attention as chores nobody did.
+
+Safe to run with the server up - the deletes and the join date move in one
+transaction, so anything materialised a moment later starts from today.
 
 ## Running it for the household (https on the wifi)
 

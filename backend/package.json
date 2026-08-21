@@ -14,6 +14,7 @@
     "user": "tsx src/cli/manage-user.ts",
     "vapid": "tsx src/cli/vapid-keys.ts",
     "restore": "tsx src/cli/restore.ts",
+    "reset-activity": "tsx src/cli/reset-activity.ts",
     "cert": "tsx src/cli/certificate.ts",
     "migrate": "node-pg-migrate up",
     "migrate:down": "node-pg-migrate down",

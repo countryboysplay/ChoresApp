@@ -1934,3 +1934,57 @@ With one: the page becomes a login form, actions without a session are refused, 
 wrong passcode is refused and locks out after five tries, an unknown host is
 refused, and after signing in the dashboard and its actions work under both the
 loopback and the tailnet name.
+
+---
+
+## 2026-08-20 — Handing over a tested household, and the join date that has to move
+
+**Decision.** `npm run reset-activity`. It clears every chore instance, points
+ledger row, photo, reward request and notification, keeps the household itself —
+children, PINs, chore definitions, schedules, rewards, Settings — and moves each
+child's join date to today. Terminal only, backs up first, takes RESET typed in
+full.
+
+**Reason.** Building a household means using it, and afterwards the practice run
+is indistinguishable from the real thing. Neither child had signed in once; every
+point, streak and photograph in the database was a parent checking that a button
+worked. A first week that opens with somebody else's balance is not a first week,
+and there was no way to clear it that did not mean writing DELETE statements
+against the live household by hand.
+
+**Consequences.** The join date is the part that is not cosmetic, and it is the
+reason this is a command rather than nine deletes. `earliestMissingDay`
+(`backend/src/chores/materialize.ts:76`) fills forward from the later of a
+child's most recent chore and the fourteen-day backfill limit, floored at the day
+they were added. Delete every instance and `last` is NULL, so the floor becomes
+`created_at` — and children created during testing would wake to every day since,
+in Needs attention, as chores nobody did. `materialize.ts` already refuses to do
+that to a child added this morning. This makes them one.
+
+Deletes and the join date move in a single transaction, so it is safe with the
+server running: anything materialised a moment later starts from today. That is
+the difference from restore, which refuses to run at all.
+
+**Noon UTC, not `now()`.** Found by checking rather than by reasoning, and worth
+recording because the first version was wrong. The query reads
+`(created_at AT TIME ZONE 'UTC')::date`. `now()` at half past nine on an August
+evening in Chicago is already the twenty-first in UTC, which puts the floor a day
+*ahead* of the household's today, leaves the loop with nothing to walk, and gives
+the children no chores until the following morning. Noon on the household's own
+date is far enough from both midnights that no offset moves it.
+
+**Photos are found recursively.** They are filed under the day they were taken,
+`photos/YYYY/MM/DD/<uuid>.jpg`, so reading only the top of the directory finds
+nothing and cheerfully reports nothing to do. The first version did exactly that.
+Empty date folders are removed after; the photos directory itself stays, because
+the server expects it.
+
+**Not on the laptop dashboard**, for the same reason restore is not: it cannot be
+undone and nothing a mis-tap can reach should do it.
+
+**Verified against the live household**, which is unusual here and was the point:
+counted 11 rows and one photo, cleared them, confirmed every activity table reads
+zero and no photo files remain, confirmed 5 chore definitions, 7 schedules, 1
+reward, 4 users and all three Settings values survived, and confirmed by
+replaying the materialiser's own floor query that both children now fill exactly
+one day — today — rather than nothing or a fortnight.
