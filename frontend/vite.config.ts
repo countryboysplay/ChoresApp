@@ -40,8 +40,8 @@ export default defineConfig(({ mode }) => ({
       },
       devOptions: {
         // The worker has to exist in dev too: push is tested on localhost,
-        // which is the only secure context available before the Stage 16
-        // tunnel provides https.
+        // which is the only secure context a dev server has. The household
+        // itself is served over its own certificate; there is no tunnel.
         enabled: true,
         type: 'module',
       },

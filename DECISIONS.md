@@ -1614,100 +1614,6 @@ at the laptop should not have to open a file to see what just happened.
 
 ---
 
-## 2026-08-19 — A Scheduled Task at boot, not a service wrapper
-
-**Decision.** Owner decision. Windows starts Chore Quest through a Scheduled
-Task registered by `scripts/install-startup.ps1`: at startup, thirty seconds
-after boot, running as the owner's account whether or not anybody is logged in.
-No NSSM, no third-party service wrapper.
-
-**Reason.** A Scheduled Task is built into Windows, visible in a tool the owner
-already has, and needs nothing downloaded. NSSM would give better restart
-semantics out of the box, but it is a third-party binary running with high
-privilege on the machine holding the family's photographs, and this project has
-declined that kind of dependency everywhere else. The restart handling it would
-have bought is small enough to write honestly instead - see the supervisor
-below.
-
-**Consequences.** Registering it needs one elevated PowerShell, because a task
-that runs before login cannot be created by a standard user. The script checks
-for that first and says so in full rather than failing on the
-`Register-ScheduledTask` line.
-
-It runs as the owner rather than as SYSTEM, deliberately. PostgreSQL is on this
-laptop's *user* PATH and not the machine PATH - that is where the EDB installer
-leaves it - so a task running as SYSTEM would start perfectly and then fail
-every nightly backup with "pg_dump is not recognized", which surfaces only as a
-backup that did not happen. The app no longer depends on PATH at all, but
-running as the account that owns the files is still the arrangement that matches
-what it needs to read and write. `LogonType S4U` means Windows does not have to
-store the account password anywhere to do it.
-
----
-
-## 2026-08-19 — pg_dump is located, not looked up on PATH
-
-**Decision.** `findPgTool` resolves `pg_dump` and `pg_restore` to absolute paths:
-`PG_BIN_DIR` if set, then the standard install locations newest-version-first,
-then the bare name as a last resort.
-
-**Reason.** The backup code shelled out to `pg_dump` and relied on PATH, which
-was true for the account that installed PostgreSQL and false for anything
-Windows might start on its own. That failure mode is the worst shape available:
-the app starts, serves perfectly, and quietly stops backing up.
-
-**Consequences.** Newest version first, because `pg_dump` refuses a server newer
-than itself - when several are installed the latest is the only safe choice, and
-this project has already been bitten by exactly that in CI. A `PG_BIN_DIR` that
-is set but wrong throws rather than falling through to PATH: a wrong setting
-should not look identical to no setting. Falling back to the bare name keeps
-every machine where PATH is fine working exactly as before.
-
----
-
-## 2026-08-19 — The launcher supervises, because Task Scheduler cannot
-
-**Decision.** `scripts/serve.mjs` restarts the server when it exits without
-being asked to, backing off 2s, 5s, 15s, 30s, 60s, and gives up after eight
-restarts in a row. A server that stayed up five minutes resets the count.
-
-**Reason.** Task Scheduler retries a task that *fails*, and a process exiting
-zero is not a failure by its reckoning. Relying on it alone would leave a whole
-category of exits unhandled. Twenty lines of supervisor covers all of them, and
-covers them the same way on a laptop somebody is watching as on one that
-rebooted at 3am.
-
-**Consequences.** Giving up is the part worth stating out loud. A supervisor
-that retries forever turns a broken deploy into silence, and silence is the
-exact failure this stage exists to prevent - so after eight consecutive
-restarts it exits non-zero, which is a failure Task Scheduler *can* see and
-which leaves a reason in the log. The five-minute healthy threshold is what
-stops a server that has restarted happily once a month for a year from being
-treated as a crash loop.
-
-Verified rather than assumed: the running server was killed outright and came
-back on its own, with the reason written to the day's log.
-
----
-
-## 2026-08-19 — One log file a day, kept a fortnight
-
-**Decision.** The launcher writes everything the server prints to
-`backend/storage/logs/chore-quest-YYYY-MM-DD.log`, rotating when the date
-changes and deleting files older than fourteen days.
-
-**Reason.** A scheduled task's output goes nowhere at all, which would make
-production logging JSON that nobody can read. Rotating on the date rather than
-only at startup matters because this laptop is meant to stay up for months - a
-single file covering a whole season is one nobody opens.
-
-**Consequences.** Fourteen days matches the nightly backup retention, for the
-same reason: it is long enough to look into something noticed the same
-fortnight. Output still goes to the console as well, because the person standing
-at the laptop should not have to open a file to see what just happened.
-
----
-
 ## 2026-08-20 — The laptop dashboard is its own process, on loopback, with a token
 
 **Decision.** `npm run admin` starts a small dependency-free HTTP server on
@@ -1988,3 +1894,81 @@ zero and no photo files remain, confirmed 5 chore definitions, 7 schedules, 1
 reward, 4 users and all three Settings values survived, and confirmed by
 replaying the materialiser's own floor query that both children now fill exactly
 one day — today — rather than nothing or a fortnight.
+
+---
+
+## 2026-08-21 — Everything that was doing less than it looked like it was doing
+
+**Decision.** Before the children were given the app, every screen and control
+that appeared to work and did not was finished, and the ones that could not be
+finished honestly were removed.
+
+**Reason.** Owner's instruction, and the right order. The household had been
+built and tested but neither child had signed in once, so this was the last
+moment when fixing something cost nobody anything. A child who taps Leaderboard
+on their first evening and reads "Child 1" has learned something about the app
+that is hard to unlearn.
+
+**What was wrong, in the order it would have been noticed.**
+
+*Leaderboard* is one of the four primary tabs and read `mock/data.ts`, so both
+brothers would have watched two strangers stand on the podium. *Profile* read
+`children[0]` for every tile, so whichever one signed in saw the other's name,
+level, streak and totals - and its avatar builder had always worked and had
+never saved, which is why every child in every household was still wearing the
+default. *Achievements* was forty lines of hardcoded array; the tables to hold
+the real thing were designed in Stage 3 and no backend code had ever named
+either of them.
+
+*Cash out* was the sharpest, and it was made sharp by the owner's own hands the
+evening before: the rate, the minimum and the weekly cap were all built, stored
+and enforced, the wallet drew the meter and explained the exchange, and there
+was no way to ask. Setting the pair in Settings turned a screen that honestly
+said "turned off" into a promise with no button.
+
+*Home* rendered one required chore, so a second was invisible on the screen a
+child actually opens, and the ring above it counted that one chore's checklist
+while calling itself Steps finished today. *Missions* carried a This week
+control that printed "The week view is not built yet" on screen, and a Newest
+sort chip that sorted nothing because a chore carried no timestamp to sort on.
+
+On the parent side, *points per core chore* was a field that saved and that
+nothing read, while the wizard started every chore at a hardcoded ten. A refused
+reward arrived as the word no, though the column, the endpoint, the response and
+the type all carried a note. And *weekActivity* had been rolled up on every
+dashboard load since Stage 11, shipped, and never once destructured.
+
+**Consequences.** Nothing in the app is mock. `mock/data.ts` survives as the
+Pages preview's fixture and one type import, which is what it should always have
+been.
+
+Achievements are the one genuinely new mechanism, and they are reconciled rather
+than counted: the rule lives in `backend/src/achievements/catalogue.ts` and the
+table is its projection. That is what makes a badge added next year land with
+everybody who already qualifies, and a rule corrected apply to rows written
+under the old one. `earned_at` is written once and never cleared, so a streak
+badge's meter falls back when a streak breaks while the badge stays - a record
+of having done it, not a status somebody can lose. They award no points, because
+a badge that paid would quietly double what a chore is worth.
+
+**And one real bug, found on the way.** `restore` refused to run while the
+server was up by asking `http://127.0.0.1:${PORT}/api/health` - but the server
+binds https on `HTTPS_PORT` whenever a certificate loads, which is every
+household that finished Stage 16. The guard had been answering "not running"
+while the server served. The only thing between a live database and being
+dropped and rebuilt underneath it was a question put to a port nothing was
+listening on. It now asks both ports over TCP: a request to the https one fails
+certificate verification, because the certificate is for the household's
+hostname rather than 127.0.0.1, and Node's fetch has no supported way to waive
+that. Asking whether anything holds the port needs none of it, and it also
+catches a server too unwell to answer - which is exactly when somebody reaches
+for restore.
+
+**Verified.** Lint, typecheck, the 55 backend tests that run without a database
+and the 32 frontend tests all pass. The achievement engine was exercised against
+the household database directly - earning fires once, meters show partial
+progress, a second run reports nothing new, and a badge survives its points
+being taken away - and everything it wrote was cleared afterwards. The restore
+guard was confirmed to refuse while the server was running. The new endpoints
+were confirmed registered and guarded. **Not verified by a child signing in:**
+the owner asked to keep the children's side closed until this was finished.

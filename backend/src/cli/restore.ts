@@ -1,10 +1,11 @@
 import { execFile } from 'node:child_process';
+import { connect } from 'node:net';
 import { createInterface } from 'node:readline/promises';
 import { cp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 import { stdin, stdout } from 'node:process';
 import { promisify } from 'node:util';
-import { loadEnv } from '../env.js';
+import { loadEnv, type Env } from '../env.js';
 import { DUMP_FILE, MANIFEST_FILE, PHOTO_DIR, type BackupManifest } from '../backup/service.js';
 import { findPgTool } from '../backup/pg-tools.js';
 
@@ -85,17 +86,43 @@ async function listBackups(root: string): Promise<{ dir: string; manifest: Backu
   return found;
 }
 
-/** True when something is already listening on the API port. */
-async function serverIsRunning(port: number): Promise<boolean> {
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/api/health`, {
-      signal: AbortSignal.timeout(1500),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
+/**
+ * True when the household's server is up, whichever way it is serving.
+ *
+ * A TCP connection rather than a health request, and both ports rather than one.
+ *
+ * Both ports, because the server picks at startup: with a certificate loaded it
+ * binds https on HTTPS_PORT, and only without one does it fall back to http on
+ * PORT. This asked PORT alone, so on any household that finished Stage 16 it
+ * answered "not running" while the server was serving - and the only thing
+ * standing between a live database and being dropped underneath it was a
+ * question put to a port nothing was listening on.
+ *
+ * TCP, because the obvious fix does not work. A request to the https port fails
+ * certificate verification - the certificate is issued for the household's
+ * hostname, not 127.0.0.1 - and Node's fetch has no supported way to waive that;
+ * it ignores the `agent` option undici does not read. Asking whether anything
+ * holds the port needs none of it, and catches a server that is up but too
+ * unwell to answer, which is exactly when somebody reaches for restore.
+ */
+function listening(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = connect({ host: '127.0.0.1', port });
+    const answer = (open: boolean) => {
+      socket.destroy();
+      resolve(open);
+    };
+    socket.setTimeout(1500);
+    socket.once('connect', () => answer(true));
+    socket.once('timeout', () => answer(false));
+    socket.once('error', () => answer(false));
+  });
 }
+
+async function serverIsRunning(env: Env): Promise<boolean> {
+  return (await listening(env.PORT)) || (await listening(env.HTTPS_PORT));
+}
+
 
 async function main(): Promise<void> {
   const env = loadEnv();
@@ -147,10 +174,11 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (await serverIsRunning(env.PORT)) {
+  if (await serverIsRunning(env)) {
     console.error(
-      `Chore Quest is still running on port ${env.PORT}.\n` +
-        'Stop it first (Ctrl+C in the npm run dev window), then run this again.\n' +
+      `Chore Quest is still running (port ${env.PORT} or ${env.HTTPS_PORT}).\n` +
+        'Stop it first - Stop-ScheduledTask -TaskName \'Chore Quest\', or Ctrl+C in the\n' +
+        'npm run dev window - then run this again.\n' +
         'A database cannot be rebuilt underneath the server that is using it.',
     );
     process.exitCode = 1;

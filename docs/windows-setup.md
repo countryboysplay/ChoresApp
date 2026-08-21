@@ -5,9 +5,9 @@ household-specific is stored in GitHub.
 
 ## 1. Install prerequisites
 
-- Node.js 22 LTS — https://nodejs.org (installer adds `node` and `npm` to PATH)
+- Node.js 22 LTS or newer (the laptop runs 24) — https://nodejs.org (installer adds `node` and `npm` to PATH)
 - Git for Windows
-- PostgreSQL 16+ — install as a Windows service so it starts at boot
+- PostgreSQL 16+ (the laptop runs 17) — install as a Windows service so it starts at boot
 
 Verify:
 
@@ -55,5 +55,6 @@ Frontend at http://localhost:5173, health check at http://localhost:4000/api/hea
 ## 5. Firewall
 
 During development the backend binds to `127.0.0.1` only, so no inbound firewall
-rule is needed. Phones on the house network reach it in Stage 16 through a tunnel,
+rule is needed. Phones on the house network reach it over https on the laptop's own
+reserved address - there is no tunnel and nothing is published,
 not through an opened router port.

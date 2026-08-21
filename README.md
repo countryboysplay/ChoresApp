@@ -116,7 +116,7 @@ child whose phone has gone quiet is named on the parent dashboard, and the only
 deliberate off switch is on the parent's Inbox screen.
 
 Browsers only allow notifications over https or on the laptop itself, so a phone
-on the house wifi gets this once the Stage 16 tunnel is in place. Signing out, or
+on the house wifi gets this over the household's own certificate. Signing out, or
 a parent resetting a child's PIN, stops that phone buzzing immediately.
 
 ## Offline and installing

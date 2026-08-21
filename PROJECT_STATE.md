@@ -1,6 +1,6 @@
 # Chore Quest — Project State
 
-_Last updated: 2026-08-19_
+_Last updated: 2026-08-21_
 
 | Field | Value |
 | --- | --- |
@@ -188,8 +188,10 @@ Stage 16.
   achievements, notifications, profile, and every parent screen are unchanged.
 - **Every parent screen now reads real data.** Nothing on the parent side is
   mock any more.
-- **Two child screens are still mock:** leaderboard and achievements, plus the
-  avatar builder on the profile screen. Everything else on both sides is real.
+- **Nothing on either side is mock any more.** Leaderboard, achievements and
+  the profile screen read the household, and the avatar builder saves what it
+  builds. `mock/data.ts` survives only as the preview build's fixture and one
+  type import.
 - **A child cannot turn reminders off in the app, and the app cannot stop them
   turning them off in the browser.** Owner decision: reminders are not optional
   for a child, so the child app has no off switch and asks for permission by
@@ -211,7 +213,8 @@ Stage 16.
   the evening still delivers that evening's reminders.
 - **Push needs https, or the laptop itself** — the same rule as the camera, and
   the same consequence: it cannot be tested on a phone over the wifi address
-  until the Stage 16 tunnel provides https.
+  until the household is served over https, which Stage 16 delivered as a
+  certificate rather than a tunnel.
 - **A streak can overstate.** Unresolved days pause rather than break, so a
   household that never opens the parent app keeps every streak alive. That is
   the deliberate trade for never punishing a child over an adult's inattention.
@@ -227,11 +230,10 @@ Stage 16.
 - **The camera needs https or the laptop itself.** Browsers only expose
   `getUserMedia` in a secure context, so opening the dev server by its wifi
   address shows an explanation rather than a camera. Capture can be tested on the
-  laptop today; phones get it when the Stage 16 tunnel provides https.
-- **Nothing marks a chore missed or excused.** A chore nobody finished simply
-  stays not-started; the dashboard's "excuse, carry over, or mark missed" actions
-  are not built. The streak calculation already treats excused as a pause, ready
-  for when they are.
+  laptop today; phones get it over the household's own https certificate.
+- **A chore nobody finished waits for a parent.** The dashboard offers excuse,
+  carry over, or mark missed, and nothing sets `missed` by itself. Only that
+  decision breaks a streak; an unresolved day pauses it.
 - **The household is empty.** `household_settings` has its single row with the
   money values correctly unset, and `users` has nobody in it. Create the first
   parent on the laptop:
@@ -246,7 +248,9 @@ Stage 16.
   only household figure served unauthenticated; see the 2026-08-19 entry in
   DECISIONS.md for the reasoning and what to revisit if it stops being
   acceptable.
-- Camera, photo, and pinch-zoom areas are placeholders with the correct states and
+- Camera and photo capture are real from Stage 6; what follows described the
+  Stage 2 placeholders that stood in for them:
+- Camera, photo, and pinch-zoom areas were placeholders with the correct states and
   copy; real `getUserMedia` capture is Stage 6.
 - ~~Playwright screenshots could not be produced in the build environment.~~
   Resolved: `npm run screenshots` captures all 25 routes at phone and desktop
@@ -286,7 +290,7 @@ With nothing to connect to, the app still opened from cache, and `#/profiles`,
 leaked a mock profile or let anybody past the guard, which is the property that
 made this stage a security change as much as a caching one.
 
-Not covered: an actual phone, which needs the https the Stage 16 tunnel will
+Not covered at the time: an actual phone, which needs the https that Stage 16
 provide, and the install prompt, which only fires where Chrome decides a site is
 installable.
 
@@ -404,7 +408,7 @@ Close whatever is serving on port 443 first, then start it without rebooting:
 
     Start-ScheduledTask -TaskName 'Chore Quest'
 
-## Next planned work## Next planned work
+## Next planned work
 
 **Chore Quest is usable by a real household from here.** Everything from
 creating the family to a child earning and spending points works through the app,
@@ -424,15 +428,23 @@ To start using it, on the laptop:
    the keys unset keeps push off, which is also a valid way to run.
 
 **Every build stage is done.** Stages 0 to 18 are built and the household is
-running on them. What remains is not a stage:
+running on them. What has happened since is not a stage but a sweep: on
+2026-08-21 everything in the app that was still doing less than it appeared to
+was either finished or removed.
 
-Also outstanding:
-
-- **Leaderboard, achievements, and the avatar builder**, the last three screens
-  on mock data. All three are readings of data that already exists.
-- **System status is still mostly mock.** The push row is real; backend uptime,
-  database, backups, and app version are placeholders belonging to Stages 15 and
-  17.
+- **Nothing is mock.** Leaderboard, profile and achievements read the household.
+- **Achievements are earned.** Seventeen badges across six categories,
+  reconciled from what the household records rather than counted on the side,
+  with the streak calendar reading the same rule as the streak itself.
+- **Cash out has a middle.** The rate, the minimum and the weekly cap were all
+  built and enforced with no way to ask; there is a request, an approval and a
+  separate "paid" now.
+- **Controls that did nothing now do it.** The week view on Missions, the Newest
+  sort, points per core chore, and the note on a refused reward.
+- **The dashboard shows the week.** `weekActivity` had been computed on every
+  load since Stage 11 and never rendered.
+- **System status reads real values.** Stage 17 replaced the four placeholders;
+  the row for push was already live.
 
 Still deliberately unfinished, so it lands where it belongs:
 
@@ -441,7 +453,8 @@ Still deliberately unfinished, so it lands where it belongs:
   else - not a dead disk, not a stolen laptop. Set it to a folder on a USB drive
   in `backend/.env` and every nightly backup copies itself there whenever the
   drive is present.
-- **Points-to-dollars rate and cash-out minimum stay NULL.** The columns exist
+- **Points-to-dollars rate and cash-out minimum start NULL.** Setting both is
+  what turns cash out on, and this household has. The columns exist
   with no defaults and a test asserts they are unset, so the wallet keeps
   rendering its "not configured" state until an owner sets them in Settings.
 - **VAPID keys stay unset in the repository**, for the same reason and one more:
