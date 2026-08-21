@@ -639,6 +639,26 @@
   font: inherit;
 }
 
+/*
+ * iOS draws a date or time input as a native control, and a native control
+ * sizes itself to its own content and ignores width outright - which is how a
+ * pair of them ended up wider than the card holding them, while the number
+ * inputs beside them sat in their columns perfectly. No amount of min-width or
+ * track sizing reaches it, because the width never applied in the first place.
+ * The giveaway on a phone is the value sitting centred while every other field
+ * reads from the left.
+ *
+ * Stripping the native appearance makes it an ordinary box again. Tapping it
+ * still opens the same wheel; only the chrome around it changes.
+ */
+.input[type='time'],
+.input[type='date'],
+.input[type='datetime-local'] {
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: left;
+}
+
 .textarea { min-height: 110px; resize: vertical; }
 .input::placeholder, .textarea::placeholder { color: #7f92c4; }
 
