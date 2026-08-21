@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -64,6 +64,107 @@ async function readEnvFile() {
 }
 
 const env = await readEnvFile();
+
+/*
+ * The passcode, and what it changes.
+ *
+ * Without one this stays exactly what it was: loopback only, guarded by the
+ * token and Sec-Fetch-Site, on the reasoning that whoever is sitting at this
+ * laptop could run every one of these commands from a terminal anyway.
+ *
+ * Set one and the dashboard becomes reachable under a tailnet name as well,
+ * which changes who "whoever" is - a phone on the sofa, and every other device
+ * on the tailnet. So the passcode is then required for everything, including
+ * from the laptop itself. Exempting loopback would have been kinder to type,
+ * but Tailscale Serve forwards to 127.0.0.1 too: from inside this process a
+ * request from the tailnet and a request from the machine are the same
+ * connection, and the only thing separating them is a header a client can
+ * write. A rule that cannot be verified is not a rule.
+ *
+ * It reads from backend/.env like everything else here, and deliberately not
+ * from a parent PIN in the database: this is the tool for when the household's
+ * server is unwell, and a login that needs Postgres is a login that is gone
+ * exactly when it is wanted.
+ */
+// process.env first so it can be tried once without editing backend/.env.
+const PASSCODE = process.env.ADMIN_PASSCODE ?? env.ADMIN_PASSCODE ?? '';
+const SESSION_COOKIE = 'cq_admin';
+const SESSION_DAYS = 30;
+const SESSION_MS = SESSION_DAYS * 24 * 60 * 60 * 1000;
+
+/** Live sign-ins. In memory on purpose: restarting the dashboard signs them out. */
+const sessions = new Map();
+
+let failures = 0;
+let lockedUntil = 0;
+
+function cookiesOf(request) {
+  const out = {};
+  for (const part of (request.headers.cookie ?? '').split(';')) {
+    const at = part.indexOf('=');
+    if (at > 0) out[part.slice(0, at).trim()] = part.slice(at + 1).trim();
+  }
+  return out;
+}
+
+function signedIn(request) {
+  const token = cookiesOf(request)[SESSION_COOKIE];
+  if (!token) return false;
+  const expires = sessions.get(token);
+  if (!expires) return false;
+  if (expires < Date.now()) {
+    sessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
+/** Compared as digests so the comparison is a fixed length and a fixed time. */
+function passcodeMatches(supplied) {
+  if (!PASSCODE) return false;
+  const a = createHash('sha256').update(String(supplied)).digest();
+  const b = createHash('sha256').update(PASSCODE).digest();
+  return timingSafeEqual(a, b);
+}
+
+/*
+ * Loopback names always. A tailnet name only once a passcode exists, so the
+ * dashboard cannot be reachable from another machine and unguarded at the same
+ * time. The name is still checked rather than trusted: it is what stops a DNS
+ * record somebody else controls from resolving here and being treated as ours.
+ */
+function hostAllowed(host) {
+  if (['127.0.0.1', 'localhost', '[::1]'].includes(host)) return true;
+  return PASSCODE !== '' && host.endsWith('.ts.net');
+}
+
+function loginPage(message) {
+  return `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chore Quest laptop</title>
+<style>
+  body { margin:0; min-height:100dvh; display:grid; place-items:center; padding:24px;
+         background:#0e1838; color:#e4ebff; font-family:system-ui,-apple-system,sans-serif; }
+  form { width:min(360px,100%); display:grid; gap:14px; text-align:center; }
+  h1 { margin:0; font-size:1.4rem; color:#fff; }
+  p { margin:0; color:#9fb3e0; font-size:.95rem; }
+  input, button { font:inherit; min-height:48px; border-radius:12px; border:2px solid #2f4479; padding:0 14px; }
+  input { background:#060c22; color:#fff; text-align:center; }
+  button { border:none; background:#4d7cfe; color:#fff; font-weight:700; }
+  .bad { color:#ff8b8b; }
+</style>
+<form method="post" action="/api/login">
+  <h1>Chore Quest laptop</h1>
+  <p>This can stop the server and reset a PIN, so it asks first.</p>
+  <input type="password" name="passcode" autocomplete="current-password"
+         placeholder="Passcode" autofocus required>
+  <button type="submit">Sign in</button>
+  <p class="bad">${message ?? ''}</p>
+</form>
+</html>`;
+}
 
 /* ---------- shelling out ---------- */
 
@@ -455,15 +556,71 @@ function isOwnNavigation(request) {
   return (site === 'none' || site === 'same-origin') && mode === 'navigate' && dest === 'document';
 }
 
+/** Reads a request body as text, for the one route that needs it before routing. */
+async function readBody(request) {
+  const chunks = [];
+  for await (const chunk of request) chunks.push(chunk);
+  return Buffer.concat(chunks).toString('utf8').trim();
+}
+
 const server = createServer(async (request, response) => {
-  // Loopback only, and only under a loopback name. Together with the token this
-  // is what stops a page in the browser reaching in.
+  // Only under a name we recognise. Together with the token this is what stops
+  // a page in the browser reaching in.
   const host = (request.headers.host ?? '').split(':')[0];
-  if (!['127.0.0.1', 'localhost', '[::1]'].includes(host)) return unauthorised(response);
+  if (!hostAllowed(host)) return unauthorised(response);
 
   const url = new URL(request.url, `http://127.0.0.1:${PORT}`);
   const isPage = request.method === 'GET' && url.pathname === '/';
   const token = url.searchParams.get('token') ?? request.headers['x-admin-token'];
+
+  if (PASSCODE && !signedIn(request)) {
+    if (request.method === 'POST' && url.pathname === '/api/login') {
+      // Slow down after a run of wrong answers. The passcode is something a
+      // person types on a phone, so it is short enough to be worth guessing.
+      if (Date.now() < lockedUntil) {
+        response.writeHead(429, { 'content-type': 'text/html; charset=utf-8' });
+        response.end(loginPage('Too many tries. Wait a minute and try again.'));
+        return;
+      }
+
+      const raw = await readBody(request);
+      const supplied = new URLSearchParams(raw).get('passcode') ?? '';
+      if (!passcodeMatches(supplied)) {
+        failures += 1;
+        if (failures >= 5) {
+          lockedUntil = Date.now() + 60_000;
+          failures = 0;
+        }
+        response.writeHead(401, { 'content-type': 'text/html; charset=utf-8' });
+        response.end(loginPage('That passcode is not right.'));
+        return;
+      }
+
+      failures = 0;
+      const session = randomBytes(24).toString('base64url');
+      sessions.set(session, Date.now() + SESSION_MS);
+      // Secure only when it arrived over https, which over Tailscale Serve it
+      // did; setting it unconditionally would stop the cookie sticking on the
+      // laptop's own http address.
+      const secure = request.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
+      response.writeHead(303, {
+        location: '/',
+        'set-cookie':
+          `${SESSION_COOKIE}=${session}; HttpOnly; SameSite=Lax; Path=/; ` +
+          `Max-Age=${Math.floor(SESSION_MS / 1000)}${secure}`,
+      });
+      response.end();
+      return;
+    }
+
+    if (isPage) {
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      response.end(loginPage());
+      return;
+    }
+
+    return unauthorised(response, 'Sign in to the dashboard first, then try again.');
+  }
 
   if (token !== TOKEN && !(isPage && isOwnNavigation(request))) {
     // A token that is present but wrong is almost always a tab left open across
@@ -491,9 +648,7 @@ const server = createServer(async (request, response) => {
 
   let body = {};
   if (request.method === 'POST') {
-    const chunks = [];
-    for await (const chunk of request) chunks.push(chunk);
-    const raw = Buffer.concat(chunks).toString('utf8').trim();
+    const raw = await readBody(request);
     if (raw) {
       try {
         body = JSON.parse(raw);
@@ -541,7 +696,23 @@ The dashboard could not start: ${error.message}
 server.listen(PORT, '127.0.0.1', () => {
   const link = `http://127.0.0.1:${PORT}/`;
   console.log(`\nChore Quest laptop dashboard\n\n  ${link}\n`);
-  console.log('Loopback only, and the same address every launch - worth a bookmark.');
+  console.log('The same address every launch - worth a bookmark.\n');
+
+  if (PASSCODE) {
+    console.log(
+      'ADMIN_PASSCODE is set, so this asks for it once per browser, and it can be\n' +
+        'reached over Tailscale. To publish it to your tailnet, in another window:\n\n' +
+        '    tailscale serve --bg ' + PORT + '\n\n' +
+        'then open the https address it prints, on the phone. tailscale serve --off\n' +
+        'takes it down again. Nothing outside the tailnet can reach it either way.\n',
+    );
+  } else {
+    console.log(
+      'Loopback only. Set ADMIN_PASSCODE in backend/.env to be asked for a passcode\n' +
+        'and to allow reaching this from a phone over Tailscale.\n',
+    );
+  }
+
   console.log('Ctrl+C to stop the dashboard. It does not stop Chore Quest itself.\n');
 
   // Opening it is the whole point of a dashboard; failing to is not worth an

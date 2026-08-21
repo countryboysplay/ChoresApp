@@ -240,16 +240,39 @@ bookmark simply will not connect - start it with `npm run admin` and reload.
 
 It runs as its own process on `127.0.0.1` only, deliberately independent of the
 app - a tool for servicing the server is needed exactly when the server is
-unwell. There is no login, and no token to copy out of the terminal. That is not
-a gap: anybody sitting at this laptop could run all of this from a terminal
-anyway. What has to be kept out is the browser they have open, so that no website
-they visit can quietly POST to localhost and add itself a parent account. Two
+unwell. Out of the box there is no login and no token to copy out of the
+terminal. That is not a gap: anybody sitting at this laptop could run all of
+this from a terminal anyway - and if you want it reachable from a phone, see
+below, where that reasoning stops holding and a passcode takes over. What has to
+be kept out is the browser they have open, so that no website they visit can
+quietly POST to localhost and add itself a parent account. Two
 things do that. The page is served only to a navigation the browser itself
 labels as unattributed or same-origin - a bookmark or a reload qualifies, a link
 or a `fetch()` from another site does not - and every action the page then takes
 carries a token minted at launch that never appears in the address bar. A tab
 left open across a restart is holding the previous launch's token; it says so and
 asks to be reloaded.
+
+**Reaching it from a phone.** Set `ADMIN_PASSCODE` in `backend/.env` and two
+things change together: the dashboard starts asking for that passcode - from
+this laptop too, not only from elsewhere - and it starts answering to a tailnet
+name as well as a loopback one. Publish it to your Tailscale network with
+
+```powershell
+tailscale serve --bg 4100
+```
+
+and open the https address that prints, on the phone. `tailscale serve --off`
+takes it down again. It is never reachable from the internet either way, and it
+still binds `127.0.0.1`: Tailscale connects to it from this machine, so nothing
+new is listening on the network.
+
+The passcode is asked for once per browser and remembered for thirty days.
+Restarting the dashboard signs every browser out, which is the answer if a phone
+goes missing. It is deliberately its own passcode rather than a parent PIN,
+because a login that needs Postgres is a login that is gone exactly when this
+tool is wanted. Leave `ADMIN_PASSCODE` blank and nothing changes: loopback only,
+no login, as above.
 
 **Restoring is not on it.** That replaces every chore, point and photo with no
 undo, so it stays a terminal command.

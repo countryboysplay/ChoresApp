@@ -1885,3 +1885,52 @@ there loaded the new build without closing a tab. So workbox-window does raise
 the one thing only a handset could settle. Typecheck, lint, the 55 backend tests
 that run without a database, the 31 frontend tests, and the production build all
 pass, and `/api/reset` and the tightened fallback are covered by tests.
+
+---
+
+## 2026-08-20 — The dashboard gets a passcode, and only then a tailnet name
+
+**Decision.** `ADMIN_PASSCODE` in `backend/.env`. Blank, and the laptop dashboard
+is exactly what it was: bound to `127.0.0.1`, no login, guarded by the launch
+token and `Sec-Fetch-Site`. Set, and two things change at once — every request
+needs the passcode, including from this laptop, and a `*.ts.net` host is accepted
+so `tailscale serve --bg 4100` can publish it to the tailnet.
+
+**Reason.** Owner wanted the dashboard from a phone. The existing design rests on
+one sentence: what has to be kept out is not a person, because whoever is at this
+laptop could run these commands from a terminal anyway — it is the browser they
+have open. A phone on the sofa breaks that. The dashboard can stop the household
+server, add itself a parent account, and reset any child's PIN, and the tailnet
+has five devices on it, two of them other people's desktops. Reachable and
+unguarded was not a combination worth having, so the two are welded together:
+the tailnet name is only accepted when a passcode exists.
+
+**Consequences.** The passcode is required from loopback too, which is more
+typing than the old model needed. That is deliberate rather than lazy. Tailscale
+Serve forwards to `127.0.0.1`, so from inside the process a request from the
+tailnet and a request from this machine are the same connection, and the only
+thing distinguishing them is a header a client can write. Exempting loopback
+would have been a rule that cannot be verified. It is asked once per browser and
+remembered for thirty days.
+
+It is the dashboard's own passcode and not a parent PIN, because this is the tool
+for when the household's server is unwell and a login that needs Postgres is a
+login that is gone exactly when it is wanted. It reads from `backend/.env`, which
+this process already parses by hand for the same reason.
+
+Sessions live in memory, so restarting the dashboard signs every browser out.
+That is the answer for a phone that goes missing, and it is cheaper than a
+revocation list for a tool that is started by hand.
+
+The socket still binds `127.0.0.1` and nothing else. Tailscale connects to it
+from this machine, so nothing new listens on the network, and nothing outside the
+tailnet can reach it. The two existing guards are untouched and still both
+required: a session without the launch token is refused, and so is the token
+without a session.
+
+**Verified by request against a running dashboard.** With no passcode: a bookmark
+navigation is served, a cross-site one is refused, a tailnet host is refused.
+With one: the page becomes a login form, actions without a session are refused, a
+wrong passcode is refused and locks out after five tries, an unknown host is
+refused, and after signing in the dashboard and its actions work under both the
+loopback and the tailnet name.
