@@ -26,6 +26,7 @@ import { pushRoutes } from './routes/push.js';
 import { resetRoutes } from './routes/reset.js';
 import { healthRoutes } from './routes/health.js';
 import { rewardRoutes } from './routes/rewards.js';
+import { standingRoutes } from './routes/standings.js';
 import { tlsRoutes } from './routes/tls.js';
 import { walletRoutes } from './routes/wallet.js';
 
@@ -117,6 +118,7 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(backupRoutes, { env });
   await app.register(tlsRoutes, { env });
   await app.register(walletRoutes, { env });
+  await app.register(standingRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
   await app.register(resetRoutes);
 

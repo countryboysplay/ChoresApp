@@ -1,4 +1,6 @@
 import type {
+  ChildProfileResponse,
+  LeaderboardResponse,
   ApiError,
   ApprovalQueueResponse,
   NotificationsResponse,
@@ -106,6 +108,18 @@ export const api = {
     me: () => request<MeResponse>('/api/auth/me'),
 
     logout: () => request<{ ok: true }>('/api/auth/logout', { method: 'POST' }),
+  },
+
+  standings: {
+    leaderboard: () => request<LeaderboardResponse>('/api/child/leaderboard'),
+
+    profile: () => request<ChildProfileResponse>('/api/child/profile'),
+
+    saveAvatar: (avatar: unknown) =>
+      request<{ ok: true }>('/api/child/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({ avatar }),
+      }),
   },
 
   chores: {

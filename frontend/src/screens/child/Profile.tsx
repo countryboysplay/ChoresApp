@@ -1,38 +1,102 @@
-import { useState } from 'react';
-import { Avatar, BACKGROUNDS, HAIR_COLORS, SHIRT_COLORS, SKIN_TONES, type AvatarConfig } from '../../design/Avatar';
+import { useCallback, useEffect, useState } from 'react';
+import type { ChildProfileResponse } from '@chore-quest/shared';
+import { Avatar, BACKGROUNDS, DEFAULT_AVATAR, HAIR_COLORS, SHIRT_COLORS, SKIN_TONES, type AvatarConfig } from '../../design/Avatar';
 import { Icon } from '../../design/icons';
 import { Button, Meter, PointsPill, Tile } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { InstallPrompt } from '../../components/InstallPrompt';
 import { levelForLifetimePoints } from '../../config/levels';
-import { achievements, children, rewards } from '../../mock/data';
+import { api, ApiRequestError } from '../../lib/api';
 import { playSound } from '../../design/sound';
 
-const me = children[0]!;
-
+/**
+ * A child's own screen.
+ *
+ * Every number here read mock/data.ts until now, which meant both brothers
+ * opened it and saw the same stranger's name, level and streak. It reads the
+ * signed-in child, and the avatar builder - which has always worked and has
+ * never saved - now writes what it builds.
+ */
 export function Profile() {
-  const [config, setConfig] = useState<AvatarConfig>(me.avatar);
+  const [profile, setProfile] = useState<ChildProfileResponse | null>(null);
+  const [config, setConfig] = useState<AvatarConfig>(DEFAULT_AVATAR);
   const [editing, setEditing] = useState(false);
-  const level = levelForLifetimePoints(me.lifetimePoints);
-  const goal = rewards.find((reward) => reward.primaryGoal);
-  const earnedBadges = achievements.filter((badge) => badge.earned);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const response = await api.standings.profile();
+      setProfile(response);
+      setConfig((response.me.avatar as AvatarConfig | null) ?? DEFAULT_AVATAR);
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : 'Could not load your profile.');
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const set = <K extends keyof AvatarConfig>(key: K, value: AvatarConfig[K]) => {
     playSound('tap');
     setConfig((current) => ({ ...current, [key]: value }));
   };
 
+  /**
+   * Saved on closing the builder rather than on every swatch. A tap is a child
+   * trying a colour on, not deciding, and a request per tap would be a hundred
+   * writes to settle on one hero.
+   */
+  const stopEditing = async () => {
+    setEditing(false);
+    setSaving(true);
+    try {
+      await api.standings.saveAvatar(config);
+      setError(null);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : 'That did not save.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!profile) {
+    return (
+      <>
+        <ScreenTop title="Profile" />
+        <main className="screen">
+          <p aria-live="polite" style={{ textAlign: 'center', marginTop: 'var(--space-6)' }}>
+            {error ?? 'Loading...'}
+          </p>
+        </main>
+      </>
+    );
+  }
+
+  const me = profile.me;
+  const level = levelForLifetimePoints(me.lifetimePoints);
+  const goal = profile.primaryGoal;
+
   return (
     <>
       <ScreenTop title="Profile" />
       <main className="screen">
+        {error && (
+          <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-3)' }}>
+            {error}
+          </p>
+        )}
+
         <div style={{ marginBottom: 'var(--space-4)' }}>
           <InstallPrompt />
         </div>
 
         <section className="panel panel--navy" style={{ display: 'grid', justifyItems: 'center', gap: 'var(--space-3)' }}>
-          <Avatar config={config} size={132} label={`${me.name} avatar`} />
-          <h2 className="title" style={{ margin: 0 }}>{me.name}</h2>
+          <Avatar config={config} size={132} label={`${me.displayName} avatar`} />
+          <h2 className="title" style={{ margin: 0 }}>{me.displayName}</h2>
           <PointsPill value={`Level ${level.level}`} />
           <div style={{ width: '100%' }}>
             <Meter
@@ -42,8 +106,14 @@ export function Profile() {
               right={level.levelSpan ? `${level.pointsIntoLevel} / ${level.levelSpan}` : 'Max level'}
             />
           </div>
-          <Button tone="quiet" block icon="user" onClick={() => setEditing((value) => !value)}>
-            {editing ? 'Done editing' : 'Edit avatar'}
+          <Button
+            tone="quiet"
+            block
+            icon="user"
+            disabled={saving}
+            onClick={() => (editing ? void stopEditing() : setEditing(true))}
+          >
+            {saving ? 'Saving...' : editing ? 'Done editing' : 'Edit avatar'}
           </Button>
         </section>
 
@@ -82,7 +152,7 @@ export function Profile() {
         )}
 
         <div className="grid-2" style={{ marginTop: 'var(--space-4)' }}>
-          <Tile value={me.spendablePoints} label="Spendable points" />
+          <Tile value={profile.spendablePoints} label="Spendable points" />
           <Tile value={me.lifetimePoints} label="Lifetime points" />
           <Tile
             value={
@@ -93,31 +163,19 @@ export function Profile() {
             }
             label="Day streak"
           />
-          <Tile value={me.approvedChores} label="Chores approved" />
+          <Tile value={me.choresApproved} label="Chores approved" />
         </div>
-
-        <section style={{ marginTop: 'var(--space-4)' }}>
-          <h2 className="subtitle">Badges</h2>
-          <div className="row" style={{ flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-            {earnedBadges.map((badge) => (
-              <span key={badge.id} className="badge badge--bonus">
-                <Icon name={badge.icon} size={14} />
-                {badge.name}
-              </span>
-            ))}
-          </div>
-        </section>
 
         {goal && (
           <section className="card row" style={{ marginTop: 'var(--space-4)' }}>
             <span className="iconbtn" style={{ color: 'var(--gold)' }}>
-              <Icon name={goal.icon} size={22} />
+              <Icon name="star" size={22} />
             </span>
-            <span style={{ flex: 1 }}>
+            <span style={{ flex: 1, minWidth: 0 }}>
               <span className="eyebrow">Reward goal</span>
               <strong style={{ display: 'block' }}>{goal.name}</strong>
             </span>
-            <PointsPill value={goal.cost} small />
+            <PointsPill value={goal.pointCost} small />
           </section>
         )}
       </main>

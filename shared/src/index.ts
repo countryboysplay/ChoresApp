@@ -123,6 +123,36 @@ export interface ChildSummary {
   recentWin: { label: string; delta: number; at: string } | null;
 }
 
+/**
+ * One child's standing, as the leaderboard and the profile screen read it.
+ *
+ * Children only. A test asserts no parent name renders on the leaderboard, and
+ * the endpoint that fills this never selects one.
+ */
+export interface StandingEntry {
+  id: string;
+  displayName: string;
+  avatar: unknown;
+  lifetimePoints: number;
+  /** Points earned since the household's week began. */
+  weekPoints: number;
+  streakDays: number;
+  choresApproved: number;
+}
+
+export interface LeaderboardResponse {
+  entries: StandingEntry[];
+  /** Which entry is the signed-in child, so the screen can mark it. */
+  meId: string | null;
+}
+
+export interface ChildProfileResponse {
+  me: StandingEntry;
+  spendablePoints: number;
+  /** The reward this child has starred, if any. */
+  primaryGoal: { id: string; name: string; pointCost: number } | null;
+}
+
 export interface ChildDayResponse {
   /** The day asked for. */
   date: string;

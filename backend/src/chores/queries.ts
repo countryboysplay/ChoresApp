@@ -190,7 +190,7 @@ export async function childSummary(
  * work the child can fix and resend, so it pauses too. Today is naturally
  * unresolved for most of the day and is covered by the same rule.
  */
-async function streakLength(db: pg.Pool, childId: string, today: string): Promise<number> {
+export async function streakLength(db: pg.Pool, childId: string, today: string): Promise<number> {
   const { rows } = await db.query<{ chore_date: string; state: string }>(
     `SELECT ci.chore_date::text AS chore_date,
             CASE

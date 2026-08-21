@@ -240,11 +240,103 @@ describe('approval queue safety rule', () => {
 
 describe('leaderboard', () => {
   it('ranks the kids only and never lists a parent', async () => {
+    // The board reads the household now rather than the Stage 2 mock module, so
+    // this asserts against a stubbed response. The guarantee it guards has not
+    // moved: the endpoint selects role = 'child', and no parent name reaches
+    // this screen to be rendered.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        if (String(input).includes('/api/child/leaderboard')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                entries: [
+                  {
+                    id: 'a',
+                    displayName: 'Child 1',
+                    avatar: null,
+                    lifetimePoints: 240,
+                    weekPoints: 84,
+                    streakDays: 5,
+                    choresApproved: 12,
+                  },
+                  {
+                    id: 'b',
+                    displayName: 'Child 2',
+                    avatar: null,
+                    lifetimePoints: 95,
+                    weekPoints: 62,
+                    streakDays: 2,
+                    choresApproved: 6,
+                  },
+                ],
+                meId: 'a',
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ),
+          );
+        }
+        return Promise.reject(new TypeError('fetch is disabled in tests'));
+      }),
+    );
+
     renderAt('/child/leaderboard');
     expect((await screen.findAllByText('Child 1')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Child 2').length).toBeGreaterThan(0);
     expect(screen.queryByText('Parent 1')).not.toBeInTheDocument();
     expect(screen.queryByText('Parent 2')).not.toBeInTheDocument();
+  });
+
+  it('ranks by the range on show, so first place always holds the bigger number', async () => {
+    // Child 2 has the better week and the worse lifetime. Ordering by lifetime
+    // while the pill showed this week's total put the larger number in second
+    // place, which is the sort of thing a child spots immediately.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        if (String(input).includes('/api/child/leaderboard')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                entries: [
+                  {
+                    id: 'a',
+                    displayName: 'Child 1',
+                    avatar: null,
+                    lifetimePoints: 900,
+                    weekPoints: 10,
+                    streakDays: 1,
+                    choresApproved: 40,
+                  },
+                  {
+                    id: 'b',
+                    displayName: 'Child 2',
+                    avatar: null,
+                    lifetimePoints: 100,
+                    weekPoints: 300,
+                    streakDays: 1,
+                    choresApproved: 5,
+                  },
+                ],
+                meId: 'b',
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ),
+          );
+        }
+        return Promise.reject(new TypeError('fetch is disabled in tests'));
+      }),
+    );
+
+    renderAt('/child/leaderboard');
+    // The ranked list, not the podium: the podium deliberately draws second
+    // place first so the winner stands in the middle, so its DOM order is not
+    // rank order.
+    await screen.findAllByText(/Child 2/);
+    const rows = screen.getAllByRole('article');
+    expect(rows[0]!.textContent).toContain('Child 2');
+    expect(rows[1]!.textContent).toContain('Child 1');
   });
 });
 
