@@ -1,5 +1,6 @@
 import type {
   ChildProfileResponse,
+  ChoreWeekResponse,
   LeaderboardResponse,
   ApiError,
   ApprovalQueueResponse,
@@ -126,6 +127,9 @@ export const api = {
     /** Omit the date for the household's current day. */
     day: (date?: string) =>
       request<ChildDayResponse>(`/api/child/day${date ? `?date=${date}` : ''}`),
+
+    /** Core chores for the household's current week, one day at a time. */
+    week: () => request<ChoreWeekResponse>('/api/child/week'),
 
     get: (instanceId: string) => request<ChoreResponse>(`/api/chores/${instanceId}`),
 

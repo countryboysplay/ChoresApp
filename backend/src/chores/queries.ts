@@ -22,6 +22,8 @@ export interface ChoreRow {
   choreDate: string;
   rejectionNote: string | null;
   expiresAt: string | null;
+  /** When the chore appeared on a board. What "newest" sorts on. */
+  postedAt: string;
   claimed: boolean;
   subtasks: SubtaskRow[];
 }
@@ -37,6 +39,7 @@ const CHORE_SELECT = `
          ci.chore_date::text AS chore_date,
          ci.rejection_note,
          ci.expires_at,
+         ci.created_at,
          (ci.assigned_to IS NOT NULL) AS claimed,
          coalesce(
            (
@@ -66,6 +69,7 @@ interface RawChore {
   points: number;
   chore_date: string;
   rejection_note: string | null;
+  created_at: Date;
   expires_at: Date | null;
   claimed: boolean;
   subtasks: SubtaskRow[];
@@ -83,9 +87,39 @@ function toChore(row: RawChore): ChoreRow {
     choreDate: row.chore_date,
     rejectionNote: row.rejection_note,
     expiresAt: row.expires_at?.toISOString() ?? null,
+    postedAt: row.created_at.toISOString(),
     claimed: row.claimed,
     subtasks: row.subtasks,
   };
+}
+
+/**
+ * Every core chore this child has across a range of household days.
+ *
+ * One query rather than seven. The week view on Missions announced itself as
+ * not built for as long as it existed, because the only shape the API offered
+ * was a single day - and seven round trips to fill one screen is the kind of
+ * thing that works on a laptop and not on a phone in a hallway.
+ *
+ * Core only. The bonus board is a today thing: a bonus posted on Tuesday and
+ * gone by Wednesday is not part of a week's plan.
+ */
+export async function coreChoresBetween(
+  db: pg.Pool,
+  childId: string,
+  from: string,
+  to: string,
+): Promise<ChoreRow[]> {
+  const { rows } = await db.query<RawChore>(
+    `${CHORE_SELECT}
+      WHERE ci.assigned_to = $1
+        AND d.kind = 'core'
+        AND ci.chore_date >= $2::date
+        AND ci.chore_date <= $3::date
+      ORDER BY ci.chore_date, d.name`,
+    [childId, from, to],
+  );
+  return rows.map(toChore);
 }
 
 /** The child's own chores for one household day. */

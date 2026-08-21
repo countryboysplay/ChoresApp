@@ -41,6 +41,23 @@ export function ChildHome() {
     day.core.find((entry) => entry.status !== 'approved') ?? day.core[day.core.length - 1] ?? null;
   const doneCount = chore ? chore.subtasks.filter((task) => task.done).length : 0;
   const totalCount = chore ? chore.subtasks.length : 0;
+
+  /*
+   * The ring counts the whole day, not the chore in the card under it.
+   *
+   * It is labelled "Steps finished today" and counted one chore's checklist,
+   * which is the same number only while a child has exactly one chore. With two
+   * it reads five of five with half the day left, and a progress ring that says
+   * finished when it is not is worse than no ring.
+   */
+  const dayDone = day.core.reduce(
+    (sum, entry) => sum + entry.subtasks.filter((task) => task.done).length,
+    0,
+  );
+  const dayTotal = day.core.reduce((sum, entry) => sum + entry.subtasks.length, 0);
+
+  /** The chores the card above is not already showing. */
+  const alsoToday = day.core.filter((entry) => entry.id !== chore?.id);
   const nextBonus = [...day.availableBonus].sort((a, b) => b.points - a.points)[0] ?? null;
 
   const name = user?.displayName ?? 'Player';
@@ -94,16 +111,16 @@ export function ChildHome() {
           <Icon name="arrow" size={20} />
         </div>
         <div className="row" style={{ gap: 'var(--space-4)' }}>
-          <Ring value={doneCount} max={Math.max(totalCount, 1)} size={104} label="Steps finished today">
+          <Ring value={dayDone} max={Math.max(dayTotal, 1)} size={104} label="Steps finished today">
             <span style={{ lineHeight: 1 }}>
               <span
                 className="numeric"
                 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-2xl)', color: 'var(--gold)' }}
               >
-                {doneCount}
+                {dayDone}
               </span>
               <span style={{ display: 'block', fontSize: 'var(--text-xs)', fontWeight: 700 }}>
-                of {totalCount}
+                of {dayTotal}
               </span>
             </span>
           </Ring>
@@ -160,6 +177,40 @@ export function ChildHome() {
           <span className="eyebrow">Today&apos;s required chore</span>
           <p style={{ fontWeight: 700, margin: 'var(--space-3) 0 0' }}>Nothing due today</p>
           <p className="muted" style={{ margin: '4px 0 0' }}>Enjoy the day off.</p>
+        </section>
+      )}
+
+      {/* The rest of the day.
+          The card above shows one chore, which was the whole of Home when a
+          child had one. A second required chore was invisible here - it was on
+          Missions, but Home is the screen they open - so a child could finish
+          what Home showed them and be told they had missed something. */}
+      {alsoToday.length > 0 && (
+        <section className="stack stack--tight" style={{ marginTop: 'var(--space-4)' }}>
+          <span className="eyebrow">Also today</span>
+          {alsoToday.map((entry) => {
+            const done = entry.subtasks.filter((task) => task.done).length;
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                className="card card--interactive row"
+                style={{ gap: 'var(--space-3)' }}
+                onClick={() => navigate(`/child/chore/${entry.id}`)}
+              >
+                <span className="tile-icon tile-icon--gold tile-icon--sm">
+                  <Icon name={entry.icon as IconName} size={20} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <span style={{ fontWeight: 800, display: 'block' }}>{entry.name}</span>
+                  <span className="muted numeric" style={{ fontSize: 'var(--text-sm)' }}>
+                    {done} of {entry.subtasks.length} done
+                  </span>
+                </span>
+                <StatusBadge status={entry.status} />
+              </button>
+            );
+          })}
         </section>
       )}
 

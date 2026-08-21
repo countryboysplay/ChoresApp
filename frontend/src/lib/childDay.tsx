@@ -37,6 +37,7 @@ function previewDay(): ChildDayResponse {
     status: chore.status,
     points: chore.points,
     choreDate: '2026-08-19',
+    postedAt: '2026-08-19T07:00:00.000Z',
     rejectionNote: chore.rejectionNote ?? null,
     expiresAt: null,
     claimed: true,

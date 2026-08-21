@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { ChoreWeekResponse } from '@chore-quest/shared';
 import { Icon, type IconName } from '../../design/icons';
 import { Badge, Button, PointsPill, Segmented } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
@@ -10,6 +11,16 @@ import { StatusBadge } from './choreStatus';
 
 const RANGE = ['Today', 'This week'] as const;
 const SORTS = ['Highest points', 'Newest', 'Expiring soon'] as const;
+
+/** "Monday", from a household date, without pulling in a date library. */
+function weekdayLabel(date: string): string {
+  // Midday so the label cannot slip a day on either side of a timezone.
+  return new Date(`${date}T12:00:00`).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+}
 
 /** Minutes from now until an ISO timestamp, for the countdown label. */
 function minutesUntil(expiresAt: string | null): number | null {
@@ -24,6 +35,28 @@ export function Missions() {
   const [sort, setSort] = useState<(typeof SORTS)[number]>('Highest points');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [week, setWeek] = useState<ChoreWeekResponse | null>(null);
+  const [weekError, setWeekError] = useState<string | null>(null);
+
+  /*
+   * Fetched when the week is asked for rather than on every visit to Missions.
+   * Most openings of this screen are a child checking what is left today, and
+   * a week nobody looked at is a query nobody needed.
+   */
+  const loadWeek = useCallback(async () => {
+    try {
+      setWeek(await api.chores.week());
+      setWeekError(null);
+    } catch (caught) {
+      setWeekError(
+        caught instanceof ApiRequestError ? caught.message : 'Could not load the week.',
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (range === 'This week' && !week) void loadWeek();
+  }, [range, week, loadWeek]);
 
   // A child holds one unfinished bonus at a time, so the board tells them why
   // the other Claim buttons are off rather than just disabling them.
@@ -60,13 +93,14 @@ export function Missions() {
   };
 
   const required = day?.core ?? [];
-  const core = required[0] ?? null;
 
   // The board is what is on offer plus anything this child already claimed, so
   // a claimed chore does not vanish from the screen it was claimed on.
   const board = useMemo(() => {
     const list = [...(day?.availableBonus ?? []), ...(day?.bonus ?? [])];
     if (sort === 'Highest points') list.sort((a, b) => b.points - a.points);
+    if (sort === 'Newest')
+      list.sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime());
     if (sort === 'Expiring soon')
       list.sort(
         (a, b) =>
@@ -110,19 +144,55 @@ export function Missions() {
         <section style={{ marginTop: 'var(--space-5)' }}>
           <span className="eyebrow">Required chores</span>
 
-          {range === 'This week' && (
-            // Honest rather than quietly showing today's list twice. The
-            // week view needs a range query the API does not have yet.
-            <p className="muted" style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-sm)' }}>
-              The week view is not built yet. Showing today.
+          {range === 'This week' && weekError && (
+            <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-3)' }}>
+              {weekError}
             </p>
           )}
 
-          {required.length === 0 && (
+          {range === 'This week' && !week && !weekError && (
+            <p className="muted" style={{ marginTop: 'var(--space-3)' }}>Loading the week…</p>
+          )}
+
+          {range === 'This week' && week && (
+            <div className="stack" style={{ marginTop: 'var(--space-3)' }}>
+              {week.days.map((day) => (
+                <section key={day.date} className="card stack stack--tight">
+                  <div className="row row--between">
+                    <strong>{weekdayLabel(day.date)}</strong>
+                    {day.date === week.today && <Badge tone="info">Today</Badge>}
+                  </div>
+                  {day.chores.length === 0 ? (
+                    <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
+                      {day.date > week.today ? 'Not started yet' : 'Nothing due'}
+                    </span>
+                  ) : (
+                    day.chores.map((chore) => (
+                      <div key={chore.id} className="row" style={{ gap: 'var(--space-3)' }}>
+                        <span className="tile-icon tile-icon--gold tile-icon--sm">
+                          <Icon name={chore.icon as IconName} size={18} />
+                        </span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontWeight: 700, display: 'block' }}>{chore.name}</span>
+                        </span>
+                        <PointsPill value={chore.points} small />
+                        <StatusBadge status={chore.status} />
+                      </div>
+                    ))
+                  )}
+                </section>
+              ))}
+            </div>
+          )}
+
+          {range === 'Today' && required.length === 0 && (
             <p className="muted" style={{ marginTop: 'var(--space-3)' }}>Nothing due today.</p>
           )}
 
-          <div className="stack stack--tight" style={{ marginTop: 'var(--space-3)' }}>
+          <div
+            className="stack stack--tight"
+            style={{ marginTop: 'var(--space-3)', display: range === 'Today' ? undefined : 'none' }}
+          >
             {required.map((chore) => {
               const done = chore.subtasks.filter((task) => task.done).length;
               return (
@@ -147,11 +217,6 @@ export function Missions() {
               );
             })}
           </div>
-          {core && (
-            <div style={{ marginTop: 'var(--space-3)' }}>
-              <StatusBadge status={core.status} />
-            </div>
-          )}
         </section>
 
         <section style={{ marginTop: 'var(--space-5)' }}>

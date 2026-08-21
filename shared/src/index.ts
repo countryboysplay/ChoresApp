@@ -112,6 +112,8 @@ export interface Chore {
   rejectionNote: string | null;
   /** Bonus chores only. ISO 8601. */
   expiresAt: string | null;
+  /** When the chore appeared on a board, ISO 8601. What "newest" sorts on. */
+  postedAt: string;
   claimed: boolean;
   subtasks: Subtask[];
 }
@@ -151,6 +153,19 @@ export interface ChildProfileResponse {
   spendablePoints: number;
   /** The reward this child has starred, if any. */
   primaryGoal: { id: string; name: string; pointCost: number } | null;
+}
+
+/** One household day's core chores, for the week view on Missions. */
+export interface ChoreWeekDay {
+  date: string;
+  chores: Chore[];
+}
+
+export interface ChoreWeekResponse {
+  /** Monday of the household's current week, YYYY-MM-DD. */
+  weekStart: string;
+  today: string;
+  days: ChoreWeekDay[];
 }
 
 export interface ChildDayResponse {

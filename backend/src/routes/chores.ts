@@ -2,7 +2,12 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Env } from '../env.js';
 import { getPool } from '../db.js';
-import { householdToday, isHouseholdDate } from '../time.js';
+import {
+  addHouseholdDays,
+  householdToday,
+  householdWeekStart,
+  isHouseholdDate,
+} from '../time.js';
 import { ensureDaysMaterialized } from '../chores/materialize.js';
 import { releaseExpiredClaims } from '../chores/bonus.js';
 import {
@@ -10,6 +15,7 @@ import {
   childSummary,
   choreForChild,
   choresForDay,
+  coreChoresBetween,
 } from '../chores/queries.js';
 
 const SubtaskBody = z.object({ done: z.boolean() });
@@ -30,6 +36,48 @@ export async function choreRoutes(app: FastifyInstance, opts: { env: Env }): Pro
     if (!active) throw app.httpErrors.serviceUnavailable('The database is not configured.');
     return active;
   };
+
+  /**
+   * The week the household is in, core chores only.
+   *
+   * Missions has carried a "This week" control since Stage 2 that printed "The
+   * week view is not built yet" on screen, because the only shape the API had
+   * was one day. A control that admits it does nothing is honest and is still a
+   * control that does nothing.
+   *
+   * Days that have not happened yet are included and empty rather than omitted,
+   * so the screen can show a whole week without inventing the gaps. Nothing is
+   * materialised beyond today: a child must not be able to work ahead of the
+   * schedule a parent set, which is the same rule /api/child/day keeps.
+   */
+  app.get('/api/child/week', { onRequest: requireChild }, async (request) => {
+    const session = request.session;
+    if (!session) throw app.httpErrors.unauthorized();
+
+    const db = pool();
+    const childId = session.user.id;
+    const today = householdToday(env.HOUSEHOLD_TZ);
+    const weekStart = householdWeekStart(today);
+
+    await ensureDaysMaterialized(db, childId, today);
+
+    const chores = await coreChoresBetween(db, childId, weekStart, today);
+
+    const byDate = new Map<string, typeof chores>();
+    for (const chore of chores) {
+      const list = byDate.get(chore.choreDate) ?? [];
+      list.push(chore);
+      byDate.set(chore.choreDate, list);
+    }
+
+    const days: { date: string; chores: typeof chores }[] = [];
+    for (let index = 0; index < 7; index += 1) {
+      const date = addHouseholdDays(weekStart, index);
+      days.push({ date, chores: byDate.get(date) ?? [] });
+    }
+
+    return { weekStart, today, days };
+  });
 
   /** The child's own day: their chores, the bonus board, and their totals. */
   app.get('/api/child/day', { onRequest: requireChild }, async (request) => {
