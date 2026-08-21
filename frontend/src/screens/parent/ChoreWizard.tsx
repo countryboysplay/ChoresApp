@@ -39,11 +39,35 @@ export function ChoreWizard() {
 
   const [name, setName] = useState('');
   const [icon, setIcon] = useState<IconName>('kitchen');
+  /*
+   * Seeded from the household's "Points per core chore", which is what that
+   * setting was always for and what nothing had ever read. Ten was a hardcoded
+   * guess sitting under a field a parent had already answered.
+   *
+   * A default, not a rule: the number stays editable here, and a chore keeps
+   * whatever it was created with even if the setting changes later.
+   */
   const [points, setPoints] = useState('10');
   const [subtasks, setSubtasks] = useState<string[]>(['']);
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [recurrence, setRecurrence] = useState<(typeof RECURRENCE)[number]>('Daily');
   const [days, setDays] = useState<number[]>([]);
+
+  // The household's own default, asked for once when the wizard opens.
+  useEffect(() => {
+    let cancelled = false;
+    api.household
+      .settings()
+      .then(({ settings }) => {
+        if (!cancelled && settings.corePointValue > 0) setPoints(String(settings.corePointValue));
+      })
+      // Silent: a wizard that will not open because a default could not be
+      // fetched is worse than one that opens on ten.
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     void (async () => {

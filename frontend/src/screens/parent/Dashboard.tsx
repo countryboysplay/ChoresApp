@@ -145,6 +145,66 @@ export function ParentDashboard() {
           )}
         </section>
 
+        {/*
+          The week, per child.
+          The backend has rolled this up on every dashboard load since Stage 11
+          and shipped it in the response, and no screen has ever destructured
+          it. It is the only backward-looking view the parent side has: seven
+          columns saying what was approved and what was missed, which is the
+          question a fortnight in - is this working, and who needs a nudge.
+        */}
+        {data.weekActivity.length > 0 && (
+          <section style={{ marginTop: 'var(--space-5)' }}>
+            <h2 className="subtitle">This week</h2>
+            <div className="stack stack--tight">
+              {data.children.map((child) => {
+                const days = data.weekActivity.filter((row) => row.childId === child.id);
+                const approved = days.reduce((sum, row) => sum + row.approved, 0);
+                const missed = days.reduce((sum, row) => sum + row.missed, 0);
+                return (
+                  <article key={child.id} className="card stack stack--tight">
+                    <div className="row row--between">
+                      <strong>{child.displayName}</strong>
+                      <span className="row" style={{ gap: 'var(--space-2)' }}>
+                        <Badge tone={approved > 0 ? 'done' : 'neutral'}>{approved} done</Badge>
+                        {missed > 0 && <Badge tone="late">{missed} missed</Badge>}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
+                      {days.map((row) => (
+                        <span
+                          key={row.date}
+                          // Named as well as coloured: a square nobody can read
+                          // out loud is decoration, not information.
+                          title={`${row.date}: ${row.approved} done, ${row.missed} missed, ${row.points} points`}
+                          style={{
+                            aspectRatio: '1',
+                            borderRadius: 8,
+                            border: '1px solid var(--outline)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            fontSize: 'var(--text-xs)',
+                            fontWeight: 800,
+                            background:
+                              row.missed > 0
+                                ? 'rgba(255,82,82,0.28)'
+                                : row.approved > 0
+                                  ? 'rgba(0,200,83,0.28)'
+                                  : 'rgba(0,0,0,0.25)',
+                            color: 'var(--text)',
+                          }}
+                        >
+                          {row.approved > 0 ? row.approved : ''}
+                        </span>
+                      ))}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         <section style={{ marginTop: 'var(--space-5)' }}>
           <h2 className="subtitle">The kids</h2>
           <div className="stack stack--tight">

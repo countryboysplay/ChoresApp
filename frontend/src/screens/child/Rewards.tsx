@@ -190,14 +190,25 @@ export function Rewards() {
             <h2 className="subtitle">Your requests</h2>
             <div className="stack stack--tight">
               {data?.redemptions.slice(0, 5).map((entry) => (
-                <div key={entry.id} className="card row" style={{ gap: 'var(--space-3)' }}>
-                  <span style={{ flex: 1, minWidth: 0, fontWeight: 700 }}>{entry.rewardName}</span>
-                  {entry.status === 'requested' ? (
-                    <Badge tone="waiting" icon="clock">Waiting</Badge>
-                  ) : entry.status === 'denied' ? (
-                    <Badge tone="late" icon="alert">Not this time</Badge>
-                  ) : (
-                    <Badge tone="done" icon="check">Yours</Badge>
+                <div key={entry.id} className="card stack stack--tight">
+                  <div className="row" style={{ gap: 'var(--space-3)' }}>
+                    <span style={{ flex: 1, minWidth: 0, fontWeight: 700 }}>{entry.rewardName}</span>
+                    {entry.status === 'requested' ? (
+                      <Badge tone="waiting" icon="clock">Waiting</Badge>
+                    ) : entry.status === 'denied' ? (
+                      <Badge tone="late" icon="alert">Not this time</Badge>
+                    ) : (
+                      <Badge tone="done" icon="check">Yours</Badge>
+                    )}
+                  </div>
+                  {/* A chore sent back has always come with a reason. A reward
+                      refused carried one end to end - the column, the endpoint,
+                      the field on the response - and nothing ever wrote it or
+                      read it, so "no" arrived on its own. */}
+                  {entry.status === 'denied' && entry.note && (
+                    <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+                      {entry.note}
+                    </p>
                   )}
                 </div>
               ))}

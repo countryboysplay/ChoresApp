@@ -39,6 +39,7 @@ const BLANK: Draft = {
 export function RewardManage() {
   const [tab, setTab] = useState<(typeof TABS)[number]>('Requests');
   const [cashOuts, setCashOuts] = useState<CashOutRequest[]>([]);
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const [rewards, setRewards] = useState<ManagedReward[]>([]);
   const [pending, setPending] = useState<RewardRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,11 +100,11 @@ export function RewardManage() {
     }
   };
 
-  const decide = async (id: string, outcome: 'approve' | 'deny') => {
+  const decide = async (id: string, outcome: 'approve' | 'deny', note?: string) => {
     setWorking(true);
     try {
       if (outcome === 'approve') await api.rewards.approveRequest(id);
-      else await api.rewards.denyRequest(id);
+      else await api.rewards.denyRequest(id, note);
       await load();
     } catch (caught) {
       setError(caught instanceof ApiRequestError ? caught.message : 'That did not work.');
@@ -228,8 +229,29 @@ export function RewardManage() {
                   <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
                     Their points are already held. Saying no puts them straight back.
                   </p>
+                  {/* Optional, and offered rather than demanded. A chore sent
+                      back requires a note because the child has to redo it; a
+                      reward refused only has to be understood, and a parent who
+                      would be forced to write something writes "no". */}
+                  <label className="field">
+                    <span className="field__label">Why not, if you want to say</span>
+                    <input
+                      className="input"
+                      value={notes[entry.id] ?? ''}
+                      placeholder="Left blank, they just see no"
+                      onChange={(event) =>
+                        setNotes((current) => ({ ...current, [entry.id]: event.target.value }))
+                      }
+                    />
+                  </label>
+
                   <div className="row" style={{ gap: 'var(--space-3)' }}>
-                    <Button tone="stop" block disabled={working} onClick={() => void decide(entry.id, 'deny')}>
+                    <Button
+                      tone="stop"
+                      block
+                      disabled={working}
+                      onClick={() => void decide(entry.id, 'deny', notes[entry.id]?.trim() || undefined)}
+                    >
                       Not this time
                     </Button>
                     <Button tone="go" block disabled={working} onClick={() => void decide(entry.id, 'approve')}>

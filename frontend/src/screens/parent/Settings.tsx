@@ -163,8 +163,9 @@ export function Settings() {
           </div>
 
           <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
-            The reminder time is also the punctuality deadline: a chore sent in before it earns the
-            bonus.
+            Points per core chore is what a new chore starts at; each one can still be given its
+            own value, and changing this never rewrites a chore already made. The reminder time is
+            also the punctuality deadline: a chore sent in before it earns the bonus.
           </p>
 
           <Button tone="go" block disabled={working} onClick={() => void savePoints()}>
