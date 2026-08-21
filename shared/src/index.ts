@@ -156,6 +156,32 @@ export interface ChildProfileResponse {
 }
 
 /** One household day's core chores, for the week view on Missions. */
+/** How one household day counted towards a streak. */
+export type StreakDayState = 'done' | 'missed' | 'paused' | 'none';
+
+export interface StreakDay {
+  date: string;
+  state: StreakDayState;
+}
+
+export interface AchievementItem {
+  code: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string;
+  /** One for a badge with no meter. */
+  target: number;
+  progress: number;
+  earnedAt: string | null;
+}
+
+export interface AchievementsResponse {
+  achievements: AchievementItem[];
+  /** The last four weeks, oldest first, for the calendar. */
+  streakCalendar: StreakDay[];
+}
+
 export type CashOutStatus = 'requested' | 'approved' | 'denied' | 'paid';
 
 export interface CashOutRequest {

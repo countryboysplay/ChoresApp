@@ -4,6 +4,7 @@ import type { Env } from '../env.js';
 import { getPool } from '../db.js';
 import { householdToday } from '../time.js';
 import { notify } from '../notifications/service.js';
+import { syncAchievements } from '../achievements/service.js';
 
 const RejectBody = z.object({
   note: z.string().trim().min(1, 'A note is required.').max(500),
@@ -240,6 +241,40 @@ export async function approvalRoutes(app: FastifyInstance, opts: { env: Env }): 
       });
 
       await client.query('COMMIT');
+
+      /*
+       * After the commit, and never allowed to undo it.
+       *
+       * A badge is a consequence of the approval, not part of it: the points
+       * are the thing that had to be atomic. Recomputing inside the transaction
+       * would put seventeen more statements between a parent's tap and the row
+       * being safe, and a rule that threw would roll back a payment a child had
+       * already been told about.
+       *
+       * Reconciled rather than incremented, so nothing is lost if this half
+       * fails - the next look at the badges works it out again. That is why it
+       * is safe to swallow the error and only log it.
+       */
+      try {
+        const { newlyEarned } = await syncAchievements(
+          db,
+          chore.child_id,
+          householdToday(env.HOUSEHOLD_TZ),
+        );
+        for (const badge of newlyEarned) {
+          await notify(db, {
+            userId: chore.child_id,
+            kind: 'general',
+            title: `Badge earned: ${badge.name}`,
+            body: badge.description,
+            tone: 'done',
+            deepLink: '#/child/achievements',
+          });
+        }
+      } catch (error) {
+        app.log.warn({ err: error }, 'could not update achievements after approval');
+      }
+
       return { awarded: chore.points_value, bonus };
     } catch (error) {
       await client.query('ROLLBACK');

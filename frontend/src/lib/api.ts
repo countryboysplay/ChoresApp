@@ -1,4 +1,5 @@
 import type {
+  AchievementsResponse,
   CashOutRequest,
   ChildProfileResponse,
   ChoreWeekResponse,
@@ -128,6 +129,10 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(note ? { note } : {}),
       }),
+  },
+
+  achievements: {
+    mine: () => request<AchievementsResponse>('/api/child/achievements'),
   },
 
   standings: {

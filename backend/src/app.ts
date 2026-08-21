@@ -12,6 +12,7 @@ import { APP_VERSION } from './version.js';
 import { registerErrorHandler } from './errors.js';
 import { applyPushConfig, pushConfig } from './notifications/push.js';
 import { auth } from './auth/plugin.js';
+import { achievementRoutes } from './routes/achievements.js';
 import { approvalRoutes } from './routes/approvals.js';
 import { authRoutes } from './routes/auth.js';
 import { backupRoutes } from './routes/backups.js';
@@ -121,6 +122,7 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
   await app.register(walletRoutes, { env });
   await app.register(cashOutRoutes, { env });
   await app.register(standingRoutes, { env });
+  await app.register(achievementRoutes, { env });
   await app.register(healthRoutes, { env, version: APP_VERSION });
   await app.register(resetRoutes);
 
