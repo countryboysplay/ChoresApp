@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { WalletResponse } from '@chore-quest/shared';
+import type { CashOutRequest, WalletResponse } from '@chore-quest/shared';
 import { Icon } from '../../design/icons';
-import { Badge, Meter } from '../../design/primitives';
+import { Badge, Button, Meter } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { api, ApiRequestError } from '../../lib/api';
 
@@ -10,17 +10,29 @@ import { api, ApiRequestError } from '../../lib/api';
  *
  * Cash-out renders its "turned off" state until an owner sets the
  * points-to-dollars rate and the minimum balance. Those are deliberately unset
- * - the specification forbids inventing either - so the server sends a plain
- * `configured: false` rather than leaving this screen to guess from nulls.
+ * to begin with - the specification forbids inventing either - so the server
+ * sends a plain `configured: false` rather than leaving this screen to guess
+ * from nulls.
+ *
+ * Once they are set this screen has to offer something to press. It explained
+ * the exchange rate, drew the weekly meter and stopped there for as long as it
+ * existed, which was invisible while the rate was null and became a promise
+ * with no way to take it up the moment an owner filled the pair in.
  */
 export function Wallet() {
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
+  const [mine, setMine] = useState<CashOutRequest[]>([]);
+  const [dollars, setDollars] = useState('');
+  const [asking, setAsking] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setWallet(await api.wallet.mine());
+      const [loaded, requests] = await Promise.all([api.wallet.mine(), api.cashOut.mine()]);
+      setWallet(loaded);
+      setMine(requests.requests);
       setError(null);
     } catch (caught) {
       setError(caught instanceof ApiRequestError ? caught.message : 'Could not load your wallet.');
@@ -60,6 +72,48 @@ export function Wallet() {
   }
 
   const { cashOut } = wallet;
+
+  /*
+   * What this child could ask for right now: whole dollars only, limited by
+   * what they have, and by what is left of the household's week. Whole dollars
+   * because pocket money is, and because a request for $3.47 is a rounding
+   * argument nobody wants to have on a Saturday.
+   */
+  // Narrowed once here rather than at every use: `configured` is the server
+  // saying both are set, but it cannot tell the compiler that.
+  const rate = cashOut.pointsPerDollar ?? 0;
+  const minimumPoints = cashOut.minimumPoints ?? 0;
+
+  const remainingCents = cashOut.configured
+    ? Math.max(0, cashOut.weeklyCapCents - cashOut.usedThisWeekCents)
+    : 0;
+  const affordableDollars =
+    cashOut.configured && rate
+      ? Math.floor(wallet.spendablePoints / rate)
+      : 0;
+  const maxDollars = Math.min(affordableDollars, Math.floor(remainingCents / 100));
+  const canAsk =
+    cashOut.configured &&
+    minimumPoints > 0 &&
+    wallet.spendablePoints >= minimumPoints &&
+    maxDollars >= 1;
+  const wanted = Number(dollars) > 0 ? Math.floor(Number(dollars)) : 0;
+
+  const ask = async () => {
+    setAsking(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await api.cashOut.ask(wanted * 100);
+      setDollars('');
+      setNotice('Asked. A parent will say yes or no.');
+      await load();
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : 'That did not go through.');
+    } finally {
+      setAsking(false);
+    }
+  };
 
   return (
     <>
@@ -108,6 +162,84 @@ export function Wallet() {
                 {cashOut.pointsPerDollar} points is $1. You need at least {cashOut.minimumPoints} points
                 to cash out.
               </p>
+
+              {notice && (
+                <p role="status" className="badge badge--done" style={{ padding: 'var(--space-2)' }}>
+                  {notice}
+                </p>
+              )}
+
+              {canAsk ? (
+                <>
+                  <label className="field">
+                    <span className="field__label">How much?</span>
+                    <input
+                      className="input numeric"
+                      type="number"
+                      inputMode="decimal"
+                      min={1}
+                      max={maxDollars}
+                      step={1}
+                      value={dollars}
+                      placeholder={`1 to ${maxDollars}`}
+                      onChange={(event) => setDollars(event.target.value)}
+                    />
+                  </label>
+                  <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+                    {wanted > 0
+                      ? `That is ${wanted * rate} points, leaving you ${wallet.spendablePoints - wanted * rate}.`
+                      : `You can ask for up to $${maxDollars} right now.`}
+                  </p>
+                  <Button
+                    tone="go"
+                    block
+                    disabled={asking || wanted <= 0 || wanted > maxDollars}
+                    onClick={() => void ask()}
+                  >
+                    {asking ? 'Asking…' : 'Ask to cash out'}
+                  </Button>
+                </>
+              ) : (
+                // Said plainly, and which of the two reasons it is. "You cannot"
+                // with no reason is the kind of thing a child reads as broken.
+                <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+                  {wallet.spendablePoints < minimumPoints
+                    ? `Keep going - ${minimumPoints - wallet.spendablePoints} more points and you can ask.`
+                    : 'That is the whole of this week already. You can ask again next week.'}
+                </p>
+              )}
+
+              {mine.length > 0 && (
+                <div className="stack stack--tight">
+                  <span className="eyebrow">What you have asked for</span>
+                  {mine.slice(0, 5).map((entry) => (
+                    <div key={entry.id} className="row row--between" style={{ fontSize: 'var(--text-sm)' }}>
+                      <span className="muted">
+                        ${(entry.amountCents / 100).toFixed(2)} · {entry.points} points
+                      </span>
+                      <Badge
+                        tone={
+                          entry.status === 'paid'
+                            ? 'done'
+                            : entry.status === 'denied'
+                              ? 'late'
+                              : entry.status === 'approved'
+                                ? 'info'
+                                : 'waiting'
+                        }
+                      >
+                        {entry.status === 'requested'
+                          ? 'Waiting'
+                          : entry.status === 'approved'
+                            ? 'Coming'
+                            : entry.status === 'paid'
+                              ? 'Paid'
+                              : 'Not this time'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             // Not an error state. Nobody has set the household's rate yet, and

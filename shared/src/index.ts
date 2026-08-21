@@ -156,6 +156,18 @@ export interface ChildProfileResponse {
 }
 
 /** One household day's core chores, for the week view on Missions. */
+export type CashOutStatus = 'requested' | 'approved' | 'denied' | 'paid';
+
+export interface CashOutRequest {
+  id: string;
+  points: number;
+  amountCents: number;
+  status: CashOutStatus;
+  at: string;
+  note?: string | null;
+  child?: { id: string; displayName: string };
+}
+
 export interface ChoreWeekDay {
   date: string;
   chores: Chore[];

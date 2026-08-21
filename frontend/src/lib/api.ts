@@ -1,4 +1,5 @@
 import type {
+  CashOutRequest,
   ChildProfileResponse,
   ChoreWeekResponse,
   LeaderboardResponse,
@@ -109,6 +110,24 @@ export const api = {
     me: () => request<MeResponse>('/api/auth/me'),
 
     logout: () => request<{ ok: true }>('/api/auth/logout', { method: 'POST' }),
+  },
+
+  cashOut: {
+    mine: () => request<{ requests: CashOutRequest[] }>('/api/child/cash-out'),
+
+    ask: (amountCents: number) =>
+      request<{ request: CashOutRequest }>('/api/child/cash-out', {
+        method: 'POST',
+        body: JSON.stringify({ amountCents }),
+      }),
+
+    queue: () => request<{ requests: CashOutRequest[] }>('/api/parent/cash-out'),
+
+    decide: (id: string, action: 'approve' | 'paid' | 'deny', note?: string) =>
+      request<{ ok: true }>(`/api/parent/cash-out/${id}/${action}`, {
+        method: 'POST',
+        body: JSON.stringify(note ? { note } : {}),
+      }),
   },
 
   standings: {

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { ManagedReward, RewardRequest } from '@chore-quest/shared';
+import type { ManagedReward, RewardRequest,
+  CashOutRequest,
+} from '@chore-quest/shared';
 import { Icon, type IconName } from '../../design/icons';
-import { Button, EmptyState, PointsPill, Segmented, Sheet } from '../../design/primitives';
+import { Badge, Button, EmptyState, PointsPill, Segmented, Sheet } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { api, ApiRequestError } from '../../lib/api';
 
@@ -36,6 +38,7 @@ const BLANK: Draft = {
  */
 export function RewardManage() {
   const [tab, setTab] = useState<(typeof TABS)[number]>('Requests');
+  const [cashOuts, setCashOuts] = useState<CashOutRequest[]>([]);
   const [rewards, setRewards] = useState<ManagedReward[]>([]);
   const [pending, setPending] = useState<RewardRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +60,9 @@ export function RewardManage() {
     } finally {
       setLoading(false);
     }
+      // The money queue lives beside the reward queue: both are a child asking
+      // to spend what they earned, and a parent deciding once.
+      setCashOuts((await api.cashOut.queue()).requests);
   }, []);
 
   useEffect(() => {
@@ -119,6 +125,18 @@ export function RewardManage() {
     );
   }
 
+  const decideCashOut = async (id: string, action: 'approve' | 'paid' | 'deny') => {
+    setWorking(true);
+    try {
+      await api.cashOut.decide(id, action);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : 'That did not work.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
   return (
     <>
       <ScreenTop title="Rewards" />
@@ -131,8 +149,59 @@ export function RewardManage() {
           </p>
         )}
 
+        {tab === 'Requests' && cashOuts.length > 0 && (
+          <section className="stack stack--tight" style={{ marginTop: 'var(--space-4)' }}>
+            <span className="eyebrow">Cash out</span>
+            {cashOuts.map((entry) => (
+              <article key={entry.id} className="card stack stack--tight">
+                <div className="row" style={{ gap: 'var(--space-3)' }}>
+                  <span className="tile-icon tile-icon--gold tile-icon--sm">
+                    <Icon name="coin" size={20} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontWeight: 800, display: 'block' }}>
+                      ${(entry.amountCents / 100).toFixed(2)}
+                    </span>
+                    <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
+                      {entry.child?.displayName} · {entry.points} points
+                    </span>
+                  </span>
+                  <Badge tone={entry.status === 'approved' ? 'info' : 'waiting'}>
+                    {entry.status === 'approved' ? 'Owed' : 'Waiting'}
+                  </Badge>
+                </div>
+
+                <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+                  {entry.status === 'approved'
+                    ? 'Agreed but not handed over yet. Mark it paid once it has.'
+                    : 'Their points are already held. Saying no puts them straight back.'}
+                </p>
+
+                <div className="row" style={{ gap: 'var(--space-3)' }}>
+                  <Button
+                    tone="stop"
+                    block
+                    disabled={working}
+                    onClick={() => void decideCashOut(entry.id, 'deny')}
+                  >
+                    Not this time
+                  </Button>
+                  <Button
+                    tone="go"
+                    block
+                    disabled={working}
+                    onClick={() => void decideCashOut(entry.id, entry.status === 'approved' ? 'paid' : 'approve')}
+                  >
+                    {entry.status === 'approved' ? 'Mark paid' : 'Approve'}
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
+
         {tab === 'Requests' ? (
-          pending.length === 0 ? (
+          pending.length === 0 && cashOuts.length === 0 ? (
             <div style={{ marginTop: 'var(--space-5)' }}>
               <EmptyState
                 icon="check"
