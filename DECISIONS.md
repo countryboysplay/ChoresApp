@@ -1877,8 +1877,11 @@ every request, so a frontend change needs no restart at all; stopping the server
 to publish a stylesheet only ever bought an outage. Reach for "Rebuild everything
 and restart" when backend code changed.
 
-**Not verified on a phone.** Typecheck, lint, the 55 backend tests that run
-without a database, the 31 frontend tests, and the production build all pass, and
-`/api/reset` and the tightened fallback are covered by tests. Whether
-workbox-window raises `waiting` for a worker that was already waiting when the
-page loaded — the common case — is the one thing only a real handset can settle.
+**Verified on the phone it was written for**, an iPhone on Safari, end to end:
+`/api/reset` cleared the orphaned worker and reported what it had done, the next
+build raised "A new version is ready" on System status, and installing it from
+there loaded the new build without closing a tab. So workbox-window does raise
+`waiting` for a worker that was already waiting when the page loaded, which was
+the one thing only a handset could settle. Typecheck, lint, the 55 backend tests
+that run without a database, the 31 frontend tests, and the production build all
+pass, and `/api/reset` and the tightened fallback are covered by tests.
