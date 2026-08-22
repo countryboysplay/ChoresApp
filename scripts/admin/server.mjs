@@ -453,7 +453,8 @@ async function backupNow(driveLetter) {
  *
  * A restart is the one thing here that genuinely takes the app off the air, so
  * it waits for the port to actually free, starts, waits for it to answer again,
- * and reports how long that took. Saying "back after 6s" is worth more than
+ * and reports how long that took - and never reports success on a server that
+ * has not answered. Saying "back after 6s" is worth more than
  * saying "restarted", because the number is the thing somebody wants to know
  * before doing it again at bedtime.
  */
@@ -461,31 +462,36 @@ async function restartTask() {
   const started = Date.now();
   await powershell(`Stop-ScheduledTask -TaskName '${TASK}'`);
 
+  /*
+   * If it will not let go, start it anyway rather than leaving it stopped.
+   *
+   * The task is already stopped by the line above, so there is no version of
+   * this that changes nothing - and an earlier draft said "Nothing was changed"
+   * here, which was worse than useless: it would have left the household's app
+   * down while telling whoever read it that it was still up. A start that fails
+   * because the port is held is recoverable and visible; a server nobody knows
+   * is stopped is neither.
+   */
   const free = await waitFor(async () => !(await portIsBusy()), 15_000);
-  if (!free) {
-    throw new Error(
-      'The server did not let go of its port within 15 seconds, so it was not restarted. ' +
-        'Nothing was changed; try again, or stop the task by hand.',
-    );
-  }
-
   await powershell(`Start-ScheduledTask -TaskName '${TASK}'`);
+
   const back = await waitFor(portIsBusy, 60_000);
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
 
-  return back
-    ? { restarted: true, seconds }
-    : {
-        restarted: false,
-        seconds,
-        warning:
-          'It was stopped and started, but nothing is answering yet. Check the log below.',
-      };
+  if (back) return { restarted: true, seconds };
+
+  return {
+    restarted: false,
+    seconds,
+    warning: free
+      ? 'It was stopped and started, but nothing is answering. Check the log below.'
+      : 'It would not let go of its port, so the restart was issued on top of it ' +
+        'and nothing is answering. The server is stopped. Check the log below.',
+  };
 }
 
-/** Whether anything holds the port the household is served on. */
-function portIsBusy() {
-  const port = env.TLS_DIR ? Number(env.HTTPS_PORT || 443) : Number(env.PORT || 4000);
+/** Whether anything holds a given port on this machine. */
+function listening(port) {
   return new Promise((resolve) => {
     const socket = netConnect({ host: '127.0.0.1', port });
     const answer = (open) => {
@@ -497,6 +503,25 @@ function portIsBusy() {
     socket.once('timeout', () => answer(false));
     socket.once('error', () => answer(false));
   });
+}
+
+/**
+ * Whether the household's server is holding either of the ports it might use.
+ *
+ * Both, and not the one TLS_DIR implies. The backend chooses by whether a
+ * certificate actually loaded - `certificate ? HTTPS_PORT : PORT` in
+ * server.ts - and TLS_DIR set with no certificate yet is a supported state that
+ * serve.mjs reports as a note rather than a problem. Guessing from TLS_DIR gets
+ * that case exactly backwards: it would watch 443 while the app served 4000, so
+ * the wait for the port to free would pass instantly and the wait for it to come
+ * back could never pass at all - a full minute of stall and then a false alarm
+ * about a restart that worked.
+ *
+ * This is the same answer restore.ts settled on for the same question.
+ */
+async function portIsBusy() {
+  return (await listening(Number(env.PORT || 4000))) ||
+    (await listening(Number(env.HTTPS_PORT || 443)));
 }
 
 /** Polls until the check passes or the deadline runs out. */

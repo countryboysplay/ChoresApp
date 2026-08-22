@@ -306,7 +306,10 @@ async function act(button) {
         r.output.replace(/</g, '&lt;') + '</pre>', true);
     } else if (what === 'rebuild') {
       const r = await api('/api/rebuild');
-      say('opMsg', 'Rebuilt and restarted.<pre>' + r.output.replace(/</g, '&lt;') + '</pre>', true);
+      // The route returns the restart result, and rendering a fixed green
+      // "Rebuilt and restarted" over the top of a server that did not come back
+      // is the failure this whole change exists to stop.
+      say('opMsg', downtime(r) + '<pre>' + r.output.replace(/</g, '&lt;') + '</pre>', r.restarted !== false);
     }
   } catch (error) {
     const target = { start: 'taskMsg', stop: 'taskMsg', restart: 'taskMsg', backup: 'backupMsg',
