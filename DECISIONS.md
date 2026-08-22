@@ -1972,3 +1972,46 @@ being taken away - and everything it wrote was cleared afterwards. The restore
 guard was confirmed to refuse while the server was running. The new endpoints
 were confirmed registered and guarded. **Not verified by a child signing in:**
 the owner asked to keep the children's side closed until this was finished.
+
+---
+
+## 2026-08-22 — The backup drive, and the pruning that had to come with it
+
+**Decision.** `BACKUP_MIRROR_DIR=D:\ChoreQuestBackups`. And `pruneBackups` now
+sweeps the mirror as well as the laptop, by reading what is on the drive rather
+than by trusting the table.
+
+**Reason.** The mirror was the last thing on the "deliberately unfinished" list
+that protected against something a household actually loses. Ten good backups
+existed and every one of them was on the disk they were protecting.
+
+The pruning is not a separate improvement; it is what makes the mirror safe to
+turn on. Pruning deleted the local folder and then the row - and the row is the
+only place `mirror_path` was ever written. So a backup pruned from the table on
+Tuesday is a folder on the drive that nothing remembers by Wednesday: unprunable
+by anything except a person reading timestamps, growing by one copy of the whole
+household every night, on the drive whose whole job is to still have room when
+it is needed.
+
+**Consequences.** The sweep reads the drive and keeps the folders whose names
+match the backups being kept, which is the only version that survives the drive
+being absent. An unplugged night prunes nothing and costs nothing; whatever was
+missed is swept the next time it is present. A folder it cannot delete is a
+warning and not a failed night, the same as the local sweep.
+
+`pruneBackups` takes `env` now, optionally, so the existing tests still call it
+with two arguments and skip the mirror entirely.
+
+**Verified against the drive.** A backup taken by hand landed in both places. A
+decoy folder with no matching row was swept while all three real mirrored
+backups survived, and no local backup was pruned - eleven of them against a
+fourteen-day daily retention, which is correct.
+
+**Worth knowing.** The backups predating today still contain the test household
+that `reset-activity` cleared, including the photograph. That is what a backup
+is for, and it is also where to look if any of it is ever wanted back. The
+2026-08-21T02-29-55-314 folder is the copy taken immediately before the wipe.
+
+**And the limit.** A drive that lives in the laptop is protection against a
+failed disk and nothing else. Off-site means occasionally somewhere else, and
+nothing in software can arrange that.

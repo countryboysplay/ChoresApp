@@ -448,11 +448,13 @@ was either finished or removed.
 
 Still deliberately unfinished, so it lands where it belongs:
 
-- **Plug the backup drive in.** `BACKUP_MIRROR_DIR` is unset, so backups exist
-  only on this laptop. That covers a mistake or a damaged database and nothing
-  else - not a dead disk, not a stolen laptop. Set it to a folder on a USB drive
-  in `backend/.env` and every nightly backup copies itself there whenever the
-  drive is present.
+- **The backup drive is plugged in and configured.** `BACKUP_MIRROR_DIR` points
+  at `D:\ChoreQuestBackups`, so every backup copies itself there whenever the
+  drive is present and is skipped quietly when it is not. Pruning sweeps the
+  drive as well, by reading it rather than by trusting the table, so an
+  unplugged night costs nothing and the drive does not fill with every backup
+  the household ever took. The one thing this cannot survive is the drive
+  living permanently in the laptop: off-site means occasionally somewhere else.
 - **Points-to-dollars rate and cash-out minimum start NULL.** Setting both is
   what turns cash out on, and this household has. The columns exist
   with no defaults and a test asserts they are unset, so the wallet keeps

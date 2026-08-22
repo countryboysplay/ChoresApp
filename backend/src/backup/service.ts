@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { cp, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { basename, isAbsolute, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import type { FastifyBaseLogger } from 'fastify';
 import type pg from 'pg';
@@ -224,7 +224,8 @@ export async function runBackup(
 export async function pruneBackups(
   db: pg.Pool,
   log: FastifyBaseLogger,
-): Promise<{ removed: number }> {
+  env?: Env,
+): Promise<{ removed: number; mirrorRemoved: number }> {
   const { rows } = await db.query<{ id: string; directory: string; chore_date: string }>(
     `SELECT id, directory, to_char(chore_date, 'YYYY-MM-DD') AS chore_date
        FROM backups
@@ -265,7 +266,45 @@ export async function pruneBackups(
     }
   }
 
-  return { removed };
+  /*
+   * And the same sweep on the drive, if it is plugged in.
+   *
+   * By what is on it rather than by what the table says, which is the only
+   * version that works. Pruning deletes the row, and the row is the only place
+   * `mirror_path` was written - so a mirror pruned from the table on Tuesday is
+   * a folder nothing remembers by Wednesday. Left alone it fills the drive with
+   * every backup the household ever took, quietly, which is exactly the failure
+   * a backup drive is supposed to be insurance against.
+   *
+   * Reading the drive instead means an unplugged night costs nothing: whatever
+   * was missed is swept the next time it is present.
+   */
+  let mirrorRemoved = 0;
+  if (env && (await mirrorAvailable(env))) {
+    const mirrorDir = env.BACKUP_MIRROR_DIR as string;
+    // The local copy and its mirror share a folder name, so the names of the
+    // backups being kept are the names to keep on the drive.
+    const keepNames = new Set(
+      rows.filter((row) => keep.has(row.id)).map((row) => basename(row.directory)),
+    );
+
+    try {
+      for (const entry of await readdir(mirrorDir, { withFileTypes: true })) {
+        if (!entry.isDirectory() || keepNames.has(entry.name)) continue;
+        try {
+          await rm(join(mirrorDir, entry.name), { recursive: true, force: true });
+          mirrorRemoved += 1;
+        } catch (error) {
+          log.warn({ err: error, directory: entry.name }, 'could not remove old mirrored backup');
+        }
+      }
+    } catch (error) {
+      // The drive going away mid-sweep is the ordinary case, not a fault.
+      log.warn({ err: error }, 'could not read the backup mirror to prune it');
+    }
+  }
+
+  return { removed, mirrorRemoved };
 }
 
 /** ISO year-week, so a week that spans New Year is still one week. */
@@ -308,6 +347,6 @@ export async function backupIfDue(
   if (rows.length > 0) return null;
 
   const result = await runBackup(db, env, log, 'scheduled', now);
-  await pruneBackups(db, log);
+  await pruneBackups(db, log, env);
   return result;
 }

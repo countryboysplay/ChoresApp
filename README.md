@@ -142,7 +142,9 @@ into `backend/storage/backups`. It keeps 14 nightly backups and then 8 weekly
 ones, so roughly four months of history. There is a "Back up now" button on
 System status too.
 
-**Backups on the same disk are not protection against losing the laptop.** To
+**Backups on the same disk are not protection against losing the laptop.** This
+household mirrors to `D:\ChoreQuestBackups`; if the drive is out, the copy is
+skipped and System status says so rather than pretending. To
 keep a copy that survives the machine, set `BACKUP_MIRROR_DIR` in `backend/.env`
 to a folder on a USB drive:
 
