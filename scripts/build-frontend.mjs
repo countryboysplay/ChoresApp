@@ -27,6 +27,11 @@
  * written last, so at no point does the directory hold a shell pointing at
  * assets that are not there yet.
  *
+ * Everything that builds the app comes through here, including
+ * `npm run build -w frontend`, which is the natural thing for a person to type
+ * and used to be a plain `vite build` straight into the directory being served.
+ * A foot-gun with a sensible name is still a foot-gun.
+ *
  * It is also the honest place to check that the build produced a service
  * worker. vite-plugin-pwa emits sw.js in a second pass that runs *after* Vite
  * prints that the build succeeded, so a run cut short at the wrong second

@@ -165,6 +165,15 @@
 <script>
 const TOKEN = '__TOKEN__';
 
+// The number is the point: somebody deciding whether to press this again at
+// bedtime wants to know how long the app was actually off the air, not merely
+// that something happened.
+function downtime(r) {
+  if (!r || r.seconds === undefined) return 'Done.';
+  if (r.restarted === false) return (r.warning || 'It did not come back.') + ' (' + r.seconds + 's)';
+  return 'Back after ' + r.seconds + 's.';
+}
+
 async function api(path, body) {
   const response = await fetch(path + '?token=' + TOKEN, {
     method: body === undefined ? 'GET' : 'POST',
@@ -260,8 +269,14 @@ async function act(button) {
 
   try {
     if (what === 'start' || what === 'stop' || what === 'restart') {
-      await api('/api/task/' + what);
-      say('taskMsg', what === 'stop' ? 'Stopped. The household cannot reach it now.' : 'Done.', true);
+      const r = await api('/api/task/' + what);
+      const message =
+        what === 'stop'
+          ? 'Stopped. The household cannot reach it now.'
+          : what === 'restart'
+            ? downtime(r)
+            : 'Done.';
+      say('taskMsg', message, what !== 'restart' || r.restarted !== false);
     } else if (what === 'backup') {
       const drive = document.getElementById('drive').value;
       const r = await api('/api/backup', { drive });

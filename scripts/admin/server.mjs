@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { connect as netConnect } from 'node:net';
 import { createServer } from 'node:http';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
@@ -441,6 +442,73 @@ async function backupNow(driveLetter) {
 
 /* ---------- the http surface ---------- */
 
+/**
+ * Stop the server and start it again, waiting on the thing that matters.
+ *
+ * The old shape was `Stop; Start-Sleep 3; Start`, and three seconds was a guess
+ * in both directions. Too long, because the port is usually free in well under
+ * one; too short, because nothing checked - so a start issued while the old
+ * process still held 443 would fail, the task would report success, and the
+ * household would be told the server had restarted when it had not come back.
+ *
+ * A restart is the one thing here that genuinely takes the app off the air, so
+ * it waits for the port to actually free, starts, waits for it to answer again,
+ * and reports how long that took. Saying "back after 6s" is worth more than
+ * saying "restarted", because the number is the thing somebody wants to know
+ * before doing it again at bedtime.
+ */
+async function restartTask() {
+  const started = Date.now();
+  await powershell(`Stop-ScheduledTask -TaskName '${TASK}'`);
+
+  const free = await waitFor(async () => !(await portIsBusy()), 15_000);
+  if (!free) {
+    throw new Error(
+      'The server did not let go of its port within 15 seconds, so it was not restarted. ' +
+        'Nothing was changed; try again, or stop the task by hand.',
+    );
+  }
+
+  await powershell(`Start-ScheduledTask -TaskName '${TASK}'`);
+  const back = await waitFor(portIsBusy, 60_000);
+  const seconds = ((Date.now() - started) / 1000).toFixed(1);
+
+  return back
+    ? { restarted: true, seconds }
+    : {
+        restarted: false,
+        seconds,
+        warning:
+          'It was stopped and started, but nothing is answering yet. Check the log below.',
+      };
+}
+
+/** Whether anything holds the port the household is served on. */
+function portIsBusy() {
+  const port = env.TLS_DIR ? Number(env.HTTPS_PORT || 443) : Number(env.PORT || 4000);
+  return new Promise((resolve) => {
+    const socket = netConnect({ host: '127.0.0.1', port });
+    const answer = (open) => {
+      socket.destroy();
+      resolve(open);
+    };
+    socket.setTimeout(1000);
+    socket.once('connect', () => answer(true));
+    socket.once('timeout', () => answer(false));
+    socket.once('error', () => answer(false));
+  });
+}
+
+/** Polls until the check passes or the deadline runs out. */
+async function waitFor(check, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (await check()) return true;
+    if (Date.now() > deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
+
 const routes = {
   'GET /api/status': async () => ({
     task: await taskState(),
@@ -468,10 +536,7 @@ const routes = {
     return { ok: true };
   },
   'POST /api/task/restart': async () => {
-    await powershell(
-      `Stop-ScheduledTask -TaskName '${TASK}'; Start-Sleep -Seconds 3; Start-ScheduledTask -TaskName '${TASK}'`,
-    );
-    return { ok: true };
+    return restartTask();
   },
 
   'POST /api/backup': async (body) => backupNow(body.drive || null),
@@ -525,10 +590,11 @@ const routes = {
       shell: true,
       maxBuffer: 8 * 1024 * 1024,
     });
-    await powershell(
-      `Stop-ScheduledTask -TaskName '${TASK}'; Start-Sleep -Seconds 3; Start-ScheduledTask -TaskName '${TASK}'`,
-    );
-    return { output: `${stdout}\n${stderr}`.trim().split('\n').slice(-12).join('\n') };
+    const restart = await restartTask();
+    return {
+      ...restart,
+      output: `${stdout}\n${stderr}`.trim().split('\n').slice(-12).join('\n'),
+    };
   },
 };
 
