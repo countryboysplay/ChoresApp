@@ -1,20 +1,20 @@
 # Chore Quest — Project State
 
-_Last updated: 2026-08-21_
+_Last updated: 2026-09-22_
 
 | Field | Value |
 | --- | --- |
 | Current stage | Stage 18 — Starting by itself |
-| Stage status | Built and verified; needs one elevated command to register the task |
+| Stage status | Built and verified; infrastructure has since moved off the laptop, see "Infrastructure move" below |
 | Last approved stage | Stage 2 — Design system and static GUI, approved 2026-08-19 |
 | Frontend URL (dev) | http://localhost:5173 |
 | Backend URL (dev) | http://localhost:4000 (health: `/api/health`) |
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
-| Production URL | https://chores.lindsayfam.org — home wifi only. Resolves to 192.168.0.178, this laptop's reserved address. Certificate from Let's Encrypt, renews itself |
+| Production URL | https://chores.lindsayfam.org — served from the ZimaOS box (not the Windows laptop), reachable from the open internet via a Cloudflare Tunnel. See "Infrastructure move" below |
 | Database migration status | 12 migrations applied; 19 tables, 10 enums. Rolls back to empty and forward again cleanly |
 | Test status | 263 in CI (232 backend, 31 frontend). On the laptop 179 skip by design - tests may not touch the household database |
-| Last known good commit | `69cea4f` — Stage 17 running for real; CI green |
+| Last known good commit | `69cea4f` — Stage 17 running for real; CI green. GitHub `main` is at `4da4f2f` (2026-08-30); nothing since `69cea4f` touches app code or screens |
 
 ## Stage 0 findings
 
@@ -407,6 +407,70 @@ In an **elevated** PowerShell:
 Close whatever is serving on port 443 first, then start it without rebooting:
 
     Start-ScheduledTask -TaskName 'Chore Quest'
+
+## Infrastructure move — ZimaOS (2026-09-22)
+
+Production moved off the Windows laptop entirely. The app code did not change -
+this is Stages 16 through 18's *delivery mechanism* being replaced, not the
+stages themselves, and everything below supersedes what those stages describe
+about how the household is served.
+
+The backend now runs as a Docker container on a ZimaOS box (`ZimaCube`,
+hostname `ZimaOS`), built from a new root-level `Dockerfile` and
+`docker-compose.yml` that did not exist before this move. `FRONTEND_DIST` is
+baked into the image, so the container still serves the built frontend from
+the same origin as the API - the cookie reasoning in Stage 16 still holds, it
+just isn't this laptop doing it any more.
+
+- **Database.** PostgreSQL runs as its own ZimaOS app (`postgres:17.4`), not
+  the backend's own container - a `chore_quest` role and database were created
+  inside it by hand, separate from that app's shared `casaos` database. The
+  backend reaches it over the `postgresql_default` Docker network.
+- **TLS is no longer the app's job.** Stage 16's DNS-01/Let's Encrypt flow
+  (`PUBLIC_HOSTNAME`, `TLS_DIR`, `CLOUDFLARE_API_TOKEN`, port 443) is unused in
+  this deployment. `chores.lindsayfam.org` now runs through the same Cloudflare
+  Tunnel already serving `jellyfin.lindsayfam.org` and
+  `navidrome.lindsayfam.org` from this box - Cloudflare terminates https at
+  their edge and proxies to the container's plain-http port 4000. The
+  container itself only ever speaks http.
+- **This is a real change to the "nothing is exposed to the internet" decision
+  Stage 16 made.** A Cloudflare Tunnel is reachable from anywhere, not just the
+  home wifi, matching how this household already runs Jellyfin and Navidrome.
+  PIN lockout (`backend/src/auth/lockout.ts`) is the safeguard that exists for
+  this; nothing new was added for it.
+- **Startup supervision is now Docker's job.** `restart: unless-stopped`
+  replaces Stage 18's Windows Scheduled Task and its own backoff/retry
+  launcher - both are unused in this deployment, along with the per-day log
+  files under `backend/storage/logs`.
+- **Backups still run on the same nightly tick**, verified working the first
+  time the container started. `BACKUP_MIRROR_DIR` now points at a folder on
+  this box's attached USB drive (a Seagate Expansion, mounted at
+  `/DATA/.media/sda2-usb-Seagate_Expansi`) rather than a Windows drive letter -
+  same idea as Stage 15, different disk.
+- **The laptop dashboard (`npm run admin`, Stage 18's servicing tool) is not
+  part of this deployment.** It was not containerized, so start/stop/restart,
+  add-a-parent, and PIN reset all happen via `docker compose exec backend
+  npm run <script>` from an SSH session instead, until/unless that dashboard is
+  rebuilt for the new host.
+- `PG_BIN_DIR` is unset and unnecessary here - the container installs
+  `postgresql-client` directly, so `pg_dump`/`pg_restore` are just on PATH.
+
+Old DNS leftover from the laptop era (a plain A record for
+`chores.lindsayfam.org` pointing at `192.168.0.178`) was deleted and replaced
+with the CNAME-to-tunnel record Cloudflare's dashboard creates for a published
+application, matching jellyfin/navidrome exactly.
+
+### Checked against the live splash screen (2026-09-22)
+
+The splash screen this deployment serves was checked against GitHub `main`
+(`4da4f2f`) directly - the local working copy and the live repository are
+byte-identical apart from the new Docker files. There is no redesign committed
+anywhere in this repository's history; the screen shown in production is
+still the Stage 2 "bright sky, castle, CHORE QUEST" design approved
+2026-08-19. If a newer splash design exists, it has not yet been implemented
+in code - it needs to land as an actual change to
+`frontend/src/screens/child/Splash.tsx` before a rebuild will show anything
+different.
 
 ## Next planned work
 

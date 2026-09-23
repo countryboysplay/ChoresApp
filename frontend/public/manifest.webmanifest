@@ -9,8 +9,8 @@
   "id": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#2f92ef",
-  "theme_color": "#0a1230",
+  "background_color": "#0f1113",
+  "theme_color": "#0f1113",
   "categories": ["lifestyle", "productivity"],
   "icons": [
     {

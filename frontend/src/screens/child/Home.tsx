@@ -76,7 +76,7 @@ export function ChildHome() {
             style={{
               padding: 3,
               borderRadius: '50%',
-              background: 'linear-gradient(180deg, #ffd54f, var(--gold))',
+              background: 'linear-gradient(180deg, #cba871, var(--gold))',
               display: 'grid',
             }}
           >
@@ -107,7 +107,7 @@ export function ChildHome() {
         onClick={() => navigate('/child/missions')}
       >
         <div className="row row--between" style={{ marginBottom: 'var(--space-3)' }}>
-          <span className="eyebrow">Today&apos;s progress</span>
+          <span className="eyebrow">Today&apos;s quests</span>
           <Icon name="arrow" size={20} />
         </div>
         <div className="row" style={{ gap: 'var(--space-4)' }}>
@@ -134,7 +134,7 @@ export function ChildHome() {
       {chore ? (
         <section className="card card--status is-info" style={{ marginTop: 'var(--space-4)', padding: 'var(--space-5)' }}>
           <div className="row row--between" style={{ marginBottom: 'var(--space-3)' }}>
-            <span className="eyebrow">Today&apos;s required chore</span>
+            <span className="eyebrow">Today&apos;s quest</span>
             <StatusBadge status={chore.status} />
           </div>
 
@@ -236,7 +236,7 @@ export function ChildHome() {
               <span style={{ fontSize: 'var(--text-sm)', opacity: 0.85 }}>Claim it before it expires</span>
             </span>
             <strong className="numeric" style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-lg)' }}>
-              +{nextBonus.points} pts
+              +{nextBonus.points}
             </strong>
           </div>
         </button>
@@ -252,7 +252,7 @@ export function ChildHome() {
           <Icon name="flame" size={34} style={{ color: 'var(--red)' }} />
         </span>
         <span style={{ flex: 1 }}>
-          <span className="eyebrow" style={{ color: 'rgba(30,30,47,0.7)' }}>
+          <span className="eyebrow" style={{ color: 'rgba(15,17,19,0.7)' }}>
             Streak
           </span>
           <span
@@ -261,7 +261,7 @@ export function ChildHome() {
             {summary.streakDays} {summary.streakDays === 1 ? 'day' : 'days'}
           </span>
         </span>
-        <Icon name="tree" size={34} style={{ color: '#2e7d32' }} />
+        <Icon name="tree" size={34} style={{ color: 'var(--green)' }} />
       </Link>
 
       {/* Recent win. Nothing to celebrate yet on a brand new account. */}
@@ -289,7 +289,7 @@ function Chest() {
       <path d="M22 44a38 24 0 0 1 76 0v6H22Z" fill="#a8752f" stroke="#6d4715" strokeWidth="3" />
       <rect x="22" y="50" width="76" height="34" rx="6" fill="#c08b3c" stroke="#6d4715" strokeWidth="3" />
       <rect x="22" y="56" width="76" height="8" fill="#e0b45f" />
-      <rect x="52" y="50" width="16" height="22" rx="3" fill="#ffd54f" stroke="#6d4715" strokeWidth="3" />
+      <rect x="52" y="50" width="16" height="22" rx="3" fill="#cba871" stroke="#6d4715" strokeWidth="3" />
       <circle cx="60" cy="62" r="3" fill="#6d4715" />
       <path d="M30 40a30 18 0 0 1 60 0" fill="none" stroke="#e0b45f" strokeWidth="4" />
     </svg>

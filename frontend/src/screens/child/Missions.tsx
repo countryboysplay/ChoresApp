@@ -112,7 +112,7 @@ export function Missions() {
   if (loading && !day) {
     return (
       <>
-        <ScreenTop title="Missions" />
+        <ScreenTop title="Quests" />
         <main className="screen">
           <p aria-live="polite" style={{ textAlign: 'center', marginTop: 'var(--space-6)' }}>
             Loading&hellip;
@@ -125,7 +125,7 @@ export function Missions() {
   if (!day) {
     return (
       <>
-        <ScreenTop title="Missions" />
+        <ScreenTop title="Quests" />
         <main className="screen">
           <div className="card card--status is-late">
             <p style={{ fontWeight: 700, margin: 0 }}>{error ?? 'Could not load missions.'}</p>
@@ -137,7 +137,7 @@ export function Missions() {
 
   return (
     <>
-      <ScreenTop title="Missions" />
+      <ScreenTop title="Quests" />
       <main className="screen">
         <Segmented options={RANGE} value={range} onChange={setRange} label="Time range" />
 

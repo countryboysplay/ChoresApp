@@ -282,7 +282,7 @@ function Confetti() {
   const pieces = [
     { x: 8, y: 10, color: 'var(--gold)' },
     { x: 26, y: 4, color: 'var(--green)' },
-    { x: 48, y: 12, color: '#fff' },
+    { x: 48, y: 12, color: 'var(--light)' },
     { x: 70, y: 3, color: 'var(--purple)' },
     { x: 88, y: 14, color: 'var(--red)' },
     { x: 16, y: 30, color: 'var(--purple)' },

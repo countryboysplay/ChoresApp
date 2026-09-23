@@ -10,7 +10,11 @@
  *
  *   npm run icons
  *
- * The bolt path is the one from the splash Logo component. Keep them in sync.
+ * The mark is a filled version of the "broken-compass" sigil - the same
+ * four-point star as the `compass` icon in design/icons.tsx and the Splash
+ * scene, redrawn solid rather than stroked because a launcher icon has to
+ * read at 48px on a homescreen, where thin strokes and the compass rings
+ * disappear. Keep the silhouette in sync with those if the sigil changes.
  */
 import { chromium } from 'playwright';
 import { writeFile, mkdir } from 'node:fs/promises';
@@ -20,34 +24,34 @@ import { dirname, join, resolve } from 'node:path';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = join(root, 'frontend', 'public');
 
-const BOLT = 'M17 1 3 24h11L11 41 31 16H19l6-15Z';
+const COMPASS = 'M50 6 60 40 94 50 60 60 50 94 40 60 6 50 40 40Z';
 
 /**
  * @param inset fraction of the canvas to keep clear around the mark. Maskable
  *   icons get cropped to a circle by the launcher, so the mark has to sit
- *   inside the middle 80% or Android will clip the bolt.
+ *   inside the middle 80% or Android will clip the star's points.
  */
 function iconSvg({ size, inset, radius }) {
-  const boltBox = size * (1 - inset * 2);
-  const scale = boltBox / 42; // the bolt viewBox is 34x42, height is the constraint
-  const boltW = 34 * scale;
-  const x = (size - boltW) / 2;
-  const y = (size - boltBox) / 2;
+  const markBox = size * (1 - inset * 2);
+  const scale = markBox / 100; // the compass viewBox is 100x100
+  const x = (size - markBox) / 2;
+  const y = (size - markBox) / 2;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#142254"/>
-      <stop offset="1" stop-color="#0a1230"/>
+      <stop offset="0" stop-color="#1b1f23"/>
+      <stop offset="1" stop-color="#0f1113"/>
     </linearGradient>
-    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffd451"/>
-      <stop offset="1" stop-color="#ffc107"/>
+    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cba871"/>
+      <stop offset="1" stop-color="#b08d57"/>
     </linearGradient>
   </defs>
   <rect width="${size}" height="${size}" rx="${radius}" fill="url(#bg)"/>
   <g transform="translate(${x} ${y}) scale(${scale})">
-    <path d="${BOLT}" fill="url(#bolt)" stroke="#b06a00" stroke-width="2" stroke-linejoin="round"/>
+    <path d="${COMPASS}" fill="url(#mark)" stroke="#6b5530" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle cx="50" cy="50" r="6" fill="#e7e1d6"/>
   </g>
 </svg>`;
 }

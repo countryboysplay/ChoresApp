@@ -20,5 +20,5 @@ export function countdown(minutesLeft: number): string {
 }
 
 export function points(value: number): string {
-  return `${value.toLocaleString('en-US')} pts`;
+  return `${value.toLocaleString('en-US')} Guild Points`;
 }

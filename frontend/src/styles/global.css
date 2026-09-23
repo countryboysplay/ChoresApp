@@ -1,10 +1,10 @@
-@import '@fontsource/fredoka/500.css';
-@import '@fontsource/fredoka/600.css';
-@import '@fontsource/fredoka/700.css';
-@import '@fontsource/nunito/400.css';
-@import '@fontsource/nunito/600.css';
-@import '@fontsource/nunito/700.css';
-@import '@fontsource/nunito/800.css';
+@import '@fontsource/cinzel/500.css';
+@import '@fontsource/cinzel/600.css';
+@import '@fontsource/cinzel/700.css';
+@import '@fontsource/crimson-pro/400.css';
+@import '@fontsource/crimson-pro/600.css';
+@import '@fontsource/crimson-pro/700.css';
+@import '@fontsource/crimson-pro/800.css';
 @import './tokens.css';
 
 *,
@@ -25,16 +25,24 @@ body {
   line-height: 1.5;
   color: var(--text);
   background:
-    radial-gradient(900px 520px at 12% -8%, rgba(124, 77, 255, 0.22), transparent 62%),
-    radial-gradient(760px 480px at 96% 2%, rgba(77, 124, 254, 0.2), transparent 58%),
-    var(--navy-900);
+    linear-gradient(180deg, rgba(15, 17, 19, 0.94) 0%, rgba(15, 17, 19, 0.98) 100%),
+    var(--texture-metal);
+  background-size: auto, 320px 320px;
+  background-repeat: no-repeat, repeat;
+  background-color: var(--navy-900);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Pre-login screens use the bright sky treatment from the board. */
+/* Pre-login screens: graphite depth with a faint topo-map watermark, in
+   place of the board's earlier bright sky treatment. */
 body.is-sky {
-  background: linear-gradient(180deg, var(--sky-light) 0%, var(--sky) 55%, var(--sky-deep) 100%);
+  background:
+    radial-gradient(900px 640px at 50% -10%, rgba(176, 141, 87, 0.14), transparent 62%),
+    linear-gradient(180deg, var(--sky-light) 0%, var(--sky) 55%, var(--sky-deep) 100%),
+    var(--texture-topo);
+  background-size: auto, auto, 480px 480px;
+  background-repeat: no-repeat, no-repeat, repeat;
   background-attachment: fixed;
 }
 

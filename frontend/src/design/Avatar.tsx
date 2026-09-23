@@ -13,10 +13,12 @@ export interface AvatarConfig {
   background: string;
 }
 
+// Real human variety - never tied to the theme, left untouched by the re-theme.
 export const SKIN_TONES = ['#f2c8a2', '#e0a878', '#c1804f', '#8d5524', '#5c3317', '#ffdbb4'];
 export const HAIR_COLORS = ['#2b1d14', '#5a3b22', '#a8631f', '#d9b168', '#1f1f2b', '#7c4dff'];
-export const SHIRT_COLORS = ['#407cfe', '#7c4dff', '#00c853', '#ffc107', '#ff5252', '#f5f7fa'];
-export const BACKGROUNDS = ['#407cfe', '#7c4dff', '#00c853', '#ffc107', '#ff5252', '#252539'];
+// Decorative, not identity - these sit inside the Guild Ledger palette.
+export const SHIRT_COLORS = ['#3d6f78', '#6b5a8f', '#5c7f5a', '#b08d57', '#8b3e33', '#e7e1d6'];
+export const BACKGROUNDS = ['#3d6f78', '#6b5a8f', '#5c7f5a', '#b08d57', '#8b3e33', '#1b1f23'];
 
 export const DEFAULT_AVATAR: AvatarConfig = {
   skin: '#e0a878',
@@ -24,9 +26,9 @@ export const DEFAULT_AVATAR: AvatarConfig = {
   hair: 'short',
   hairColor: '#2b1d14',
   eyes: 'happy',
-  shirt: '#407cfe',
+  shirt: '#3d6f78',
   accessory: 'none',
-  background: '#7c4dff',
+  background: '#6b5a8f',
 };
 
 const FACE_SHAPE: Record<AvatarConfig['face'], string> = {
@@ -46,25 +48,25 @@ const HAIR_SHAPE: Record<AvatarConfig['hair'], string> = {
 
 const EYE_SHAPE: Record<AvatarConfig['eyes'], JSX.Element> = {
   happy: (
-    <g strokeLinecap="round" strokeWidth={3} stroke="#1e1e2f" fill="none">
+    <g strokeLinecap="round" strokeWidth={3} stroke="#0f1113" fill="none">
       <path d="M40 47c1.5-2.5 4.5-2.5 6 0" />
       <path d="M54 47c1.5-2.5 4.5-2.5 6 0" />
     </g>
   ),
   wide: (
-    <g fill="#1e1e2f">
+    <g fill="#0f1113">
       <circle cx="43" cy="47" r="3.4" />
       <circle cx="57" cy="47" r="3.4" />
     </g>
   ),
   calm: (
-    <g strokeLinecap="round" strokeWidth={3} stroke="#1e1e2f">
+    <g strokeLinecap="round" strokeWidth={3} stroke="#0f1113">
       <path d="M40 48h6" />
       <path d="M54 48h6" />
     </g>
   ),
   wink: (
-    <g strokeLinecap="round" strokeWidth={3} stroke="#1e1e2f" fill="#1e1e2f">
+    <g strokeLinecap="round" strokeWidth={3} stroke="#0f1113" fill="#0f1113">
       <circle cx="43" cy="47" r="3.2" stroke="none" />
       <path d="M54 47c1.5-2.5 4.5-2.5 6 0" fill="none" />
     </g>
@@ -100,10 +102,10 @@ export function Avatar({ config = DEFAULT_AVATAR, size = 64, label }: AvatarProp
       <path d={HAIR_SHAPE[config.hair]} fill={config.hairColor} />
 
       {EYE_SHAPE[config.eyes]}
-      <path d="M45 58c3 2.5 7 2.5 10 0" stroke="#1e1e2f" strokeWidth={3} strokeLinecap="round" fill="none" />
+      <path d="M45 58c3 2.5 7 2.5 10 0" stroke="#0f1113" strokeWidth={3} strokeLinecap="round" fill="none" />
 
       {config.accessory === 'glasses' && (
-        <g stroke="#1e1e2f" strokeWidth={2.5} fill="rgba(255,255,255,0.24)">
+        <g stroke="#0f1113" strokeWidth={2.5} fill="rgba(255,255,255,0.24)">
           <rect x="36" y="42" width="13" height="10" rx="5" />
           <rect x="51" y="42" width="13" height="10" rx="5" />
           <path d="M49 47h2" />
@@ -115,7 +117,7 @@ export function Avatar({ config = DEFAULT_AVATAR, size = 64, label }: AvatarProp
       {config.accessory === 'cap' && (
         <g>
           <path d="M28 42c0-13 10-20 22-20s22 7 22 20Z" fill="var(--red)" />
-          <path d="M28 42h34c8 0 12 3 13 6H28Z" fill="#c62828" />
+          <path d="M28 42h34c8 0 12 3 13 6H28Z" fill="#6e2c23" />
         </g>
       )}
     </svg>

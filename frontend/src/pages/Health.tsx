@@ -81,7 +81,7 @@ export function Health() {
             borderRadius: 'var(--radius-pill)',
             padding: '0 var(--space-5)',
             fontWeight: 800,
-            color: '#fff',
+            color: 'var(--text-strong)',
             background: 'linear-gradient(180deg, var(--blue), var(--purple))',
             boxShadow: 'var(--shadow-card)',
           }}

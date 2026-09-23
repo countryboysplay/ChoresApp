@@ -4,8 +4,8 @@ import { Icon, type IconName } from '../design/icons';
 import { Sheet } from '../design/primitives';
 
 const PRIMARY: { to: string; label: string; icon: IconName }[] = [
-  { to: '/child/home', label: 'Home', icon: 'home' },
-  { to: '/child/missions', label: 'Missions', icon: 'missions' },
+  { to: '/child/home', label: 'Today', icon: 'home' },
+  { to: '/child/missions', label: 'Quests', icon: 'missions' },
   { to: '/child/rewards', label: 'Rewards', icon: 'gift' },
   { to: '/child/leaderboard', label: 'Leaderboard', icon: 'trophy' },
 ];
@@ -23,6 +23,13 @@ export function ChildShell() {
 
   return (
     <>
+      <div className="brandbar">
+        <span className="logo" style={{ fontSize: 'var(--text-base)' }}>
+          Chore Quest
+        </span>
+        <Icon name="compass" size={20} />
+      </div>
+
       <Outlet />
 
       <nav className="navbar" aria-label="Main">

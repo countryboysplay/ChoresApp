@@ -1,55 +1,67 @@
 /*
- * Chore Quest design tokens.
- * Derived from the approved design board. Screens must use these variables;
- * never hardcode a brand color in a component.
+ * Chore Quest design tokens - "Guild Ledger" board.
+ * Screens must use these variables; never hardcode a brand color in a
+ * component. Token *names* are kept stable across the re-theme wherever a
+ * clean mapping exists, so system.css rules and inline var(--x) usages in
+ * screens keep working without being touched.
  */
 :root {
-  /* Approved core palette */
-  --blue: #4d7cfe;
-  --purple: #7c4dff;
-  --green: #00c853;
-  --gold: #ffc107;
-  --red: #ff5252;
-  --dark: #1e1e2f;
-  --light: #f5f7fa;
+  /* Approved core palette (Guild Ledger board) */
+  --blue: #3d6f78; /* was #4d7cfe - now Teal */
+  --purple: #6b5a8f; /* muted plum, desaturated to sit with the board */
+  --green: #5c7f5a; /* was #00c853 - now Moss */
+  --gold: #b08d57; /* was #ffc107 - now Brass */
+  --red: #8b3e33; /* was #ff5252 - now Rust */
+  --dark: #0f1113; /* was #1e1e2f - now Graphite */
+  --light: #e7e1d6; /* was #f5f7fa - now Parchment */
 
-  /* App shell - deep navy, from the board */
-  --navy-950: #0a1230;
-  --navy-900: #0e1838;
-  --navy-800: #142254;
-  --surface: #1a2a63;
-  --surface-raised: #22357a;
-  --surface-sunken: rgba(6, 12, 34, 0.55);
-  --outline: rgba(122, 158, 255, 0.24);
-  --outline-strong: rgba(122, 158, 255, 0.45);
+  /* App shell - graphite/slate, from the board */
+  --navy-950: #08090a;
+  --navy-900: #0f1113;
+  --navy-800: #1b1f23;
+  --surface: #1b1f23;
+  --surface-raised: #262b30;
+  --surface-sunken: rgba(0, 0, 0, 0.35);
+  --outline: rgba(176, 141, 87, 0.28);
+  --outline-strong: rgba(176, 141, 87, 0.5);
 
-  /* Pre-login sky - splash, profile select, PIN */
-  --sky-light: #57b4f5;
-  --sky: #2f92ef;
-  --sky-deep: #1667c8;
+  /* Pre-login screens - retired the bright sky gradient for a graphite one
+     with a topo-map watermark (see global.css body.is-sky). */
+  --sky-light: #1b1f23;
+  --sky: #0f1113;
+  --sky-deep: #08090a;
 
-  /* Feature card blues, used for the hero panels */
-  --panel-blue: #3ba5f5;
-  --panel-blue-deep: #1f7fd6;
+  /* Feature panel gradient (the featured "quest" card from the board) */
+  --panel-blue: #8a6f45;
+  --panel-blue-deep: #5c4a2e;
 
   /* Text */
-  --text-strong: #ffffff;
-  --text: #e4ebff;
-  --text-muted: #9fb3e0;
+  --text-strong: #e7e1d6;
+  --text: #c9c2b4;
+  --text-muted: #8f8a7c;
   --text-on-light: var(--dark);
-  --text-on-gold: #4a3200;
-  --text-on-green: #05331b;
+  --text-on-gold: #14110b;
+  --text-on-green: #101a15;
 
   /* Status - always paired with an icon and a text label */
   --status-done: var(--green);
   --status-waiting: var(--gold);
   --status-late: var(--red);
   --status-info: var(--blue);
-  --orange: #ff9800;
+  --orange: #c17817;
+
+  /* Materials - generated tileable textures, applied as low-opacity
+     background-image layers, never as the sole background (a dark scrim
+     always sits between a texture and any text on top of it). */
+  --texture-metal: url('../assets/textures/metal.webp');
+  --texture-brass: url('../assets/textures/brass.webp');
+  --texture-paper: url('../assets/textures/paper.webp');
+  --texture-topo: url('../assets/textures/topo.webp');
+  --texture-leather: url('../assets/textures/leather.webp');
 
   /* Type */
-  --font-display: 'Fredoka', 'Nunito', 'Inter', system-ui, sans-serif;
-  --font-body: 'Nunito', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Cinzel', 'Georgia', 'Times New Roman', serif;
+  --font-body: 'Crimson Pro', 'Georgia', 'Times New Roman', serif;
 
   --text-xs: 0.8125rem;
   --text-sm: 0.9375rem;
@@ -59,17 +71,18 @@
   --text-2xl: 2rem;
   --text-3xl: 2.75rem;
 
-  /* Shape - the board is generously rounded */
-  --radius-sm: 12px;
-  --radius-md: 18px;
-  --radius-lg: 24px;
-  --radius-xl: 28px;
+  /* Shape - the board reads as bordered/engraved, not soft-rounded. Pills
+     (buttons, badges, chips) keep their full radius; card corners tighten. */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
   --radius-pill: 999px;
 
-  --shadow-card: 0 10px 24px rgba(4, 10, 30, 0.45);
-  --shadow-raised: 0 18px 40px rgba(4, 10, 30, 0.55);
-  --shadow-press: inset 0 4px 10px rgba(0, 0, 0, 0.35);
-  --shadow-glow: 0 0 0 3px rgba(124, 77, 255, 0.35);
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.55);
+  --shadow-raised: 0 10px 28px rgba(0, 0, 0, 0.6);
+  --shadow-press: inset 0 3px 8px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 0 3px rgba(176, 141, 87, 0.4);
 
   /* Spacing */
   --space-1: 4px;

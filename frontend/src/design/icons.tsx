@@ -43,7 +43,8 @@ export type IconName =
   | 'grid'
   | 'wallet'
   | 'arrow'
-  | 'sparkle';
+  | 'sparkle'
+  | 'compass';
 
 interface IconProps extends SVGProps<SVGSVGElement> {
   name: IconName;
@@ -91,6 +92,10 @@ const paths: Record<IconName, string> = {
   wallet: 'M3 7h14a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H5a2 2 0 0 1-2-2zM3 7a2 2 0 0 1 2-2h11M17 13h.01',
   arrow: 'M5 12h14M13 6l6 6-6 6',
   sparkle: 'M12 3v6M12 15v6M3 12h6M15 12h6M6 6l3 3M15 15l3 3M18 6l-3 3M9 15l-3 3',
+  // The signature "broken-compass" sigil: a four-point star with a housing
+  // ring, used as a decorative brand/section motif rather than a functional
+  // nav icon.
+  compass: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 3v3M12 18v3M3 12h3M18 12h3M12 7l2 5-2 5-2-5Z',
 };
 
 export function Icon({ name, size = 22, title, ...rest }: IconProps) {

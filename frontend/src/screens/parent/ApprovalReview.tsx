@@ -180,7 +180,7 @@ export function ApprovalReview() {
               Send back
             </Button>
             <Button tone="go" size="lg" block disabled={working} onClick={() => void approve()}>
-              {working ? 'Saving…' : `Approve · ${total} pts`}
+              {working ? 'Saving…' : `Approve · ${total} GP`}
             </Button>
           </div>
         )}

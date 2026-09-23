@@ -72,13 +72,13 @@ export function ProfileSelect() {
               <span style={{ flex: 1, textAlign: 'center' }}>
                 <span
                   className="logo"
-                  style={{ display: 'block', fontSize: 'var(--text-2xl)', color: '#fff', textShadow: 'none' }}
+                  style={{ display: 'block', fontSize: 'var(--text-2xl)', color: 'var(--text-strong)', textShadow: 'none' }}
                 >
                   {child.displayName}
                 </span>
                 <span style={{ display: 'block', fontWeight: 700, marginTop: 4 }}>Level {level.level}</span>
                 <span className="numeric" style={{ display: 'block', fontWeight: 700 }}>
-                  {(child.lifetimePoints ?? 0).toLocaleString('en-US')} pts
+                  {(child.lifetimePoints ?? 0).toLocaleString('en-US')} Guild Points
                 </span>
               </span>
             </button>

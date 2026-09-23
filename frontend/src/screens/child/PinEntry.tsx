@@ -132,7 +132,7 @@ export function PinEntry() {
                 height: 20,
                 borderRadius: '50%',
                 border: '2px solid rgba(255,255,255,0.85)',
-                background: index < pin.length ? '#fff' : 'transparent',
+                background: index < pin.length ? 'var(--text-strong)' : 'transparent',
                 transition: 'background var(--transition-fast)',
               }}
             />
@@ -175,7 +175,7 @@ export function PinEntry() {
         <button
           type="button"
           className="btn btn--quiet btn--sm"
-          style={{ borderColor: 'rgba(255,255,255,0.5)', color: '#fff' }}
+          style={{ borderColor: 'rgba(231,225,214,0.5)', color: 'var(--text-strong)' }}
           onClick={() => navigate('/profiles')}
         >
           Forgot PIN?

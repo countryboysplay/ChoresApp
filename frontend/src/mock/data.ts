@@ -105,7 +105,7 @@ export const children: Child[] = [
   {
     id: 'child-2',
     name: 'Child 2',
-    avatar: { ...DEFAULT_AVATAR, hair: 'curly', skin: '#8d5524', shirt: '#ffc107', background: '#00c853' },
+    avatar: { ...DEFAULT_AVATAR, hair: 'curly', skin: '#8d5524', shirt: '#b08d57', background: '#5c7f5a' },
     spendablePoints: 95,
     lifetimePoints: 980,
     weekPoints: 62,

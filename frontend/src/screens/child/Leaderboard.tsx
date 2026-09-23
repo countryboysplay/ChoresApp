@@ -133,12 +133,12 @@ export function Leaderboard() {
                           borderRadius: '50%',
                           fontFamily: 'var(--font-display)',
                           fontWeight: 700,
-                          color: index === 0 ? 'var(--text-on-gold)' : '#fff',
+                          color: index === 0 ? 'var(--text-on-gold)' : 'var(--text-strong)',
                           background:
                             index === 0
-                              ? 'linear-gradient(180deg, #ffd54f, var(--gold))'
+                              ? 'linear-gradient(180deg, #cba871, var(--gold))'
                               : index === 1
-                                ? 'linear-gradient(180deg, #d7dbe6, #9aa1b4)'
+                                ? 'linear-gradient(180deg, #c7c2b8, #8f8a7c)'
                                 : 'var(--surface-raised)',
                         }}
                       >
@@ -204,11 +204,11 @@ function Podium({ entry, place }: { entry: StandingEntry; place: 1 | 2 }) {
           borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
           background:
             place === 1
-              ? 'linear-gradient(180deg, var(--gold), #ff9800)'
-              : 'linear-gradient(180deg, #c9ccd8, #8b90a3)',
+              ? 'linear-gradient(180deg, var(--gold), var(--orange))'
+              : 'linear-gradient(180deg, #c7c2b8, #8f8a7c)',
           display: 'grid',
           placeItems: 'center',
-          color: '#2b2100',
+          color: 'var(--text-on-gold)',
           fontFamily: 'var(--font-display)',
           fontSize: 'var(--text-2xl)',
           fontWeight: 800,

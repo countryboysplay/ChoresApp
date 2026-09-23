@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../design/primitives';
+import { Icon } from '../../design/icons';
 import { useSkyBackground } from '../../hooks/useSkyBackground';
 import { playSound } from '../../design/sound';
 
-/** The ground color, shared by the hill artwork and the panel beneath it. */
-const GROUND = '#2e7d32';
+/** The plaque color beneath the scene, shared by the ground panel and buttons. */
+const GROUND = '#1b1712';
 
 export function Splash() {
   useSkyBackground();
@@ -29,15 +30,16 @@ export function Splash() {
 
       {/*
         Scene and buttons are one flex item, not two. As siblings the column's
-        space-between opened a band of sky between the ground and the panel,
-        which broke the illusion that they are the same surface.
+        space-between opened a band of background between the scene and the
+        panel, which broke the illusion that they are the same surface.
       */}
       <div>
         <Scene />
         {/*
-          The buttons sit on the ground rather than on sky below it. The scene's
-          bottom edge is solid GROUND, so this panel continues the same color to
-          the bottom of the screen and the two read as one surface.
+          The buttons sit on the same plaque as the compass rests on. The
+          scene's bottom edge is solid GROUND, so this panel continues the
+          same color to the bottom of the screen and the two read as one
+          surface - a stone plinth rather than a floating card.
         */}
         <div
           className="bleed"
@@ -45,6 +47,7 @@ export function Splash() {
             background: GROUND,
             paddingInline: 'var(--space-4)',
             paddingBottom: 'max(var(--space-5), env(safe-area-inset-bottom))',
+            borderTop: '1px solid rgba(176, 141, 87, 0.35)',
           }}
         >
           <div className="stack stack--tight">
@@ -75,57 +78,69 @@ function Logo() {
       <div className="logo" style={{ fontSize: '2.9rem' }}>Chore</div>
       <div className="row" style={{ justifyContent: 'center', gap: 'var(--space-2)' }}>
         <span className="logo" style={{ fontSize: '2.9rem' }}>Quest</span>
-        <svg width="34" height="42" viewBox="0 0 34 42" aria-hidden="true">
-          <path d="M17 1 3 24h11L11 41 31 16H19l6-15Z" fill="#ffc107" stroke="#b06a00" strokeWidth="2" strokeLinejoin="round" />
-        </svg>
+        <Icon name="compass" size={32} style={{ color: 'var(--gold)' }} />
       </div>
     </div>
   );
 }
 
 /**
- * Code-drawn scene. No raster assets and no image generation.
+ * Code-drawn scene. No raster assets and no image generation - the compass
+ * rose is built from the same stroke logic as the `compass` icon, just
+ * larger, so it reads as this app's signature sigil rather than a stock
+ * graphic.
  *
- * Three layers, because they do not want the same thing from scaling. The hills
- * must touch both screen edges at any width, so they bleed past the screen
- * padding and stretch horizontally - non-uniform scaling is invisible on an
- * organic curve. The castle must keep its proportions, so it is a separate
- * fixed-size layer. The hills paint last, which roots the castle in the slope
- * instead of pasting it on top.
+ * Three layers, same reasoning as the design it replaces: a faint radial glow
+ * bleeds to both screen edges at any width; the compass housing keeps its
+ * proportions as a fixed-size centered layer; the ground panel paints last,
+ * rooting the compass in the plinth instead of floating it on empty sky.
  */
 function Scene() {
   return (
     <div className="bleed" style={{ position: 'relative', height: 240 }} aria-hidden="true">
       <svg
+        viewBox="0 0 320 240"
+        preserveAspectRatio="none"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}
+      >
+        <defs>
+          <radialGradient id="splash-glow" cx="50%" cy="38%" r="55%">
+            <stop offset="0%" stopColor="#b08d57" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#b08d57" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <rect x="0" y="0" width="320" height="240" fill="url(#splash-glow)" />
+      </svg>
+
+      <svg
+        viewBox="0 0 120 120"
+        width="180"
+        height="180"
+        style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -58%)', display: 'block' }}
+      >
+        <circle cx="60" cy="60" r="52" fill="none" stroke="#b08d57" strokeWidth="1.5" opacity="0.55" />
+        <circle cx="60" cy="60" r="40" fill="none" stroke="#b08d57" strokeWidth="1" opacity="0.4" />
+        {/* Cardinal ticks */}
+        <g stroke="#b08d57" strokeWidth="1.5" opacity="0.6">
+          <path d="M60 4v10M60 106v10M4 60h10M106 60h10" />
+        </g>
+        {/* The four-point star, echoing the `compass` icon */}
+        <path
+          d="M60 14 68 52 106 60 68 68 60 106 52 68 14 60 52 52Z"
+          fill="none"
+          stroke="#e7e1d6"
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+        />
+        <circle cx="60" cy="60" r="6" fill="#b08d57" />
+      </svg>
+
+      <svg
         viewBox="0 0 320 60"
         preserveAspectRatio="none"
-        style={{ position: 'absolute', insetInline: 0, top: 0, width: '100%', height: 60, display: 'block' }}
+        style={{ position: 'absolute', insetInline: 0, bottom: 0, width: '100%', height: 90, display: 'block' }}
       >
-        <ellipse cx="60" cy="32" rx="30" ry="13" fill="#ffffff" opacity="0.85" />
-        <ellipse cx="250" cy="20" rx="34" ry="14" fill="#ffffff" opacity="0.75" />
-      </svg>
-
-      <svg
-        viewBox="104 58 112 100"
-        width="150"
-        height="135"
-        style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 70, display: 'block' }}
-      >
-        <rect x="118" y="96" width="84" height="60" rx="6" fill="#e9eef7" />
-        <rect x="106" y="80" width="26" height="76" rx="5" fill="#dfe6f3" />
-        <rect x="188" y="80" width="26" height="76" rx="5" fill="#dfe6f3" />
-        <path d="M106 80h26l-13-18ZM188 80h26l-13-18Z" fill="#e53935" />
-        <path d="M118 96h84l-42-24Z" fill="#e53935" />
-        <rect x="150" y="124" width="20" height="32" rx="9" fill="#8d6e63" />
-      </svg>
-
-      <svg
-        viewBox="0 0 320 50"
-        preserveAspectRatio="none"
-        style={{ position: 'absolute', insetInline: 0, bottom: 0, width: '100%', height: 100, display: 'block' }}
-      >
-        <path d="M0 0c40-18 80-18 120 0s80 18 120 0 60-10 80-4v54H0Z" fill="#4caf50" />
-        <path d="M0 18c50-14 90-8 140 4s110 6 180-6v34H0Z" fill={GROUND} />
+        <path d="M0 20c50-12 90-8 140 2s110 4 180-8v46H0Z" fill={GROUND} />
       </svg>
     </div>
   );

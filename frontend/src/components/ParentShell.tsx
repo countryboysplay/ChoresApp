@@ -44,6 +44,12 @@ export function ParentShell() {
       </nav>
 
       <div>
+        <div className="brandbar">
+          <span className="logo" style={{ fontSize: 'var(--text-base)' }}>
+            Chore Quest
+          </span>
+          <Icon name="compass" size={20} />
+        </div>
         <Outlet />
       </div>
 

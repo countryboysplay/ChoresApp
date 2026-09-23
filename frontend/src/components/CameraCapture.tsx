@@ -111,7 +111,7 @@ export function CameraCapture({
               display: 'grid',
               placeItems: 'center',
               margin: 0,
-              color: '#fff',
+              color: 'var(--text-strong)',
             }}
           >
             Starting the camera&hellip;

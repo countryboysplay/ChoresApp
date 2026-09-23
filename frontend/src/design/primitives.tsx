@@ -306,14 +306,23 @@ export function CheckItem({
   );
 }
 
-/* ---------- Gold points pill ---------- */
+/* ---------- Brass guild-points pill ---------- */
 export function PointsPill({ value, small }: { value: number | string; small?: boolean }) {
+  // Small sits inline on a chore row - just the number, like the board's
+  // "+20" style. The full-size pill spells out "Guild Points" - but only for
+  // an actual points amount, not an arbitrary string like "Level 7".
+  const label =
+    typeof value === 'number'
+      ? small
+        ? value.toLocaleString('en-US')
+        : `${value.toLocaleString('en-US')} Guild Points`
+      : value;
   return (
     <span className={`points-pill ${small ? 'points-pill--sm' : ''}`}>
       <span className="points-pill__coin" aria-hidden="true">
         ★
       </span>
-      {typeof value === 'number' ? `${value.toLocaleString('en-US')} pts` : value}
+      {label}
     </span>
   );
 }

@@ -49,7 +49,7 @@ export function InboxBell({ to }: { to: string }) {
             padding: '0 4px',
             borderRadius: 999,
             background: 'var(--red)',
-            color: '#fff',
+            color: 'var(--text-strong)',
             fontSize: 10,
             fontWeight: 800,
             lineHeight: '16px',

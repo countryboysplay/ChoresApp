@@ -1,0 +1,63 @@
+# Talks to the "postgresql" app already installed as its own ZimaOS/CasaOS
+# app (container name `postgresql`, network `postgresql_default`) rather than
+# running a second Postgres. A `chore_quest` role and database were created
+# inside it once, by hand:
+#   docker exec -e PGPASSWORD=casaos postgresql psql -U casaos -d casaos \
+#     -c "CREATE ROLE chore_quest LOGIN PASSWORD '...'" \
+#     -c "CREATE DATABASE chore_quest OWNER chore_quest"
+# If that app is ever removed/reinstalled, recreate the role+database first.
+services:
+  backend:
+    build: .
+    restart: unless-stopped
+    networks:
+      - default
+      - postgresql_default
+    environment:
+      NODE_ENV: production
+      # 0.0.0.0, not the app's loopback default - otherwise nothing outside
+      # this container could ever reach it.
+      HOST: 0.0.0.0
+      PORT: 4000
+      HOUSEHOLD_TZ: ${HOUSEHOLD_TZ:-America/Chicago}
+      # `postgresql` resolves via the postgresql_default network above - it's
+      # the existing Postgres app's container name/network alias.
+      DATABASE_URL: postgres://chore_quest:${CHOREQUEST_DB_PASSWORD:?set CHOREQUEST_DB_PASSWORD in .env}@postgresql:5432/chore_quest
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
+      # Only relevant if you ever hit the API from a different origin than the
+      # one serving the frontend (e.g. testing against Vite). The container
+      # serves both from the same origin by default, via FRONTEND_DIST below.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4000}
+      # The backend serves the built frontend itself, same-origin, so session
+      # cookies work on iOS Safari. Path is relative to /app/backend (the
+      # image's WORKDIR), where frontend/dist sits one level up.
+      FRONTEND_DIST: ../frontend/dist
+      PHOTO_STORAGE_DIR: /app/backend/storage/photos
+      BACKUP_DIR: /app/backend/storage/backups
+      # Nightly backups also copy themselves here - the external drive
+      # attached to the ZimaOS box, mounted below. Unset means the mirror
+      # copy is simply skipped and System status says so.
+      BACKUP_MIRROR_DIR: /app/backend/storage/backup-mirror
+      # Web Push - optional. Fill in all three (see `npm run vapid -w backend`)
+      # or leave all three blank.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+    ports:
+      - "4000:4000"
+    volumes:
+      - photos:/app/backend/storage/photos
+      - backups:/app/backend/storage/backups
+      # Bind mount to the external drive's mount point on the ZimaOS host.
+      # EXTERNAL_BACKUP_PATH must be an existing folder ON THE HOST, e.g.
+      # /DATA/.media/sda2-usb-Seagate_Expansi/ChoreQuestBackups (this box's
+      # Seagate Expansion drive) - Compose will not create it.
+      - ${EXTERNAL_BACKUP_PATH:?set EXTERNAL_BACKUP_PATH in .env to the external drive's folder on the ZimaOS host}:/app/backend/storage/backup-mirror
+
+networks:
+  postgresql_default:
+    external: true
+
+volumes:
+  photos:
+  backups:
