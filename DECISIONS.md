@@ -2015,3 +2015,36 @@ is for, and it is also where to look if any of it is ever wanted back. The
 **And the limit.** A drive that lives in the laptop is protection against a
 failed disk and nothing else. Off-site means occasionally somewhere else, and
 nothing in software can arrange that.
+
+---
+
+## 2026-09-23 — Parent sessions last 90 days too, overriding the 2026-08-19 TTL
+
+**Decision.** Owner decision, overriding "2026-08-19 — Opaque database-backed
+sessions, not JWTs". `SESSION_TTL_DAYS.parent` changes from 1 day to 90 days,
+matching `SESSION_TTL_DAYS.child`. The session mechanism itself - opaque,
+database-backed, httpOnly signed cookie - is unchanged; only how long a token
+stays valid moves.
+
+**Reason.** The owner reported that "even after keying in the PIN, users have
+to rekey the pin when they use the app again," for both roles. The 1-day parent
+TTL is the concrete cause: a parent who opens the app once a day, which is the
+normal pattern, re-enters their PIN on effectively every visit. The original
+reasoning - a parent session can approve chores, move points, and change money
+settings, so it should not sit unlocked on a shared tablet for a month - is a
+real risk, but the owner is explicit that the app should behave like a normal
+app that stays signed in, and is accepting that tradeoff. The mitigation that
+made the short TTL feel necessary was never really the TTL: `revokeAllForUser`
+already fires on every PIN reset and signs every other device out at once, and
+`revokeSession` covers an explicit sign-out. Both keep working exactly as
+before and are still the right response to a lost or handed-down device -
+reset the PIN, and the 90-day cookie sitting on that device stops being usable
+immediately, without waiting for it to expire on its own.
+
+**Consequences.** A parent who signs in on a household tablet stays signed in
+for 90 days, same as a child, extending on use via the existing `TOUCH_AFTER_MS`
+logic. Nothing about cookie flags, revocation, or the sessions table changes.
+The only place this is asserted in code is `SESSION_TTL_DAYS` in
+`backend/src/auth/sessions.ts`; `backend/src/test/auth.test.ts` was updated to
+expect the parent and child TTLs to match rather than the old parent-shorter-
+than-child assumption.

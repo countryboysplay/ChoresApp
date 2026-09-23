@@ -389,7 +389,7 @@ describeDb('creating a chore', () => {
     await app.close();
   });
 
-  it('retiring one stops new instances without erasing what was done', async () => {
+  it('retiring one stops new instances and drops it from a child\'s list, without erasing what was done', async () => {
     const app = await buildApp({ env: testEnv });
     const parent = await makeUser('parent', 'Retire Parent');
     const child = await makeUser('child', 'Retire Child');
@@ -409,14 +409,25 @@ describeDb('creating a chore', () => {
     const choreId = created.json().chore.id as string;
     createdChores.push(choreId);
 
+    // Today's instance materializes not_started - the one that should vanish.
     const childCookie = await signIn(app, child);
     await app.inject({ method: 'GET', url: '/api/child/day', headers: { cookie: childCookie } });
 
-    await app.inject({
+    // A stand-in for history: already approved yesterday, which must survive.
+    const { rows: historyRows } = await pool.query<{ id: string }>(
+      `INSERT INTO chore_instances (chore_definition_id, assigned_to, chore_date, status, points_value, points_awarded)
+       VALUES ($1, $2, (now() AT TIME ZONE 'America/Chicago')::date - 1, 'approved', 10, 10)
+       RETURNING id`,
+      [choreId, child],
+    );
+    const historyInstanceId = historyRows[0]?.id as string;
+
+    const retired = await app.inject({
       method: 'DELETE',
       url: `/api/parent/chores/${choreId}`,
       headers: { cookie, ...json },
     });
+    expect(retired.statusCode).toBe(200);
 
     const { rows } = await pool.query<{ is_active: boolean }>(
       'SELECT is_active FROM chore_schedules WHERE chore_definition_id = $1',
@@ -424,12 +435,19 @@ describeDb('creating a chore', () => {
     );
     expect(rows.every((r) => r.is_active === false)).toBe(true);
 
-    // The instance already created stays; the child's history is intact.
-    const { rows: instances } = await pool.query<{ n: number }>(
-      'SELECT count(*)::int AS n FROM chore_instances WHERE chore_definition_id = $1',
+    // The not_started instance is gone...
+    const { rows: instances } = await pool.query<{ id: string; status: string }>(
+      'SELECT id, status FROM chore_instances WHERE chore_definition_id = $1',
       [choreId],
     );
-    expect(instances[0]?.n).toBe(1);
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.id).toBe(historyInstanceId);
+
+    // ...and it no longer shows up on the child's day.
+    const day = await app.inject({ method: 'GET', url: '/api/child/day', headers: { cookie: childCookie } });
+    const names = (day.json().core as { name: string }[]).map((c) => c.name);
+    expect(names).not.toContain('Old chore');
+
     await app.close();
   });
 });

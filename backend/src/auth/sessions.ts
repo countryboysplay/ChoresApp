@@ -17,14 +17,18 @@ import type { Role } from '@chore-quest/shared';
 const TOKEN_BYTES = 32;
 
 /**
- * Kids stay signed in on a trusted device; parents do not. A child locked out
- * of their own chores mid-week is a support call and a bad experience, while a
- * parent session can approve chores, move points, and change money settings, so
- * it should not sit unlocked on a shared tablet for a month.
+ * Both roles stay signed in on a trusted device, like any normal app (owner
+ * decision, 2026-09-23, overriding the 2026-08-19 one-day parent TTL below).
+ * A parent re-keying their PIN every day was the actual cause of "logins
+ * aren't persistent." The risk that motivated the short TTL - a parent
+ * session left unlocked on a shared tablet - is still covered: a PIN reset or
+ * an explicit sign-out calls revokeAllForUser/revokeSession and kills every
+ * outstanding session immediately, so a lost or handed-down device is never
+ * more than one PIN change away from being locked out.
  */
 export const SESSION_TTL_DAYS: Record<Role, number> = {
   child: 90,
-  parent: 1,
+  parent: 90,
 };
 
 /**

@@ -113,10 +113,14 @@ describe('session tokens', () => {
     expect(hashToken(token)).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('keeps kids signed in far longer than parents', () => {
-    expect(SESSION_TTL_DAYS.child).toBeGreaterThan(SESSION_TTL_DAYS.parent);
+  it('keeps both roles signed in for a generous, equal stretch', () => {
+    // 2026-09-23: parents used to expire after 1 day, which is what forced a
+    // PIN re-key on nearly every visit. Both roles now get the same long TTL;
+    // a lost device is handled by revoking sessions, not by a short expiry.
+    expect(SESSION_TTL_DAYS.parent).toBe(SESSION_TTL_DAYS.child);
+    expect(SESSION_TTL_DAYS.parent).toBeGreaterThanOrEqual(30);
     const now = new Date('2026-08-19T12:00:00Z');
-    expect(expiryFor('child', now).getTime()).toBeGreaterThan(expiryFor('parent', now).getTime());
+    expect(expiryFor('child', now).getTime()).toBe(expiryFor('parent', now).getTime());
   });
 
   it('names devices in a way a parent can recognise', () => {

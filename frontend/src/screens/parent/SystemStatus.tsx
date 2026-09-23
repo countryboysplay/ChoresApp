@@ -15,7 +15,7 @@ type Tone = 'done' | 'waiting' | 'late' | 'neutral';
 
 function pushRow(status: PushStatusResponse | null): { value: string; tone: Tone } {
   if (!status) return { value: 'Checking…', tone: 'neutral' };
-  if (!status.configured) return { value: 'No keys on the laptop', tone: 'waiting' };
+  if (!status.configured) return { value: 'No push keys configured', tone: 'waiting' };
   if (status.devices === 0) return { value: 'On, no phones yet', tone: 'waiting' };
   return {
     value: `On, ${status.devices} phone${status.devices === 1 ? '' : 's'}`,
@@ -216,8 +216,9 @@ export function SystemStatus() {
         {push && !push.configured && (
           <p className="muted" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-3)' }}>
             Reminders reach the inbox either way. To make them reach a phone, run{' '}
-            <code>npm run vapid</code> on the laptop, put the three lines it prints into{' '}
-            <code>backend/.env</code>, and restart the server.
+            <code>docker compose exec backend npm run vapid</code> on the server, put the three
+            lines it prints into the <code>.env</code> next to <code>docker-compose.yml</code>,
+            and run <code>docker compose up -d</code>.
           </p>
         )}
 

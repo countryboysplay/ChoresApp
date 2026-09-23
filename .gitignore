@@ -31,8 +31,9 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
-# Claude Code - per-machine permission grants, not shared config
+# Claude Code - per-machine permission grants and runtime state, not shared config
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # Playwright
 test-results/
@@ -40,3 +41,9 @@ playwright-report/
 
 # Regenerate with "npm run screenshots" - review output, not source
 screenshots/
+
+# Personal revision notes - not for the repo
+next version.md
+
+# SSH/deploy credentials - never commit
+remote-access.yaml

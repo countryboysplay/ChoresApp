@@ -251,23 +251,46 @@ export async function choreAdminRoutes(app: FastifyInstance, opts: { env: Env })
   });
 
   /**
-   * Retire a chore. Its schedules stop, so no new instances appear, and every
-   * chore already done keeps its place in the child's history.
+   * Retire a chore. Its schedules stop, so no new instances appear, every
+   * chore already done keeps its place in the child's history, and any
+   * instance still sitting untouched on a child's list is removed so it stops
+   * showing there too.
    */
   app.delete('/api/parent/chores/:choreId', { onRequest: requireParent }, async (request) => {
     const { choreId } = request.params as { choreId: string };
     if (!uuid.safeParse(choreId).success) throw app.httpErrors.notFound('No such chore.');
 
     const db = pool();
-    const { rowCount } = await db.query(
-      `UPDATE chore_definitions SET is_active = false WHERE id = $1 AND kind = 'core'`,
-      [choreId],
-    );
-    if (!rowCount) throw app.httpErrors.notFound('No such chore.');
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
 
-    await db.query('UPDATE chore_schedules SET is_active = false WHERE chore_definition_id = $1', [
-      choreId,
-    ]);
-    return { ok: true };
+      const { rowCount } = await client.query(
+        `UPDATE chore_definitions SET is_active = false WHERE id = $1 AND kind = 'core'`,
+        [choreId],
+      );
+      if (!rowCount) throw app.httpErrors.notFound('No such chore.');
+
+      await client.query('UPDATE chore_schedules SET is_active = false WHERE chore_definition_id = $1', [
+        choreId,
+      ]);
+
+      // Only what the child has not yet acted on. Anything submitted or
+      // further along is that child's work, waiting on (or already through)
+      // a parent's review, and stays put along with everything resolved.
+      await client.query(
+        `DELETE FROM chore_instances
+          WHERE chore_definition_id = $1 AND status IN ('not_started', 'in_progress')`,
+        [choreId],
+      );
+
+      await client.query('COMMIT');
+      return { ok: true };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   });
 }

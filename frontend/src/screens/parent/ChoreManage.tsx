@@ -21,6 +21,7 @@ interface Draft {
   id: string;
   name: string;
   points: string;
+  subtasks: string[];
   assignedTo: string[];
   recurrence: (typeof RECURRENCE)[number];
   days: number[];
@@ -89,6 +90,7 @@ export function ChoreManage() {
       id: chore.id,
       name: chore.name,
       points: String(chore.points),
+      subtasks: chore.subtasks.length > 0 ? chore.subtasks.map((subtask) => subtask.title) : [''],
       assignedTo: [...new Set(chore.schedules.map((schedule) => schedule.assignedTo))],
       recurrence: first?.recurrence === 'weekly' ? 'Weekly' : 'Daily',
       days: first?.daysOfWeek ?? [],
@@ -133,6 +135,14 @@ export function ChoreManage() {
         // Saving a retired chore is how it comes back, so the Retire button is
         // never a one-way door.
         ...(draft.isActive ? {} : { isActive: true }),
+        // Sent whole, same as schedules below: the server stands the old rows
+        // down and writes these in their place. A chore already on a child's
+        // list today keeps the steps it was given, so today is not rewritten
+        // under them.
+        subtasks: draft.subtasks
+          .map((title) => title.trim())
+          .filter(Boolean)
+          .map((title) => ({ title, instruction: null })),
         // Sent whole: the server stands the old rows down and writes these in
         // their place. Chores already on a child's list keep the points and the
         // wording they were created with, so today is not rewritten under them.
@@ -272,6 +282,48 @@ export function ChoreManage() {
                 onChange={(event) => setDraft({ ...draft, points: event.target.value })}
               />
             </label>
+
+            <span className="eyebrow">Steps, in the order they should be done</span>
+            {draft.subtasks.map((subtask, index) => (
+              <div key={index} className="row" style={{ gap: 'var(--space-2)' }}>
+                <input
+                  className="input"
+                  value={subtask}
+                  onChange={(event) =>
+                    setDraft({
+                      ...draft,
+                      subtasks: draft.subtasks.map((entry, i) =>
+                        i === index ? event.target.value : entry,
+                      ),
+                    })
+                  }
+                  placeholder={`Step ${index + 1}`}
+                  aria-label={`Step ${index + 1}`}
+                />
+                <button
+                  type="button"
+                  className="iconbtn"
+                  aria-label={`Remove step ${index + 1}`}
+                  onClick={() =>
+                    setDraft({ ...draft, subtasks: draft.subtasks.filter((_, i) => i !== index) })
+                  }
+                >
+                  <Icon name="close" size={18} />
+                </button>
+              </div>
+            ))}
+            <Button
+              tone="quiet"
+              block
+              icon="plus"
+              onClick={() => setDraft({ ...draft, subtasks: [...draft.subtasks, ''] })}
+            >
+              Add a step
+            </Button>
+            <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+              A chore with no steps still works. Anything already on a child&rsquo;s list today keeps
+              the steps it was given.
+            </p>
 
             <span className="eyebrow">Who does it</span>
             {children.length === 0 ? (
