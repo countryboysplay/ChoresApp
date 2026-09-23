@@ -56,7 +56,7 @@ describe('routing', () => {
   it('renders the child home dashboard', async () => {
     renderAt('/child/home');
     // The day is fetched, so the screen paints a loading state first.
-    expect(await screen.findByText("Today's required chore")).toBeInTheDocument();
+    expect(await screen.findByText("Today's quest")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /continue chore/i })).toBeInTheDocument();
   });
 
@@ -365,7 +365,7 @@ describe('accessibility basics', () => {
   it('labels the bottom navigation and marks the active destination', async () => {
     renderAt('/child/home');
     const nav = await screen.findByRole('navigation', { name: 'Main' });
-    expect(within(nav).getByRole('link', { name: /home/i })).toHaveClass('is-active');
+    expect(within(nav).getByRole('link', { name: /today/i })).toHaveClass('is-active');
   });
 
   it('gives every progress meter an accessible name', async () => {
