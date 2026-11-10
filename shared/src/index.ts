@@ -655,4 +655,6 @@ export interface CertificateResponse {
   hostnameConfigured: boolean;
   renewWithinDays: number;
   servingHttps: boolean;
+  /** The browser reached us over https through a proxy (Cloudflare Tunnel), so no certificate of our own is needed. */
+  httpsViaProxy: boolean;
 }

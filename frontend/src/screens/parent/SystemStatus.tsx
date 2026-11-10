@@ -45,6 +45,7 @@ function size(bytes: number | null): string {
  */
 function certificateRow(cert: CertificateResponse | null): { value: string; tone: Tone } {
   if (!cert) return { value: 'Checking…', tone: 'neutral' };
+  if (cert.httpsViaProxy) return { value: 'Handled by Cloudflare', tone: 'done' };
   if (!cert.hostnameConfigured) return { value: 'Not set up', tone: 'waiting' };
   if (!cert.present) return { value: 'No certificate yet', tone: 'waiting' };
 
@@ -222,7 +223,7 @@ export function SystemStatus() {
           </p>
         )}
 
-        {cert && !cert.present && (
+        {cert && !cert.present && !cert.httpsViaProxy && (
           <p className="muted" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-3)' }}>
             Without a certificate the app runs on plain http, so the camera and phone reminders
             only work on this laptop — browsers allow neither over http on a wifi address. Run{' '}

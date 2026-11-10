@@ -14,7 +14,7 @@ export async function tlsRoutes(app: FastifyInstance, opts: { env: Env }): Promi
   const { env } = opts;
   const requireParent = app.requireAuth(['parent']);
 
-  app.get('/api/parent/certificate', { onRequest: requireParent }, async () => {
+  app.get('/api/parent/certificate', { onRequest: requireParent }, async (request) => {
     const state = await readCertificateState(env);
     return {
       ...state,
@@ -24,6 +24,8 @@ export async function tlsRoutes(app: FastifyInstance, opts: { env: Env }): Promi
       // disk while the server is still serving plain http, because the listener
       // only picks it up at startup.
       servingHttps: app.env.TLS_DIR !== undefined,
+      // trustProxy is on, so this reads X-Forwarded-Proto from Cloudflare Tunnel.
+      httpsViaProxy: app.env.TLS_DIR === undefined && request.protocol === 'https',
     };
   });
 }
