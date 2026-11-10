@@ -197,6 +197,12 @@ transaction, so anything materialised a moment later starts from today.
 
 ## Running it for the household (https on the wifi)
 
+> **Current deployment (since 2026-09-22):** the app runs in Docker on the
+> ZimaOS server and https comes from Cloudflare Tunnel at
+> `https://chores.lindsayfam.org`, so the certificate steps below are not used.
+> Deploy steps are in `PROJECT_STATE.md` → "How production is deployed". This
+> section describes the original laptop setup.
+
 Chores, points, and rewards work fine over plain http. The camera and phone
 notifications do not - browsers only allow either in a secure context, which is
 why photo capture has only ever worked on the laptop itself.

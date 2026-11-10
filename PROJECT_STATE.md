@@ -153,8 +153,9 @@ and `http://<laptop-ip>:5173` also works.
   that refuses to run while the server is up.
 - Offline shell: the build precaches what it emitted and nothing else, so the
   app opens with the laptop asleep and shows an honest "can't reach home" screen
-  rather than a stale copy of the day. A new version waits and takes over on the
-  next launch. An install card appears where the browser offers one.
+  rather than a stale copy of the day. A new version installs itself at the next
+  launch (cold start, or a return after 5+ minutes away - since 2026-11-10). An
+  install card appears where the browser offers one.
 - Push notifications: a service worker that now also carries the cached shell, per-browser subscriptions that
   move with whoever signs in and die with the sign-in, and a drain that runs on
   the same tick as the reminder sweep. One notification kind reaches a phone;
@@ -260,9 +261,11 @@ Stage 16.
   opens instantly and wears its own face rather than the browser's error page,
   but no API response is ever stored and nothing is queued for later. A cached
   chore list cannot be told apart from a live one by the child reading it.
-- **A new version takes over on the next launch, not immediately.** No
-  `skipWaiting`, no update prompt. The cost is running yesterday's build for one
-  more session; anything needing to be live at once is a deliberate exception.
+- **A new version takes over on the next launch, not immediately.** No update
+  prompt. Since 2026-11-10 "next launch" is enforced by the page (within 10s of
+  a cold start, or on returning after 5+ minutes away) because iOS never closed
+  the app, so phones kept old builds indefinitely. Mid-use updates still wait;
+  System status → "Install it now" takes one immediately.
 - **`preview` is now a build-time flag.** It used to be entered whenever a
   request failed, which combined with caching would have let anyone into the app
   with no PIN by making the API unreachable. Only the Pages workflow sets it;
@@ -474,7 +477,9 @@ different.
 
 ## iPhone fit, sessions, weekend reminders (2026-11-10)
 
-Commit `c238613`, deployed to ZimaOS the same day.
+Commits `c238613` (fixes), `e9f2850` (auto-update), `4f2393a` (certificate
+row), all deployed to ZimaOS the same day. Pre-deploy backups of replaced
+files: `predeploy-backup-20261110{,b,c}.tgz` in the server's app folder.
 
 ### What was found
 
@@ -513,12 +518,42 @@ Commit `c238613`, deployed to ZimaOS the same day.
   at 12:32:20, the moment the new container started.
 - 403 message names the right audience ("That area is for kids.").
 
+### Found after the first deploy
+
+- **Phones kept running the old build.** Screenshots from a parent's iPhone
+  after the deploy still showed the pre-fix layout (page drawn ~59px too high,
+  title under the Dynamic Island). Cause: the service worker waits for every
+  tab to close before activating, and iOS suspends home-screen apps instead of
+  closing them, so that never happened. Even desktop Chrome served the old CSS
+  from the precache. **Fixed** (`e9f2850`): a waiting update installs at launch
+  - within 10s of a cold start, or on returning after 5+ minutes away
+  (`lib/appUpdate.ts`, tested in `test/appUpdate.test.ts`). See DECISIONS.md.
+  Phones on a build older than this need one manual update (System status →
+  "Install it now", or close and reopen the app).
+- **System status said the certificate was not set up.** Leftover from the
+  laptop era: Cloudflare Tunnel terminates https now. **Fixed** (`4f2393a`):
+  the certificate endpoint reports `httpsViaProxy` (verified live: Cloudflare
+  sends `X-Forwarded-Proto: https`) and the row shows "Handled by Cloudflare".
+  Plain-http LAN access (`192.168.0.178:4000`) still warns, correctly.
+- **Evening reminders not reaching Kyler.** Kyler has zero push subscriptions
+  (Kayden has one). Not a bug: the permission must be granted on the phone, from
+  the home-screen app, Inbox → "Reminders on this phone". Owner to do on
+  Kyler's iPhone; the dashboard warning clears once subscribed.
+- **"38 devices" / "51 devices" on the Manage screen.** Each is a session. The
+  splash always routed through the PIN even with a valid session, so every
+  evening created a new one. Fixed by the splash redirect in `c238613`; the old
+  rows expire on their own.
+
 ### Not verified yet
 
 - The DB-backed tests (including the two new ones in `auth.test.ts`) have not
   run anywhere - there is no test database on the dev PC.
 - First real weekend with the scheduler fix: Saturday 2026-11-14. Check that
   `chore_instances.created_at` for that date is just after midnight.
+- Auto-update on a real iPhone: that `visibilitychange` fires on resume and the
+  new build downloads inside the 10s window on cellular (if not, it lands on
+  the following launch).
+- The fixed layout on a real iPhone once it is running the new build.
 
 ### How production is deployed
 
