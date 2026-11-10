@@ -472,6 +472,78 @@ in code - it needs to land as an actual change to
 `frontend/src/screens/child/Splash.tsx` before a rebuild will show anything
 different.
 
+## iPhone fit, sessions, weekend reminders (2026-11-10)
+
+Commit `c238613`, deployed to ZimaOS the same day.
+
+### What was found
+
+- **Live build was behind the code.** The Dynamic Island / safe-area CSS existed
+  only as uncommitted local edits, so production drew the brand bar under the
+  island on an iPhone 16 Pro Max. Every screen was checked at 440x956 with the
+  insets simulated (top 59px, bottom 34px): nothing overflowed sideways and the
+  bottom nav cleared the home indicator; only the top inset was wrong.
+- **Weekend chores never reminded.** Chores were only created when a child
+  opened the app. For three weekends running (Oct 24/25, Oct 31/Nov 1,
+  Nov 7/8) the Saturday and Sunday instances were created the following Monday
+  evening, so the 8:45pm sweep had nothing to remind about.
+- **Sessions still expired 90 days after sign-in.** The server slid
+  `expires_at` forward on use, but never re-sent the cookie, so the browser kept
+  the login-time expiry and dropped it at day 90 regardless of activity.
+- **Wrong 403 copy.** A parent hitting a child route was told "That area is for
+  parents."
+- **API sweep (as parent, read-only, all GET routes):** no 5xx, ~40-60ms
+  responses, malformed ids return 404 cleanly. `/api/reset` deliberately not
+  called (it clears the browser's service worker).
+
+### What was fixed
+
+- Safe-area: body pads below the status bar with a solid strip behind it,
+  sticky `.topbar` sits at `env(safe-area-inset-top)`, `.screen--sky` subtracts
+  the inset, bottom nav columns are `minmax(0, 1fr)` so they cannot widen the
+  page (`styles/global.css`, `design/system.css`).
+- Splash redirects a still-signed-in member to their home screen, so the
+  installed app no longer reopens on the profile picker.
+- `resolveSession` reports `renewed`; the auth hook re-issues the cookie with
+  the new expiry (`auth/sessions.ts`, `auth/plugin.ts`). A sign-out's
+  `clearCookie` in the same response still wins.
+- The scheduler materializes every active child's chores each 15s tick, in its
+  own try/catch so one child's bad data cannot silence the reminder sweep
+  (`notifications/scheduler.ts`). Verified live: Nov 10's chores were created
+  at 12:32:20, the moment the new container started.
+- 403 message names the right audience ("That area is for kids.").
+
+### Not verified yet
+
+- The DB-backed tests (including the two new ones in `auth.test.ts`) have not
+  run anywhere - there is no test database on the dev PC.
+- First real weekend with the scheduler fix: Saturday 2026-11-14. Check that
+  `chore_instances.created_at` for that date is just after midnight.
+
+### How production is deployed
+
+The server copy is **not a git checkout**: it is a plain folder at
+`/DATA/AppData/chorequest/app` (compose project `app`, container
+`app-backend-1`, port 4000) with its own `.env` and its own, newer
+`docker-compose.yml` - never overwrite those two. The `jonathan` user cannot
+read `/DATA/AppData`, so files are copied and compose is run from containers:
+
+```sh
+# from the ChoresApp repo on the PC: copy changed files (backs up old ones first)
+F="path/one path/two"
+git archive --format=tar HEAD $F | ssh zima "export DOCKER_CONFIG=/tmp/dockercfg; \
+  docker run --rm -i -v /DATA/AppData/chorequest/app:/c -w /c alpine \
+  sh -c 'tar czf /c/predeploy-backup-\$(date +%Y%m%d).tgz $F && tar xf -'"
+
+# rebuild and restart
+ssh zima 'export DOCKER_CONFIG=/tmp/dockercfg; P=/DATA/AppData/chorequest/app; \
+  docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $P:$P -w $P \
+  docker:27-cli docker compose -p app up -d --build backend'
+```
+
+Before copying, compare checksums of the server folder against `git ls-files`
+so server-only edits are not lost. Migrations run automatically on start.
+
 ## Next planned work
 
 **Chore Quest is usable by a real household from here.** Everything from
