@@ -31,11 +31,12 @@ import { NavigationRoute, registerRoute } from 'workbox-routing';
  *    Amended, because on iOS "every tab has closed" can mean never: a
  *    home-screen app is suspended rather than terminated and a pinned tab lives
  *    for weeks, so the waiting worker waits for good and the old build is not
- *    yesterday's but forever's. The listener below is the release valve. It
- *    stays silent unless something posts to it, and the only thing that does is
- *    a button on the parent System status screen - so the guarantee the kids
- *    were given is unchanged, and a parent who wants the new version now can
- *    have it without closing every tab on the phone.
+ *    yesterday's but forever's. The listener below is the release valve.
+ *
+ *    Amended again 2026-11-10 (owner decision): the page now posts to it by
+ *    itself when an update is waiting at launch - a cold start, or a return to
+ *    the app after five minutes away (see lib/appUpdate.ts). Mid-use it still
+ *    waits, and the System status button still installs it on demand.
  */
 
 // The build replaces this with the list of files it emitted, each with its own

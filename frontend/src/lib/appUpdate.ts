@@ -7,11 +7,9 @@
  * into every test that renders the app. The store is plain state and belongs
  * apart from the thing that fills it in.
  *
- * A store rather than a prompt. The worker still refuses to activate by itself
- * (see the comment in sw.js), so knowing an update is waiting changes nothing
- * for a child - no dialog, no reload, nothing on screen. It is read in exactly
- * one place, the parent System status screen, which offers a parent the choice
- * that iOS otherwise never gets round to giving anybody.
+ * A store rather than a prompt: no dialog for anybody. An update waiting at
+ * launch is installed automatically (below); one that arrives mid-use is shown
+ * only on the parent System status screen, which can install it immediately.
  */
 let updateWaiting = false;
 let takeOver: ((reload?: boolean) => Promise<void>) | null = null;
@@ -28,11 +26,36 @@ export function isUpdateWaiting(): boolean {
   return updateWaiting;
 }
 
+/*
+ * "Next launch", made literal (owner decision 2026-11-10). An update found while
+ * the app is launching installs at once; one that lands mid-use still waits, so
+ * nobody is reloaded out of a half-finished checklist. iOS suspends home-screen
+ * apps instead of closing them, so coming back after a real absence counts as a
+ * launch too - otherwise the old build would never leave a phone.
+ */
+const LAUNCH_WINDOW_MS = 10_000;
+const AWAY_COUNTS_AS_RELAUNCH_MS = 5 * 60_000;
+let launchedAt = Date.now();
+let hiddenAt: number | null = null;
+
+/** Records the app being hidden or shown; true when this showing counts as a launch. */
+export function noteVisibility(hidden: boolean, now = Date.now()): boolean {
+  if (hidden) {
+    hiddenAt = now;
+    return false;
+  }
+  const relaunch = hiddenAt !== null && now - hiddenAt >= AWAY_COUNTS_AS_RELAUNCH_MS;
+  hiddenAt = null;
+  if (relaunch) launchedAt = now;
+  return relaunch;
+}
+
 /** Called by the registration once a replacement worker is installed and idle. */
-export function reportUpdateWaiting(apply: (reload?: boolean) => Promise<void>): void {
+export function reportUpdateWaiting(apply: (reload?: boolean) => Promise<void>, now = Date.now()): void {
   updateWaiting = true;
   takeOver = apply;
   for (const listener of listeners) listener();
+  if (now - launchedAt < LAUNCH_WINDOW_MS) installWaitingUpdate();
 }
 
 /**

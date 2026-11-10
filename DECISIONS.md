@@ -1137,6 +1137,28 @@ server always reaches the app as an unreachable server.
 
 ---
 
+## 2026-11-10 — "Next launch" now actually installs the update
+
+**Decision.** Owner decision, amending the 2026-08-19 entry below. A waiting
+update is installed and the page reloaded automatically when the app is
+launching: within 10 seconds of a cold start, or on returning to the app after
+at least 5 minutes away. An update that arrives mid-use still waits.
+
+**Reason.** iOS suspends home-screen apps instead of closing them, so "every
+tab has closed" almost never happened. On 2026-11-10 a parent's phone was still
+running the pre-fix build after a deploy, with the screen drawn under the
+Dynamic Island. Kids' phones would have kept old builds indefinitely.
+
+**Consequences.** The reload happens only at a moment that is already a fresh
+start, so a half-finished checklist or photo capture is not interrupted. A
+return after five minutes away can reload the screen the child left: step ticks
+are saved server-side as they happen and survive, but a photo taken and not yet
+sent in is held in memory and would need retaking. Logic lives in
+`frontend/src/lib/appUpdate.ts`; the System status button is kept for
+installing a mid-use update immediately.
+
+---
+
 ## 2026-08-19 — A new version waits for the next launch
 
 **Decision.** Owner decision. The worker does not call `skipWaiting()` or

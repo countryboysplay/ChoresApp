@@ -1,5 +1,5 @@
 import { registerSW } from 'virtual:pwa-register';
-import { reportUpdateWaiting } from './appUpdate';
+import { installWaitingUpdate, isUpdateWaiting, noteVisibility, reportUpdateWaiting } from './appUpdate';
 
 /**
  * Registers the service worker, once, for the whole app.
@@ -20,19 +20,28 @@ export function registerServiceWorker(): void {
   // can do neither, and that is the common way in on the house wifi.
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
 
+  let registration: ServiceWorkerRegistration | undefined;
   const takeOver = registerSW({
     immediate: false,
-    // Named onNeedRefresh, but it refreshes nothing. Owner decision, unchanged:
-    // a new version waits and takes over on the next launch, and nobody is
-    // shown a dialog they will dismiss forever. All this does is record that
-    // there is something to take over to, for the one screen that offers it.
+    // Installs at once if the app is launching; otherwise only records it.
     onNeedRefresh() {
       reportUpdateWaiting(takeOver);
+    },
+    onRegisteredSW(_url, reg) {
+      registration = reg;
     },
     onRegisterError(error) {
       // Not fatal. Without a worker the app still works whenever the laptop is
       // reachable, which is almost always - it just loses offline and push.
       console.warn('service worker registration failed', error);
     },
+  });
+
+  // A resumed iOS home-screen app never reloads, so a return after a real
+  // absence is its launch: take a waiting update, or go and look for one.
+  document.addEventListener('visibilitychange', () => {
+    if (!noteVisibility(document.hidden)) return;
+    if (isUpdateWaiting()) installWaitingUpdate();
+    else void registration?.update();
   });
 }
