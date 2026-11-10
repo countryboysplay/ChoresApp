@@ -32,6 +32,20 @@ body {
   background-color: var(--navy-900);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
+  /* viewport-fit=cover + black-translucent draw under the status bar and
+     Dynamic Island; keep content below them. */
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Solid strip behind the status bar so scrolled content never shows under it. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: env(safe-area-inset-top, 0px);
+  background: #08090a;
+  z-index: 45;
+  pointer-events: none;
 }
 
 /* Pre-login screens: graphite depth with a faint topo-map watermark, in

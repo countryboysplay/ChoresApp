@@ -5,6 +5,8 @@ import { sweepReminders } from './service.js';
 import { drainPushQueue } from './push.js';
 import { backupIfDue } from '../backup/service.js';
 import { renewIfDue } from '../tls/certificate.js';
+import { ensureDaysMaterialized } from '../chores/materialize.js';
+import { householdToday } from '../time.js';
 
 /**
  * Runs the reminder sweep and the push drain on a timer.
@@ -45,6 +47,19 @@ export function startScheduler(
     // A sweep that overruns its interval must not stack up behind itself.
     if (running) return;
     running = true;
+    try {
+      // Chores are otherwise only created when a child opens the app, so a day
+      // nobody opened (typically Saturday) had nothing for the sweep to remind.
+      const today = householdToday(env.HOUSEHOLD_TZ);
+      const { rows: kids } = await db.query<{ id: string }>(
+        `SELECT id FROM users WHERE role = 'child' AND is_active`,
+      );
+      for (const kid of kids) await ensureDaysMaterialized(db, kid.id, today);
+    } catch (error) {
+      // Separately guarded: one child's bad chore data must not silence everyone's reminders.
+      log.error({ err: error }, 'chore materialize failed');
+    }
+
     try {
       const result = await sweepReminders(db, env.HOUSEHOLD_TZ);
       if (result.reminders > 0 || result.escalations > 0) {

@@ -442,6 +442,55 @@ describeDb('session lifecycle', () => {
     expect(after.statusCode).toBe(401);
     await app.close();
   });
+
+  it('re-sends the cookie with the new expiry when a session slides', async () => {
+    const app = await buildApp({ env: testEnv });
+    const childId = await makeUser('child', '4821', 'Sliding Child');
+
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { userId: childId, pin: '4821' },
+    });
+    const cookie = sessionCookieFrom(login.headers);
+
+    // Fresh session: no renewal, so no cookie churn on every request.
+    const quiet = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } });
+    expect(quiet.headers['set-cookie']).toBeUndefined();
+
+    await pool.query(
+      `UPDATE sessions
+          SET created_at = now() - interval '80 days',
+              last_seen_at = now() - interval '2 hours',
+              expires_at = now() + interval '10 days'
+        WHERE user_id = $1`,
+      [childId],
+    );
+
+    const renewed = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } });
+    expect(renewed.statusCode).toBe(200);
+    expect(sessionCookieFrom(renewed.headers)).toBe(cookie);
+    const expires = /Expires=([^;]+)/.exec(String(renewed.headers['set-cookie']))?.[1];
+    const daysLeft = (Date.parse(expires ?? '') - Date.now()) / 86_400_000;
+    expect(daysLeft).toBeGreaterThan(89);
+    await app.close();
+  });
+
+  it('names the right audience when a role is refused', async () => {
+    const app = await buildApp({ env: testEnv });
+    const parentId = await makeUser('parent', '4821', 'Refused Parent');
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { userId: parentId, pin: '4821' },
+    });
+    const cookie = sessionCookieFrom(login.headers);
+
+    const response = await app.inject({ method: 'GET', url: '/api/child/day', headers: { cookie } });
+    expect(response.statusCode).toBe(403);
+    expect(response.json().error.message).toBe('That area is for kids.');
+    await app.close();
+  });
 });
 
 describeDb('the profile list', () => {

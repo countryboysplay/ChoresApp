@@ -1,4 +1,5 @@
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../lib/auth';
 import { Button } from '../../design/primitives';
 import { Icon } from '../../design/icons';
 import { useSkyBackground } from '../../hooks/useSkyBackground';
@@ -10,6 +11,11 @@ const GROUND = '#1b1712';
 export function Splash() {
   useSkyBackground();
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // The installed app always opens here (manifest start_url), so a still-valid
+  // session must skip straight past the profile picker.
+  if (user) return <Navigate to={user.role === 'parent' ? '/parent' : '/child/home'} replace />;
 
   return (
     <main

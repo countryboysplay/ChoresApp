@@ -52,7 +52,7 @@ async function authPlugin(app: FastifyInstance, opts: { env: Env }): Promise<voi
   // Reads the cookie if there is one, but never rejects. Routes that require a
   // session say so themselves, so a public route cannot accidentally become
   // authenticated-only by being registered in the wrong order.
-  app.addHook('onRequest', async (request) => {
+  app.addHook('onRequest', async (request, reply) => {
     const raw = request.cookies[SESSION_COOKIE];
     if (!raw) return;
 
@@ -63,7 +63,13 @@ async function authPlugin(app: FastifyInstance, opts: { env: Env }): Promise<voi
     if (!pool) return;
 
     const session = await resolveSession(pool, unsigned.value);
-    if (session) request.session = session;
+    if (!session) return;
+    request.session = session;
+    // The browser keeps the expiry it was last sent, so a sliding session only
+    // slides if the cookie is re-issued too. A later clearCookie (sign-out) wins.
+    if (session.renewed) {
+      reply.setCookie(SESSION_COOKIE, unsigned.value, { ...cookieOptions(env), expires: session.expiresAt });
+    }
   });
 
   app.decorate('requireAuth', (roles?: Role[]) => async (request: FastifyRequest, reply: FastifyReply) => {
@@ -78,7 +84,10 @@ async function authPlugin(app: FastifyInstance, opts: { env: Env }): Promise<voi
       // Deliberately not 404. The client knows who it is signed in as, so
       // hiding the route's existence buys nothing and confuses the UI.
       await reply.code(403).send({
-        error: { code: 'forbidden', message: 'That area is for parents.' },
+        error: {
+          code: 'forbidden',
+          message: request.session.user.role === 'parent' ? 'That area is for kids.' : 'That area is for parents.',
+        },
       });
     }
   });

@@ -48,6 +48,8 @@ export interface AuthenticatedSession {
   sessionId: string;
   user: SessionUser;
   expiresAt: Date;
+  /** True when this request pushed expiresAt forward, so the cookie must be re-sent. */
+  renewed?: boolean;
 }
 
 export function hashToken(token: string): string {
@@ -132,14 +134,18 @@ export async function resolveSession(
   // remember to also revoke every session they had open.
   if (!row || !row.is_active) return null;
 
-  if (now.getTime() - row.last_seen_at.getTime() > TOUCH_AFTER_MS) {
+  let expiresAt = row.expires_at;
+  const renewed = now.getTime() - row.last_seen_at.getTime() > TOUCH_AFTER_MS;
+  if (renewed) {
+    expiresAt = expiryFor(row.role, now);
     await db.query(
       `UPDATE sessions SET last_seen_at = $2, expires_at = $3 WHERE id = $1`,
-      [row.id, now, expiryFor(row.role, now)],
+      [row.id, now, expiresAt],
     );
   }
 
   return {
+    renewed,
     sessionId: row.id,
     user: {
       id: row.user_id,
@@ -147,7 +153,7 @@ export async function resolveSession(
       displayName: row.display_name,
       avatar: row.avatar,
     },
-    expiresAt: row.expires_at,
+    expiresAt,
   };
 }
 

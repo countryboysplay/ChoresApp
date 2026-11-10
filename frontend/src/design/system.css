@@ -29,7 +29,7 @@
  * primary controls up off the thumb line.
  */
 .screen--sky {
-  min-height: 100dvh;
+  min-height: calc(100dvh - env(safe-area-inset-top, 0px));
   display: flex;
   flex-direction: column;
   padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
@@ -523,7 +523,7 @@
   bottom: 0;
   z-index: 40;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 2px;
   padding: var(--space-2) var(--space-2) calc(var(--space-2) + env(safe-area-inset-bottom));
   background:
@@ -570,7 +570,7 @@
 
 .topbar {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top, 0px);
   z-index: 30;
   display: flex;
   align-items: center;
