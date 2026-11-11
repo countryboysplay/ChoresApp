@@ -12,14 +12,20 @@ _Last updated: 2026-11-10_
 | Repository | `countryboysplay/ChoresApp`, public, default branch `main` |
 | Preview URL | https://countryboysplay.github.io/ChoresApp/ — frontend only, mock data, no backend, no login |
 | Production URL | https://chores.lindsayfam.org — served from the ZimaOS box (not the Windows laptop), reachable from the open internet via a Cloudflare Tunnel. See "Infrastructure move" below |
-| Database migration status | 12 migrations applied; 19 tables, 10 enums. Rolls back to empty and forward again cleanly |
-| Test status | 263 in CI (232 backend, 31 frontend). On the laptop 179 skip by design - tests may not touch the household database |
-| Last known good commit | `69cea4f` — Stage 17 running for real; CI green. GitHub `main` is at `4da4f2f` (2026-08-30); nothing since `69cea4f` touches app code or screens |
+| Database migration status | 13 migrations, all applied in production (latest `1755720000000_boosts-and-family-goal`, 2026-11-10). Rolls back to empty and forward again cleanly |
+| Test status | CI green on `2b3727d`. Locally: 236 backend pass (13 backup tests skip without `pg_dump`), 50 frontend pass |
+| Last known good commit | `2b3727d` on `main` — the Arcade HUD redesign and gameplay features; CI green, deployed to ZimaOS 2026-11-10 |
 
 ## 2026-11-10 (evening) — Review fixes, Motion, React Bits, new icon
 
-Branch `neon-redesign`. Everything below this entry was committed as `82c604b`;
-this entry's fixes follow it. Not deployed.
+**Merged to `main` and deployed to ZimaOS (2026-11-10).** Committed as `82c604b`
+(everything in the entries below) and `2b3727d` (this entry's fixes), fast-forwarded
+onto `main`; the `neon-redesign` branch is deleted. CI and the Pages preview passed.
+Production: migration `1755720000000` applied on start, health OK, new icon and
+bundle served at chores.lindsayfam.org. Pre-deploy backups in the server's app
+folder: `predeploy-backup-20261110d.tgz` (files) and `predeploy-db-20261110.dump`
+(database, `pg_restore` format). Phones pick up the build on the next launch; the
+new home-screen icon needs the app removed and re-added.
 
 - **Added:** Motion (MIT) for kid screen transitions (`ChildShell`) and the coin
   flight on redeem (`Rewards`). React Bits DecryptedText (MIT + Commons Clause,
@@ -53,7 +59,7 @@ this entry's fixes follow it. Not deployed.
 ## 2026-11-10 — Motion and the Arcade HUD redesign (kid side)
 
 Built with the `/impeccable animate` skill, then redesigned at the owner's
-request ("go crazy"). **Not committed and not deployed.** Typecheck clean; 49
+request ("go crazy"). **Now merged and deployed - see the evening entry above.** Typecheck clean; 49
 frontend tests pass (3 new in `src/test/motion.test.ts`). Owner chose the
 **Arcade HUD** direction for players **13 and up**. The parent side is unchanged
 apart from the sliding tab indicator.
@@ -126,8 +132,8 @@ apart from the sliding tab indicator.
 - Check that nothing in the skin is clipped. `clip-path` cuts off outer glows and
   focus rings: look at keyboard focus on chamfered buttons, which may need an
   inset focus ring.
-- Test on a real iPhone (performance of the sky and the grid floor), then commit
-  and deploy.
+- Test on a real iPhone (performance of the sky and the grid floor). Committed
+  and deployed 2026-11-10; this check is still open.
 - Optional from research (all free, safe for a public repo):
   - Motion (framer-motion) for spring and exit transitions.
   - React Bits CSS variants for decrypt-text and count-up.
@@ -136,7 +142,7 @@ apart from the sliding tab indicator.
 - Avoid: Layer Lab, Lordicon and Envato packs. Their licences forbid shipping the files in a public repo.
 - Run `/ponytail:ponytail-review` before committing (owner rule).
 
-## 2026-11-10 — Gameplay features (branch `neon-redesign`)
+## 2026-11-10 — Gameplay features (merged to `main`, deployed)
 
 - **XP boosts.** One per 7 streak days (once per milestone per run). Armed on a
   chosen undecided chore (Home quest card or chore screen); on approval that
