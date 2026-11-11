@@ -24,6 +24,10 @@ export function getPool(): pg.Pool | null {
     idleTimeoutMillis: 30_000,
     // Fail fast rather than hanging a request while Postgres is down.
     connectionTimeoutMillis: 5_000,
+    // SQL like `created_at >= $1::date` reads the date in the session's zone.
+    // Without this that is the database's own clock (UTC in production), and a
+    // Sunday-evening chore lands in Monday's week.
+    options: `-c timezone=${env.HOUSEHOLD_TZ}`,
   });
 
   return pool;

@@ -47,3 +47,11 @@ export function levelForLifetimePoints(lifetimePoints: number): LevelProgress {
     levelSpan: nextLevelAt === null ? null : nextLevelAt - currentLevelAt,
   };
 }
+
+/** Rank per ten levels; matches the level-tier-N emblems (see levelTier in design/neon). */
+const RANKS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'] as const;
+export type RankName = (typeof RANKS)[number];
+
+export function rankForLevel(level: number): RankName {
+  return RANKS[Math.min(RANKS.length - 1, Math.max(0, Math.floor(level / 10)))] ?? 'Bronze';
+}

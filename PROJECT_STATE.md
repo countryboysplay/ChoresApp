@@ -1,6 +1,6 @@
 # Chore Quest — Project State
 
-_Last updated: 2026-09-22_
+_Last updated: 2026-11-10_
 
 | Field | Value |
 | --- | --- |
@@ -15,6 +15,107 @@ _Last updated: 2026-09-22_
 | Database migration status | 12 migrations applied; 19 tables, 10 enums. Rolls back to empty and forward again cleanly |
 | Test status | 263 in CI (232 backend, 31 frontend). On the laptop 179 skip by design - tests may not touch the household database |
 | Last known good commit | `69cea4f` — Stage 17 running for real; CI green. GitHub `main` is at `4da4f2f` (2026-08-30); nothing since `69cea4f` touches app code or screens |
+
+## 2026-11-10 — Motion and the Arcade HUD redesign (kid side, uncommitted)
+
+Built with the `/impeccable animate` skill, then redesigned at the owner's
+request ("go crazy"). **Not committed and not deployed.** Typecheck clean; 49
+frontend tests pass (3 new in `src/test/motion.test.ts`). Owner chose the
+**Arcade HUD** direction for players **13 and up**. The parent side is unchanged
+apart from the sliding tab indicator.
+
+### What changed
+
+- **Catch-up motion on kid Home** (`frontend/src/lib/motion.ts`). `useCatchUp`
+  remembers per device (`localStorage` keys `cq-seen:<userId>:coins|xp|steps:<date>|goal:<weekStart>`)
+  what the kid last saw. `useTween` counts numbers up. Coins, XP (wraps on a
+  level-up), today's steps and the family goal animate from the last-seen value
+  to the current one. It waits until the celebration queue is idle
+  (`CelebrationQueue` now has an `onIdle` prop).
+- **Sliding indicator** on every `Segmented` control (`primitives.tsx`,
+  `system.css`). The parent theme paints it steel (`neon-parent.css`).
+- **Boost arm flash** (`choreStatus.tsx` `is-charging`, `neon-kid.css`).
+- **Animated background** `design/NeonSky.tsx`, rendered once in `App.tsx`:
+  - Drifting aurora, two star layers and a rolling grid floor.
+  - Turns mint and gold when every required chore is approved:
+    `useSkyMood` sets `body[data-sky=clear]`, and `ChildShell` calls it.
+  - Hidden under the parent shell via `body:has(.parent-layout)`.
+- **Tile motion** (`neon-kid.css`):
+  - Staggered entrance.
+  - Pointer and touch tilt with a glare (`useTileTilt`, one delegated listener in `ChildShell`).
+  - Sheen on rewards the kid can afford, glint on earned badges, a pulse on the boost stat.
+- **Arcade HUD** (`design/neon-hud.css`, loaded by `ChildShell`, which adds
+  `body.kid`). Kid Home was rebuilt in `screens/child/Home.tsx`:
+  - Player plate: avatar inside a gold XP ring, level chip, segmented XP bar, coins / boosts / streak.
+  - "Today's run": a track of diamond stops ending in the chest.
+  - Mission card: reactor art, pips per step, chamfered CTA.
+  - "Next up" side-quests, family goal plate, last-win ticker.
+- **Kid-wide skin** under `body.kid`:
+  - Chamfered (cut-corner) buttons, cards, lists, tabs and chips.
+  - HUD bottom nav with a lit notch on the active tab.
+  - Display face on titles.
+- **Fonts and confetti**:
+  - New display face **Chakra Petch** (`@fontsource/chakra-petch`, OFL), imported in `styles/global.css`.
+  - `--font-display` points to it; `.parent-layout` resets it to Inter.
+  - **canvas-confetti** (ISC, ~4 kB) bursts in brand colours when a celebration opens (`Celebration.tsx`). Skipped under reduced motion.
+- **Reduced motion** is respected everywhere: no loops, no tilt; numbers land
+  instantly; state colours still change.
+- **Removed**:
+  - The old Guild Ledger concept image (to the Recycle Bin).
+  - The old design-board section of this file.
+  - `screenshots/` was meant to go too but was locked by another process, so delete it by hand. It is gitignored, generated output of the pre-redesign look; regenerate with `npm run screenshots`.
+
+### How to see it on a phone-sized screen (desktop)
+
+1. **Start the preview frontend** (mock data, no backend, no login), from `frontend/`.
+   In PowerShell: `$env:VITE_PREVIEW_MODE='true'; npx vite --port 5180 --strictPort`
+2. **Serve the phone frame** that is now in the repo, from `scripts/`:
+   `python -m http.server 5199 --bind 127.0.0.1`
+   Then open `http://127.0.0.1:5199/phone-preview.html`.
+3. **What the frame does.** It draws an iPhone-sized bezel (390×844 with a Dynamic
+   Island) around an iframe of `http://localhost:5180/#/child/home`.
+   - The iframe is 15px wider than the screen, so the Windows scrollbar is clipped off.
+   - It scales to fit the window, and the app inside hot-reloads as files change.
+   - The frame page itself never reloads.
+   - Chrome cannot open `file://` pages from the automation tools, which is why it is served over HTTP.
+4. **Reduced motion.** If Windows "Animation effects" is off, the browser reports
+   reduced motion and nothing animates. Turn it on (Settings > Accessibility > Visual effects) to see the motion.
+5. **Known quirks:**
+   - The island covers the brand bar because desktop browsers report no safe-area inset; on a real iPhone the app clears it.
+   - Preview mode has no rewards or badges, so the reward sheen and badge glint cannot be seen there; they need live data.
+
+### Next session
+
+- Look at every kid screen in the phone frame. Only Home was redesigned; the
+  others got the skin (`body.kid`) and need a pass: Quests, Chore detail,
+  Rewards, Leaderboard, Achievements, Wallet, Profile, and the pre-login screens.
+- Check that nothing in the skin is clipped. `clip-path` cuts off outer glows and
+  focus rings: look at keyboard focus on chamfered buttons, which may need an
+  inset focus ring.
+- Test on a real iPhone (performance of the sky and the grid floor), then commit
+  and deploy.
+- Optional from research (all free, safe for a public repo):
+  - Motion (framer-motion) for spring and exit transitions.
+  - React Bits CSS variants for decrypt-text and count-up.
+  - game-icons.net (CC BY, needs a credits file).
+  - Orbitron or Oxanium as an alternative display face.
+- Avoid: Layer Lab, Lordicon and Envato packs. Their licences forbid shipping the files in a public repo.
+- Run `/ponytail:ponytail-review` before committing (owner rule).
+
+## 2026-11-10 — Gameplay features (branch `neon-redesign`)
+
+- **XP boosts.** One per 7 streak days (once per milestone per run). Armed on a
+  chosen undecided chore (Home quest card or chore screen); on approval that
+  chore's XP doubles, coins do not. Derived through the `xp_ledger` view; see
+  DECISIONS 2026-11-10. API: `POST|DELETE /api/chores/:id/boost`;
+  `summary.boosts`, `Chore.boosted`, `LedgerEntry.boostXp`.
+- **Weekly family goal.** Parent Settings sets an XP target and optional reward;
+  kid Home shows the shared bar (`summary.familyGoal`). Team Player badge.
+- **New badges.** `perfect-week`, `speed-run`, `clean-sweep`, `team-player`.
+- **Leaderboard "This month"** (`StandingEntry.monthPoints`).
+- Migration `1755720000000_boosts-and-family-goal` (13 migrations). New tests in
+  `backend/src/test/gameplay.test.ts`. Run backend tests locally with
+  `DATABASE_URL` and `TEST_DATABASE_URL` both set to `chore_quest_test`.
 
 ## Stage 0 findings
 
@@ -35,21 +136,11 @@ Prerequisites are now installed and verified **on the Windows laptop**
 installer does not add it), which is what puts `psql` and `pg_dump` in reach of
 preflight and the ops scripts.
 
-## Built from the approved design board
+## Visual design
 
-The UI package supplied on 2026-08-18 is now the visual authority. Applied:
-splash screen, "Choose your hero" profile select and PIN entry on the bright sky
-background; navy in-app shell; gold points pills; circular level badge with XP
-bar; sky-blue "Today's progress" panel with a code-drawn treasure chest; purple
-"Next bonus chore" panel; pale streak panel; segmented Today/This week,
-Pending/Reviewed, Daily/Weekly and All/Available/Goals controls; colored icon
-tiles; stat rows on the parent dashboard; and a desktop sidebar for the parent
-app. Fredoka and Nunito are now self-hosted from npm, so the type matches the
-board offline.
-
-Per the package README, mockup text was not treated as business logic: the
-specification still governs point values, the $40 weekly cap, photo-required
-completion, and every workflow state.
+The kid side is the **Arcade HUD** on the NEON theme (2026-11-10, see the section
+at the top). The parent side keeps the NEON parent theme (`neon-parent.css`).
+The 2026-08 design board and the Stage 2 look it described are retired.
 
 ## Resolved
 
@@ -72,7 +163,7 @@ completion, and every workflow state.
 
 ## Stage 2 — approved
 
-**Approved 2026-08-19, as built.** The screens are the visual baseline now, so
+**Approved 2026-08-19, as built.** (The look has since been replaced twice - NEON, then the Arcade HUD; the routes below still hold.) The screens were the visual baseline, so
 later stages replace mock data with real data behind the same layouts rather
 than redesigning them. Anything that changes how a screen looks from here is a
 deliberate decision, not incidental drift, and belongs in DECISIONS.md.

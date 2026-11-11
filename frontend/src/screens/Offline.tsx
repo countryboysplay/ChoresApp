@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Icon } from '../design/icons';
+import { NeonArt } from '../design/neon';
 import { Button } from '../design/primitives';
 import { useAuth } from '../lib/auth';
 
@@ -40,7 +40,7 @@ export function Offline() {
 
   return (
     <main className="screen" style={{ textAlign: 'center', paddingTop: 'var(--space-7)' }}>
-      <Icon name="alert" size={56} style={{ color: 'var(--gold)' }} />
+      <NeonArt group="states" name="offline" className="state-page__art" style={{ margin: '0 auto' }} />
 
       <h1 className="title" style={{ marginTop: 'var(--space-4)' }}>
         Can&rsquo;t reach home
@@ -57,7 +57,7 @@ export function Offline() {
       </p>
 
       <div style={{ marginTop: 'var(--space-5)' }}>
-        <Button tone="primary" disabled={retrying} onClick={() => void retry()}>
+        <Button tone="primary" icon="refresh" disabled={retrying} onClick={() => void retry()}>
           {retrying ? 'Trying…' : 'Try again'}
         </Button>
       </div>

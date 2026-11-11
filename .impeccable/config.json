@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "frontend/src/design/neon-parent.css"
+        ],
+        "createdAt": "2026-11-10T21:07:31.879Z",
+        "reason": "Claude: pre-existing status stripe (.card--status in system.css, approved Stage 2 design, always paired with icon + text label); parent theme only thins it to 4px"
+      }
+    ]
+  }
+}

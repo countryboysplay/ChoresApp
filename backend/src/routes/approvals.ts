@@ -5,6 +5,8 @@ import { getPool } from '../db.js';
 import { householdToday } from '../time.js';
 import { notify } from '../notifications/service.js';
 import { syncAchievements } from '../achievements/service.js';
+import { syncBoosts } from '../chores/boosts.js';
+import { streakRun } from '../chores/queries.js';
 
 const RejectBody = z.object({
   note: z.string().trim().min(1, 'A note is required.').max(500),
@@ -175,12 +177,14 @@ export async function approvalRoutes(app: FastifyInstance, opts: { env: Env }): 
         chore_name: string;
         unviewed: number;
         bonus_points: number;
+        boosted: boolean;
       }>(
         `SELECT ci.id, ci.status, ci.points_value, ci.submitted_punctual,
                 ci.assigned_to AS child_id, d.name AS chore_name,
                 (SELECT count(*)::int FROM chore_photos p
                   WHERE p.chore_instance_id = ci.id AND p.first_viewed_at IS NULL) AS unviewed,
-                (SELECT punctuality_bonus_points FROM household_settings) AS bonus_points
+                (SELECT punctuality_bonus_points FROM household_settings) AS bonus_points,
+                EXISTS (SELECT 1 FROM boosts b WHERE b.chore_instance_id = ci.id) AS boosted
            FROM chore_instances ci
            JOIN chore_definitions d ON d.id = ci.chore_definition_id
           WHERE ci.id = $1
@@ -232,9 +236,11 @@ export async function approvalRoutes(app: FastifyInstance, opts: { env: Env }): 
         userId: chore.child_id,
         kind: 'chore_approved',
         title: `${chore.chore_name} approved`,
-        body: bonus > 0
-          ? `${total} points, including ${bonus} for being on time.`
-          : `${total} points added to your wallet.`,
+        body:
+          (bonus > 0
+            ? `${total} points, including ${bonus} for being on time.`
+            : `${total} points added to your wallet.`) +
+          (chore.boosted ? ` Boosted: +${total * 2} XP.` : ''),
         tone: 'done',
         deepLink: '#/child/wallet',
         choreInstanceId: instanceId,
@@ -256,20 +262,26 @@ export async function approvalRoutes(app: FastifyInstance, opts: { env: Env }): 
        * is safe to swallow the error and only log it.
        */
       try {
-        const { newlyEarned } = await syncAchievements(
-          db,
-          chore.child_id,
-          householdToday(env.HOUSEHOLD_TZ),
+        const today = householdToday(env.HOUSEHOLD_TZ);
+        // This approval may have extended a streak to a boost milestone.
+        await syncBoosts(db, chore.child_id, await streakRun(db, chore.child_id, today));
+        // Every child, not just this one: this XP may have hit the family goal,
+        // which earns Team Player for everybody who helped.
+        const { rows: children } = await db.query<{ id: string }>(
+          `SELECT id FROM users WHERE role = 'child' AND is_active`,
         );
-        for (const badge of newlyEarned) {
-          await notify(db, {
-            userId: chore.child_id,
-            kind: 'general',
-            title: `Badge earned: ${badge.name}`,
-            body: badge.description,
-            tone: 'done',
-            deepLink: '#/child/achievements',
-          });
+        for (const child of children) {
+          const { newlyEarned } = await syncAchievements(db, child.id, today);
+          for (const badge of newlyEarned) {
+            await notify(db, {
+              userId: child.id,
+              kind: 'general',
+              title: `Badge earned: ${badge.name}`,
+              body: badge.description,
+              tone: 'done',
+              deepLink: '#/child/achievements',
+            });
+          }
         }
       } catch (error) {
         app.log.warn({ err: error }, 'could not update achievements after approval');

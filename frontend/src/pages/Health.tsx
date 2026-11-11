@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { HealthResponse } from '@chore-quest/shared';
+import { Link } from 'react-router-dom';
+import { Icon } from '../design/icons';
+import { NeonArt } from '../design/neon';
+import { Button } from '../design/primitives';
 import { api, ApiRequestError } from '../lib/api';
 
 type Status =
@@ -30,7 +34,13 @@ export function Health() {
 
   return (
     <main className="screen">
-      <h1 style={{ fontSize: 'var(--text-3xl)' }}>Server check</h1>
+      <Link to="/" className="iconbtn" aria-label="Go back" style={{ marginBottom: 'var(--space-3)' }}>
+        <Icon name="back" size={20} />
+      </Link>
+      <h1 className="row" style={{ fontSize: 'var(--text-3xl)', gap: 'var(--space-3)' }}>
+        <Icon name="server" size={32} />
+        Server check
+      </h1>
       <p className="muted" style={{ marginTop: 0 }}>
         Diagnostics page. The app itself starts at the player select screen.
       </p>
@@ -40,14 +50,14 @@ export function Health() {
 
         {status.state === 'checking' && (
           <p className="badge badge--waiting">
-            <span aria-hidden="true">⏳</span> Checking…
+            <Icon name="hourglass" size={16} /> Checking…
           </p>
         )}
 
         {status.state === 'connected' && (
           <>
             <p className="badge badge--ok">
-              <span aria-hidden="true">✓</span> Connected
+              <Icon name="cloud-check" size={16} /> Connected
             </p>
             <dl style={{ display: 'grid', gap: 'var(--space-2)', marginBottom: 0 }}>
               <Row label="API version" value={status.health.version} />
@@ -61,8 +71,9 @@ export function Health() {
 
         {status.state === 'unreachable' && (
           <>
+            <NeonArt group="states" name="offline" style={{ width: 140, height: 'auto', margin: 'var(--space-3) auto' }} />
             <p className="badge badge--down">
-              <span aria-hidden="true">!</span> Not connected
+              <Icon name="wifi-off" size={16} /> Not connected
             </p>
             <p className="muted">{status.message}</p>
             <p className="muted">
@@ -71,23 +82,9 @@ export function Health() {
           </>
         )}
 
-        <button
-          type="button"
-          onClick={() => void check()}
-          style={{
-            marginTop: 'var(--space-4)',
-            width: '100%',
-            border: 'none',
-            borderRadius: 'var(--radius-pill)',
-            padding: '0 var(--space-5)',
-            fontWeight: 800,
-            color: 'var(--text-strong)',
-            background: 'linear-gradient(180deg, var(--blue), var(--purple))',
-            boxShadow: 'var(--shadow-card)',
-          }}
-        >
+        <Button tone="primary" block icon="refresh" style={{ marginTop: 'var(--space-4)' }} onClick={() => void check()}>
           Check again
-        </button>
+        </Button>
       </section>
     </main>
   );

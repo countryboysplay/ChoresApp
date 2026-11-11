@@ -10,11 +10,10 @@
  *
  *   npm run icons
  *
- * The mark is a filled version of the "broken-compass" sigil - the same
- * four-point star as the `compass` icon in design/icons.tsx and the Splash
- * scene, redrawn solid rather than stroked because a launcher icon has to
- * read at 48px on a homescreen, where thin strokes and the compass rings
- * disappear. Keep the silhouette in sync with those if the sigil changes.
+ * The mark is the arcade HUD in miniature: a cut-corner plate (the same
+ * chamfer as the kid buttons and cards in design/neon-hud.css) with gold HUD
+ * brackets, holding the diamond "stop" from Home's "Today's run" track with a
+ * check in it. Only bold shapes, so it still reads at 48px on a homescreen.
  */
 import { chromium } from 'playwright';
 import { writeFile, mkdir } from 'node:fs/promises';
@@ -24,34 +23,49 @@ import { dirname, join, resolve } from 'node:path';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = join(root, 'frontend', 'public');
 
-const COMPASS = 'M50 6 60 40 94 50 60 60 50 94 40 60 6 50 40 40Z';
-
 /**
  * @param inset fraction of the canvas to keep clear around the mark. Maskable
  *   icons get cropped to a circle by the launcher, so the mark has to sit
- *   inside the middle 80% or Android will clip the star's points.
+ *   inside the middle 80% or Android will clip it.
  */
 function iconSvg({ size, inset, radius }) {
   const markBox = size * (1 - inset * 2);
-  const scale = markBox / 100; // the compass viewBox is 100x100
-  const x = (size - markBox) / 2;
-  const y = (size - markBox) / 2;
+  const scale = markBox / 100; // the mark is drawn in a 100x100 box
+  const offset = (size - markBox) / 2;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1b1f23"/>
-      <stop offset="1" stop-color="#0f1113"/>
+      <stop offset="0" stop-color="#121c44"/>
+      <stop offset="1" stop-color="#05070f"/>
     </linearGradient>
-    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#cba871"/>
-      <stop offset="1" stop-color="#b08d57"/>
+    <radialGradient id="halo" cx="0.5" cy="0.45" r="0.55">
+      <stop offset="0" stop-color="#40e4ff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#40e4ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#40e4ff"/>
+      <stop offset="1" stop-color="#aa69ff"/>
     </linearGradient>
+    <linearGradient id="gem" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7cf0ff"/>
+      <stop offset="0.55" stop-color="#40c8ff"/>
+      <stop offset="1" stop-color="#aa69ff"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe498"/>
+      <stop offset="1" stop-color="#f2a33c"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
   </defs>
   <rect width="${size}" height="${size}" rx="${radius}" fill="url(#bg)"/>
-  <g transform="translate(${x} ${y}) scale(${scale})">
-    <path d="${COMPASS}" fill="url(#mark)" stroke="#6b5530" stroke-width="2.5" stroke-linejoin="round"/>
-    <circle cx="50" cy="50" r="6" fill="#e7e1d6"/>
+  <rect width="${size}" height="${size}" rx="${radius}" fill="url(#halo)"/>
+  <g transform="translate(${offset} ${offset}) scale(${scale})" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M24 6H94V76L76 94H6V24Z" fill="#0b1230" fill-opacity="0.85" stroke="url(#rim)" stroke-width="4.5"/>
+    <path d="M77 14h9v9M14 77v9h9" fill="none" stroke="url(#gold)" stroke-width="4"/>
+    <path d="M50 17 83 50 50 83 17 50Z" fill="#40e4ff" opacity="0.55" filter="url(#glow)"/>
+    <path d="M50 17 83 50 50 83 17 50Z" fill="url(#gem)" stroke="#d9fbff" stroke-width="1.5"/>
+    <path d="M35 51l10 10 20-21" fill="none" stroke="#0a0f24" stroke-width="9"/>
   </g>
 </svg>`;
 }
@@ -59,10 +73,10 @@ function iconSvg({ size, inset, radius }) {
 const TARGETS = [
   // Standard icons keep square corners at the platform's mercy, so they carry
   // their own rounding. Maskable gets none - the launcher supplies the shape.
-  { file: 'icon-192.png', size: 192, inset: 0.22, radius: 42 },
-  { file: 'icon-512.png', size: 512, inset: 0.22, radius: 112 },
-  { file: 'icon-maskable-512.png', size: 512, inset: 0.3, radius: 0 },
-  { file: 'apple-touch-icon.png', size: 180, inset: 0.22, radius: 0 },
+  { file: 'icon-192.png', size: 192, inset: 0.14, radius: 42 },
+  { file: 'icon-512.png', size: 512, inset: 0.14, radius: 112 },
+  { file: 'icon-maskable-512.png', size: 512, inset: 0.22, radius: 0 },
+  { file: 'apple-touch-icon.png', size: 180, inset: 0.14, radius: 0 },
 ];
 
 await mkdir(publicDir, { recursive: true });
@@ -86,7 +100,7 @@ await browser.close();
 
 // The favicon stays vector: browsers handle SVG favicons, and it keeps the one
 // place the mark is likely to be tweaked in a readable format.
-await writeFile(join(publicDir, 'favicon.svg'), iconSvg({ size: 64, inset: 0.16, radius: 14 }));
+await writeFile(join(publicDir, 'favicon.svg'), iconSvg({ size: 64, inset: 0.04, radius: 14 }));
 console.log('  favicon.svg');
 
 console.log('\nIcons written to frontend/public/');

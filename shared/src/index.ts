@@ -47,6 +47,24 @@ export interface ApiError {
   };
 }
 
+/** Avatar frames and profile banners, unlocked by level. Optional on a saved avatar. */
+export type AvatarFrame =
+  | 'frame-basic'
+  | 'frame-cyan'
+  | 'frame-violet'
+  | 'frame-gold'
+  | 'frame-flame'
+  | 'frame-lightning'
+  | 'frame-crown'
+  | 'frame-diamond';
+export type AvatarBanner =
+  | 'banner-nebula'
+  | 'banner-grid'
+  | 'banner-waves'
+  | 'banner-circuit'
+  | 'banner-city'
+  | 'banner-aurora';
+
 /** One entry on the "choose your hero" screen, before anyone is signed in. */
 export interface AuthProfile {
   id: string;
@@ -115,7 +133,18 @@ export interface Chore {
   /** When the chore appeared on a board, ISO 8601. What "newest" sorts on. */
   postedAt: string;
   claimed: boolean;
+  /** An XP boost is armed on it: its XP (never its coins) doubles on approval. */
+  boosted: boolean;
   subtasks: Subtask[];
+}
+
+/** The household's weekly XP target, with everyone's XP so far this week. */
+export interface FamilyGoal {
+  target: number;
+  /** What the family gets, e.g. "Pizza night". Null when the parent left it blank. */
+  reward: string | null;
+  xp: number;
+  weekStart: string;
 }
 
 export interface ChildSummary {
@@ -123,6 +152,10 @@ export interface ChildSummary {
   lifetimePoints: number;
   streakDays: number;
   recentWin: { label: string; delta: number; at: string } | null;
+  /** XP boosts earned (one per 7 streak days) and not yet used. */
+  boosts: number;
+  /** Null when no parent has set a goal. */
+  familyGoal: FamilyGoal | null;
 }
 
 /**
@@ -138,6 +171,8 @@ export interface StandingEntry {
   lifetimePoints: number;
   /** Points earned since the household's week began. */
   weekPoints: number;
+  /** XP earned since the 1st of the household's month. */
+  monthPoints: number;
   streakDays: number;
   choresApproved: number;
 }
@@ -339,6 +374,8 @@ export interface LedgerEntry {
   reason: string;
   label: string;
   at: string;
+  /** Extra XP a boost added on top of this row. Coins are only ever `delta`. */
+  boostXp: number;
 }
 
 export interface WalletResponse {
@@ -473,6 +510,9 @@ export interface HouseholdSettings {
   reminderTime: string;
   escalationTime: string;
   timezone: string;
+  /** Weekly family XP target; null means no goal and no bar. */
+  weeklyXpGoal: number | null;
+  weeklyGoalReward: string | null;
   cashOutConfigured: boolean;
 }
 

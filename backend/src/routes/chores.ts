@@ -10,6 +10,7 @@ import {
 } from '../time.js';
 import { ensureDaysMaterialized } from '../chores/materialize.js';
 import { releaseExpiredClaims } from '../chores/bonus.js';
+import { armBoost, disarmBoost } from '../chores/boosts.js';
 import {
   availableBonusChores,
   childSummary,
@@ -199,4 +200,49 @@ export async function choreRoutes(app: FastifyInstance, opts: { env: Env }): Pro
       return { chore };
     },
   );
+
+  /**
+   * Arm (POST) or take off (DELETE) an XP boost on one of the child's own
+   * undecided chores. XP only: approval pays coins exactly as before.
+   */
+  for (const method of ['POST', 'DELETE'] as const) {
+    app.route({
+      method,
+      url: '/api/chores/:instanceId/boost',
+      onRequest: requireChild,
+      handler: async (request) => {
+        const session = request.session;
+        if (!session) throw app.httpErrors.unauthorized();
+        const { instanceId } = request.params as { instanceId: string };
+        if (!z.string().uuid().safeParse(instanceId).success) {
+          throw app.httpErrors.notFound('No such chore.');
+        }
+
+        const client = await pool().connect();
+        let outcome: Awaited<ReturnType<typeof armBoost>>;
+        try {
+          await client.query('BEGIN');
+          outcome =
+            method === 'POST'
+              ? await armBoost(client, session.user.id, instanceId)
+              : await disarmBoost(client, session.user.id, instanceId);
+          await client.query(outcome === 'ok' ? 'COMMIT' : 'ROLLBACK');
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        } finally {
+          client.release();
+        }
+
+        if (outcome === 'not_found') throw app.httpErrors.notFound('No such chore.');
+        if (outcome === 'decided') throw app.httpErrors.conflict('That chore has already been decided.');
+        if (outcome === 'already') throw app.httpErrors.conflict('That chore is already boosted.');
+        if (outcome === 'none') throw app.httpErrors.conflict('You have no boosts to use.');
+
+        const chore = await choreForChild(pool(), session.user.id, instanceId);
+        if (!chore) throw app.httpErrors.notFound('No such chore.');
+        return { chore };
+      },
+    });
+  }
 }

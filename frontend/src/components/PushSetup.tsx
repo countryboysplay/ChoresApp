@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '../design/icons';
+import { NeonArt } from '../design/neon';
 import { Badge, Button } from '../design/primitives';
 import { enablePush, readPushState, type PushState } from '../lib/push';
 
@@ -148,15 +149,18 @@ export function PushSetup({ heading = 'Reminders on this phone' }: { heading?: s
     >
       <div className="row row--between">
         <span className="row" style={{ gap: 'var(--space-2)' }}>
-          <Icon name="bell" size={18} />
+          <Icon name={state === 'on' ? 'bell' : 'bell-off'} size={18} />
           <strong>{heading}</strong>
         </span>
         <Badge tone={copy.badge.tone}>{copy.badge.text}</Badge>
       </div>
 
-      <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
-        {working ? 'Turning reminders on…' : copy.detail}
-      </p>
+      <div className={state === 'on' ? undefined : 'state-inline'}>
+        {state !== 'on' && <NeonArt group="states" name="notifications-off" />}
+        <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+          {working ? 'Turning reminders on…' : copy.detail}
+        </p>
+      </div>
 
       {error && (
         <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-2)' }}>
@@ -165,7 +169,7 @@ export function PushSetup({ heading = 'Reminders on this phone' }: { heading?: s
       )}
 
       {copy.retry && (
-        <Button tone="go" block disabled={working} onClick={() => void retry()}>
+        <Button tone="go" block icon="bell" disabled={working} onClick={() => void retry()}>
           Turn on reminders
         </Button>
       )}

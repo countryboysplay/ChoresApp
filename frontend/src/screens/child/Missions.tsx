@@ -1,16 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ChoreWeekResponse } from '@chore-quest/shared';
+import type { ChoreStatus, ChoreWeekResponse } from '@chore-quest/shared';
 import { Icon, type IconName } from '../../design/icons';
-import { Badge, Button, PointsPill, Segmented } from '../../design/primitives';
+import { Badge, Button, Segmented, EmptyState } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { countdown } from '../../config/format';
 import { api, ApiRequestError } from '../../lib/api';
 import { useChildDay } from '../../lib/childDay';
-import { StatusBadge } from './choreStatus';
+import { Loot, StatusBadge, statusAccent } from './choreStatus';
 
 const RANGE = ['Today', 'This week'] as const;
 const SORTS = ['Highest points', 'Newest', 'Expiring soon'] as const;
+const QUEST_TABS = ['To do', 'In progress', 'Done'] as const;
+export type QuestTab = (typeof QUEST_TABS)[number];
+
+/** Sent in counts as in progress (waiting on a parent); sent back is to do again. */
+export function questTab(status: ChoreStatus): QuestTab {
+  if (status === 'approved' || status === 'excused') return 'Done';
+  if (status === 'in_progress' || status === 'submitted') return 'In progress';
+  return 'To do';
+}
 
 /** "Monday", from a household date, without pulling in a date library. */
 function weekdayLabel(date: string): string {
@@ -33,6 +42,8 @@ export function Missions() {
   const { day, loading, error, reload } = useChildDay();
   const [range, setRange] = useState<(typeof RANGE)[number]>('Today');
   const [sort, setSort] = useState<(typeof SORTS)[number]>('Highest points');
+  // null until the kid picks a tab: then it opens wherever their chores are.
+  const [pickedFilter, setQuestFilter] = useState<QuestTab | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [week, setWeek] = useState<ChoreWeekResponse | null>(null);
@@ -93,6 +104,9 @@ export function Missions() {
   };
 
   const required = day?.core ?? [];
+  const questFilter =
+    pickedFilter ?? QUEST_TABS.find((tab) => required.some((chore) => questTab(chore.status) === tab)) ?? 'To do';
+  const shownRequired = required.filter((chore) => questTab(chore.status) === questFilter);
 
   // The board is what is on offer plus anything this child already claimed, so
   // a claimed chore does not vanish from the screen it was claimed on.
@@ -175,7 +189,7 @@ export function Missions() {
                         <span style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ fontWeight: 700, display: 'block' }}>{chore.name}</span>
                         </span>
-                        <PointsPill value={chore.points} small />
+                        <Loot points={chore.points} />
                         <StatusBadge status={chore.status} />
                       </div>
                     ))
@@ -186,33 +200,56 @@ export function Missions() {
           )}
 
           {range === 'Today' && required.length === 0 && (
-            <p className="muted" style={{ marginTop: 'var(--space-3)' }}>Nothing due today.</p>
+            <EmptyState art="no-chores" title="Nothing due today" message="No required quests. Bonus chores still pay." />
+          )}
+
+          {range === 'Today' &&
+            required.length > 0 &&
+            required.every((chore) => ['approved', 'excused'].includes(chore.status)) && (
+              <EmptyState art="all-done-today" title="All done today" message="Every quest approved. Nice run." />
+            )}
+
+          {range === 'Today' && required.length > 0 && (
+            <div style={{ marginTop: 'var(--space-3)' }}>
+              <Segmented options={QUEST_TABS} value={questFilter} onChange={setQuestFilter} label="Quest status" />
+              {shownRequired.length === 0 && (
+                <p className="muted" style={{ marginTop: 'var(--space-3)', textAlign: 'center' }}>
+                  {questFilter === 'Done' ? 'Nothing approved yet today.' : `Nothing ${questFilter.toLowerCase()} right now.`}
+                </p>
+              )}
+            </div>
           )}
 
           <div
             className="stack stack--tight"
             style={{ marginTop: 'var(--space-3)', display: range === 'Today' ? undefined : 'none' }}
           >
-            {required.map((chore) => {
+            {shownRequired.map((chore) => {
               const done = chore.subtasks.filter((task) => task.done).length;
               return (
                 <button
                   key={chore.id}
                   type="button"
-                  className="card card--interactive row"
+                  className={`neon-chore ${statusAccent[chore.status]}`}
                   onClick={() => navigate(`/child/chore/${chore.id}`)}
                 >
-                  <span className="tile-icon tile-icon--gold tile-icon--sm">
+                  <StatusIcon done={done === chore.subtasks.length} />
+                  <span className="tile-icon tile-icon--blue tile-icon--sm">
                     <Icon name={chore.icon as IconName} size={20} />
                   </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontWeight: 800, display: 'block' }}>{chore.name}</span>
-                    <span className="muted numeric" style={{ fontSize: 'var(--text-sm)' }}>
-                      {done} of {chore.subtasks.length} steps
+                  <span className="neon-chore__main">
+                    <strong>{chore.name}</strong>
+                    <span className="neon-chore__meta">
+                      <span>
+                        <Icon name="calendar-check" size={14} /> Due today
+                      </span>
+                      <span className="numeric">
+                        {done} of {chore.subtasks.length} steps
+                      </span>
                     </span>
+                    <StatusBadge status={chore.status} />
                   </span>
-                  <PointsPill value={chore.points} small />
-                  <StatusIcon done={done === chore.subtasks.length} />
+                  <Loot points={chore.points} />
                 </button>
               );
             })}
@@ -240,8 +277,8 @@ export function Missions() {
           </div>
 
           {board.length === 0 && (
-            <p className="muted" style={{ marginTop: 'var(--space-3)' }}>
-              No bonus chores on offer right now.
+            <p className="muted row" style={{ marginTop: 'var(--space-3)', gap: 'var(--space-2)' }}>
+              <Icon name="bonus" size={18} /> No bonus chores on offer right now.
             </p>
           )}
 
@@ -253,24 +290,32 @@ export function Missions() {
 
           <div className="stack stack--tight" style={{ marginTop: 'var(--space-3)' }}>
             {board.map((bonus) => (
-              <article key={bonus.id} className="card">
+              <article key={bonus.id} className="neon-chore" style={{ display: 'block' }}>
                 <div className="row" style={{ gap: 'var(--space-3)' }}>
                   <span className="tile-icon tile-icon--purple tile-icon--sm">
                     <Icon name={bonus.icon as IconName} size={20} />
                   </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontWeight: 800, display: 'block' }}>{bonus.name}</span>
-                    <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-                      {minutesUntil(bonus.expiresAt) === null
-                        ? 'No deadline'
-                        : countdown(minutesUntil(bonus.expiresAt) as number)}
+                  <span className="neon-chore__main">
+                    <strong>{bonus.name}</strong>
+                    <span className="neon-chore__meta">
+                      <span>
+                        <Icon name="timer" size={14} />
+                        {minutesUntil(bonus.expiresAt) === null
+                          ? 'No deadline'
+                          : countdown(minutesUntil(bonus.expiresAt) as number)}
+                      </span>
+                      {bonus.claimed && (
+                        <span>
+                          <Icon name="key" size={14} /> Yours
+                        </span>
+                      )}
                     </span>
                   </span>
-                  <PointsPill value={bonus.points} small />
+                  <Loot points={bonus.points} />
                 </div>
                 {(minutesUntil(bonus.expiresAt) ?? Infinity) < 120 && !bonus.claimed && (
                   <div style={{ marginTop: 'var(--space-3)' }}>
-                    <Badge tone="soon" icon="clock">
+                    <Badge tone="soon" icon="hourglass">
                       Due soon
                     </Badge>
                   </div>

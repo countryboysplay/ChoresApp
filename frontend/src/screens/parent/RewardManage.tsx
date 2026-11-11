@@ -3,13 +3,36 @@ import type { ManagedReward, RewardRequest,
   CashOutRequest,
 } from '@chore-quest/shared';
 import { Icon, type IconName } from '../../design/icons';
-import { Badge, Button, EmptyState, PointsPill, Segmented, Sheet } from '../../design/primitives';
+import { NeonArt, rewardArt } from '../../design/neon';
+import { Badge, Button, EmptyState, PointsPill, SearchField, Segmented, SelectField, Sheet } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { api, ApiRequestError } from '../../lib/api';
 
 const TABS = ['Requests', 'Catalogue'] as const;
 const CATEGORIES = ['Screen Time', 'Food', 'Activities', 'Privileges'] as const;
 const ICONS: IconName[] = ['screen', 'food', 'activity', 'clock', 'gift', 'star', 'user'];
+
+const SORTS = [
+  { value: 'default', label: 'Catalogue order' },
+  { value: 'cost-asc', label: 'Cost: low to high' },
+  { value: 'cost-desc', label: 'Cost: high to low' },
+] as const;
+export type RewardSort = (typeof SORTS)[number]['value'];
+
+/** Client-side catalogue view: name or category search, then an optional cost sort. */
+export function arrangeRewards<T extends { name: string; category: string; cost: number }>(
+  rewards: T[],
+  query: string,
+  sort: RewardSort,
+): T[] {
+  const q = query.trim().toLowerCase();
+  const list = rewards.filter(
+    (reward) => !q || reward.name.toLowerCase().includes(q) || reward.category.toLowerCase().includes(q),
+  );
+  if (sort === 'cost-asc') list.sort((a, b) => a.cost - b.cost);
+  if (sort === 'cost-desc') list.sort((a, b) => b.cost - a.cost);
+  return list;
+}
 
 interface Draft {
   id?: string;
@@ -46,6 +69,8 @@ export function RewardManage() {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [working, setWorking] = useState(false);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<RewardSort>('default');
 
   const load = useCallback(async () => {
     try {
@@ -138,6 +163,8 @@ export function RewardManage() {
     }
   };
 
+  const shown = arrangeRewards(rewards, query, sort);
+
   return (
     <>
       <ScreenTop title="Rewards" />
@@ -157,7 +184,7 @@ export function RewardManage() {
               <article key={entry.id} className="card stack stack--tight">
                 <div className="row" style={{ gap: 'var(--space-3)' }}>
                   <span className="tile-icon tile-icon--gold tile-icon--sm">
-                    <Icon name="coin" size={20} />
+                    <Icon name="cash-out" size={20} />
                   </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontWeight: 800, display: 'block' }}>
@@ -167,7 +194,7 @@ export function RewardManage() {
                       {entry.child?.displayName} · {entry.points} points
                     </span>
                   </span>
-                  <Badge tone={entry.status === 'approved' ? 'info' : 'waiting'}>
+                  <Badge tone={entry.status === 'approved' ? 'info' : 'waiting'} icon={entry.status === 'approved' ? 'receipt' : 'hourglass'}>
                     {entry.status === 'approved' ? 'Owed' : 'Waiting'}
                   </Badge>
                 </div>
@@ -183,6 +210,7 @@ export function RewardManage() {
                     tone="stop"
                     block
                     disabled={working}
+                    icon="reject"
                     onClick={() => void decideCashOut(entry.id, 'deny')}
                   >
                     Not this time
@@ -191,6 +219,7 @@ export function RewardManage() {
                     tone="go"
                     block
                     disabled={working}
+                    icon={entry.status === 'approved' ? 'cash' : 'approve'}
                     onClick={() => void decideCashOut(entry.id, entry.status === 'approved' ? 'paid' : 'approve')}
                   >
                     {entry.status === 'approved' ? 'Mark paid' : 'Approve'}
@@ -215,9 +244,7 @@ export function RewardManage() {
               {pending.map((entry) => (
                 <article key={entry.id} className="card stack stack--tight">
                   <div className="row" style={{ gap: 'var(--space-3)' }}>
-                    <span className="tile-icon tile-icon--purple tile-icon--sm">
-                      <Icon name={entry.rewardIcon as IconName} size={20} />
-                    </span>
+                    <NeonArt group="rewards" name={rewardArt(entry.rewardName)} className="parent-art" />
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontWeight: 800, display: 'block' }}>{entry.rewardName}</span>
                       <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
@@ -250,11 +277,12 @@ export function RewardManage() {
                       tone="stop"
                       block
                       disabled={working}
+                      icon="reject"
                       onClick={() => void decide(entry.id, 'deny', notes[entry.id]?.trim() || undefined)}
                     >
                       Not this time
                     </Button>
-                    <Button tone="go" block disabled={working} onClick={() => void decide(entry.id, 'approve')}>
+                    <Button tone="go" block icon="approve" disabled={working} onClick={() => void decide(entry.id, 'approve')}>
                       Approve
                     </Button>
                   </div>
@@ -275,6 +303,13 @@ export function RewardManage() {
               Add a reward
             </Button>
 
+            {rewards.length > 0 && (
+              <div className="toolbar">
+                <SearchField value={query} onChange={setQuery} label="Search rewards" placeholder="Search rewards" />
+                <SelectField icon="sort" label="Sort rewards" value={sort} onChange={setSort} options={SORTS} />
+              </div>
+            )}
+
             {rewards.length === 0 ? (
               <div style={{ marginTop: 'var(--space-5)' }}>
                 <EmptyState
@@ -283,17 +318,19 @@ export function RewardManage() {
                   message="Add the first reward and it shows up on the kids' rewards screen."
                 />
               </div>
+            ) : shown.length === 0 ? (
+              <p className="muted" role="status" style={{ textAlign: 'center', marginTop: 'var(--space-5)' }}>
+                No rewards match that search.
+              </p>
             ) : (
               <div className="stack" style={{ marginTop: 'var(--space-4)' }}>
-                {rewards.map((reward) => (
+                {shown.map((reward) => (
                   <article
                     key={reward.id}
                     className="card row"
                     style={{ gap: 'var(--space-3)', opacity: reward.isActive ? 1 : 0.55 }}
                   >
-                    <span className="tile-icon tile-icon--purple tile-icon--sm">
-                      <Icon name={reward.icon as IconName} size={20} />
-                    </span>
+                    <NeonArt group="rewards" name={rewardArt(reward.name)} className="parent-art" />
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontWeight: 800, display: 'block' }}>{reward.name}</span>
                       <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
@@ -318,7 +355,7 @@ export function RewardManage() {
                         })
                       }
                     >
-                      <Icon name="chevron" size={18} />
+                      <Icon name="edit" size={18} />
                     </button>
                   </article>
                 ))}
@@ -403,6 +440,7 @@ export function RewardManage() {
                 <Button
                   tone="stop"
                   block
+                  icon="trash-can"
                   disabled={working}
                   onClick={async () => {
                     await api.rewards.retire(draft.id as string);
@@ -413,7 +451,7 @@ export function RewardManage() {
                   Retire
                 </Button>
               )}
-              <Button tone="go" block disabled={working} onClick={() => void save()}>
+              <Button tone="go" block icon="check" disabled={working} onClick={() => void save()}>
                 {working ? 'Saving…' : 'Save'}
               </Button>
             </div>

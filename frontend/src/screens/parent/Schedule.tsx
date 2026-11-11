@@ -81,8 +81,11 @@ export function Schedule() {
               return (
                 <section key={day.iso} className="card stack stack--tight">
                   <div className="row row--between">
-                    <h2 className="subtitle" style={{ margin: 0 }}>{day.label}</h2>
-                    <Badge tone={onThisDay.length === 0 ? 'neutral' : 'info'}>
+                    <h2 className="subtitle row" style={{ margin: 0, gap: 'var(--space-2)' }}>
+                      <Icon name="calendar-check" size={20} />
+                      {day.label}
+                    </h2>
+                    <Badge tone={onThisDay.length === 0 ? 'neutral' : 'info'} icon={onThisDay.length === 0 ? 'moon' : 'chores'}>
                       {onThisDay.length === 0 ? 'Free' : `${onThisDay.length} chore${onThisDay.length === 1 ? '' : 's'}`}
                     </Badge>
                   </div>
@@ -110,7 +113,7 @@ export function Schedule() {
                         </span>
                       </span>
                       <PointsPill value={entry.points} small />
-                      <Icon name="chevron" size={18} style={{ flexShrink: 0, opacity: 0.7 }} />
+                      <Icon name="edit" size={18} style={{ flexShrink: 0, opacity: 0.7 }} />
                     </button>
                   ))}
                 </section>
@@ -123,7 +126,7 @@ export function Schedule() {
           <Button tone="purple" size="lg" block icon="plus" onClick={() => navigate('/parent/chores/new')}>
             Add a chore
           </Button>
-          <Button tone="quiet" block icon="missions" onClick={() => navigate('/parent/chores')}>
+          <Button tone="quiet" block icon="edit" onClick={() => navigate('/parent/chores')}>
             Edit or retire a chore
           </Button>
         </div>

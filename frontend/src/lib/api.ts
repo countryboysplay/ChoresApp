@@ -157,6 +157,10 @@ export const api = {
 
     get: (instanceId: string) => request<ChoreResponse>(`/api/chores/${instanceId}`),
 
+    /** Arm (true) or take off (false) an XP boost. Doubles XP, never coins. */
+    boost: (instanceId: string, on: boolean) =>
+      request<ChoreResponse>(`/api/chores/${instanceId}/boost`, { method: on ? 'POST' : 'DELETE', body: '{}' }),
+
     setSubtask: (instanceId: string, subtaskId: string, done: boolean) =>
       request<ChoreResponse>(`/api/chores/${instanceId}/subtasks/${subtaskId}`, {
         method: 'PATCH',

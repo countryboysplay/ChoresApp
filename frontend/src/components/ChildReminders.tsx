@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ChildReminderState } from '@chore-quest/shared';
 import { Icon } from '../design/icons';
+import { NeonArt } from '../design/neon';
 import { Badge, Button } from '../design/primitives';
 import { api, ApiRequestError } from '../lib/api';
 
@@ -70,7 +71,7 @@ export function ChildReminders() {
     <section className="card stack stack--tight">
       <div className="row row--between">
         <span className="row" style={{ gap: 'var(--space-2)' }}>
-          <Icon name="bell" size={18} />
+          <Icon name={configured && unreachable.length === 0 ? 'bell' : 'bell-off'} size={18} />
           <strong>Phone reminders</strong>
         </span>
         {unreachable.length > 0 && <Badge tone="late">{unreachable.length} not reaching</Badge>}
@@ -100,11 +101,12 @@ export function ChildReminders() {
             <div key={child.id} className="row row--between" style={{ gap: 'var(--space-3)' }}>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ display: 'block' }}>{child.displayName}</strong>
-                <Badge tone={status.tone}>{status.text}</Badge>
+                <Badge tone={status.tone} icon={status.tone === 'done' ? 'bell' : 'bell-off'}>{status.text}</Badge>
               </span>
               <Button
                 tone={child.mutedByParent ? 'go' : 'quiet'}
                 size="sm"
+                icon={child.mutedByParent ? 'bell' : 'bell-off'}
                 disabled={busy === child.id}
                 onClick={() => void toggle(child)}
               >
@@ -116,10 +118,13 @@ export function ChildReminders() {
       )}
 
       {unreachable.length > 0 && (
-        <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
-          <Icon name="alert" size={14} /> "Not reaching" means no phone is signed up. Either they
+        <p className="muted state-inline" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+          <NeonArt group="states" name="notifications-off" />
+          <span>
+            "Not reaching" means no phone is signed up. Either they
           have not opened the app on a phone yet, or notifications were switched off for the site in
           that phone's browser. The app cannot stop that being done — it can only tell you.
+        </span>
         </p>
       )}
 

@@ -43,7 +43,7 @@ export function cameraSupported(): boolean {
   return Boolean(navigator.mediaDevices?.getUserMedia);
 }
 
-export async function openCamera(): Promise<MediaStream> {
+export async function openCamera(facing: 'environment' | 'user' = 'environment'): Promise<MediaStream> {
   if (!isSecureForCamera()) {
     throw {
       kind: 'insecure-context',
@@ -58,8 +58,8 @@ export async function openCamera(): Promise<MediaStream> {
 
   try {
     return await navigator.mediaDevices.getUserMedia({
-      // The back camera on a phone, which is the one pointed at the chore.
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } },
+      // The back camera by default, which is the one pointed at the chore.
+      video: { facingMode: { ideal: facing }, width: { ideal: 1920 } },
       audio: false,
     });
   } catch (error) {

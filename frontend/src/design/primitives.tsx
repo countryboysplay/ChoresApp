@@ -1,6 +1,17 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Icon, type IconName } from './icons';
+import { levelTier, NeonArt, neonUrl } from './neon';
+
+/** Empty-state illustration for each icon the callers already pass. */
+const emptyArt: Partial<Record<IconName, string>> = {
+  check: 'no-approvals',
+  gift: 'no-rewards',
+  inbox: 'empty-inbox',
+  missions: 'no-chores',
+  star: 'no-chores',
+  trophy: 'no-badges-yet',
+};
 import { playSound, type SoundName } from './sound';
 
 /* ---------- Button ---------- */
@@ -158,7 +169,7 @@ export function Ring({
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - pct)}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: 'stroke-dashoffset var(--transition-base)' }}
+          className="ring__value"
         />
         <defs>
           <linearGradient id="ring-gradient" x1="0" y1="0" x2="1" y2="1">
@@ -249,20 +260,23 @@ export function SectionHeader({ title, action }: { title: string; action?: React
 /* ---------- Empty state ---------- */
 export function EmptyState({
   icon = 'star',
+  art = emptyArt[icon],
   title,
   message,
   action,
 }: {
   icon?: IconName;
+  /** A file in public/neon/states; defaults to the art for `icon`. */
+  art?: string;
   title: string;
-  message: string;
+  message?: string;
   action?: ReactNode;
 }) {
   return (
     <div className="empty">
-      <Icon name={icon} size={36} />
+      {art ? <NeonArt group="states" name={art} /> : <Icon name={icon} size={36} />}
       <h3 className="subtitle">{title}</h3>
-      <p style={{ margin: 0 }}>{message}</p>
+      {message ? <p style={{ margin: 0 }}>{message}</p> : null}
       {action}
     </div>
   );
@@ -309,13 +323,13 @@ export function CheckItem({
 /* ---------- Brass guild-points pill ---------- */
 export function PointsPill({ value, small }: { value: number | string; small?: boolean }) {
   // Small sits inline on a chore row - just the number, like the board's
-  // "+20" style. The full-size pill spells out "Guild Points" - but only for
+  // "+20" style. The full-size pill spells out "coins" - but only for
   // an actual points amount, not an arbitrary string like "Level 7".
   const label =
     typeof value === 'number'
       ? small
         ? value.toLocaleString('en-US')
-        : `${value.toLocaleString('en-US')} Guild Points`
+        : `${value.toLocaleString('en-US')} coins`
       : value;
   return (
     <span className={`points-pill ${small ? 'points-pill--sm' : ''}`}>
@@ -338,9 +352,16 @@ export function LevelBar({
   span: number | null;
 }) {
   const pct = span ? Math.min(100, Math.round((into / span) * 100)) : 100;
+  // The badge ticks only when the level changes in front of the player, not on arrival.
+  const firstLevel = useRef(level);
   return (
     <div className="levelbar">
-      <span className="levelbar__badge">{level}</span>
+      <span
+        key={level}
+        className={`levelbar__badge${level !== firstLevel.current ? ' levelbar__badge--up' : ''}`}
+        style={{ backgroundImage: `url("${neonUrl('achievements', levelTier(level))}")` }}>
+        {level}
+      </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           className="numeric"
@@ -357,7 +378,8 @@ export function LevelBar({
           aria-valuemax={100}
           aria-label={`Level ${level} progress`}
         >
-          <div className="meter__fill meter__fill--gold" style={{ width: `${pct}%` }} />
+          {/* Driven frame by frame by the caller's count, so it wraps cleanly on a level-up. */}
+          <div className="meter__fill meter__fill--gold meter__fill--driven" style={{ width: `${pct}%` }} />
         </div>
       </div>
     </div>
@@ -376,8 +398,29 @@ export function Segmented<T extends string>({
   onChange: (option: T) => void;
   label: string;
 }) {
+  // One indicator slides to the chosen tab, so the switch reads as a move, not a swap.
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const place = () => {
+      const tab = root.querySelector<HTMLElement>('[aria-selected="true"]');
+      if (!tab) return;
+      root.style.setProperty('--seg-x', `${tab.offsetLeft}px`);
+      root.style.setProperty('--seg-w', `${tab.offsetWidth}px`);
+    };
+    place();
+    const frame = requestAnimationFrame(() => root.setAttribute('data-ready', ''));
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
+    observer?.observe(root);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
+  }, [value]);
+
   return (
-    <div className="segment" role="tablist" aria-label={label}>
+    <div className="segment" role="tablist" aria-label={label} ref={ref}>
       {options.map((option) => (
         <button
           key={option}
@@ -444,5 +487,59 @@ export function StatRow({
     </button>
   ) : (
     <div className="stat-row">{content}</div>
+  );
+}
+
+/* ---------- List tools: search box and labelled select (parent lists) ---------- */
+export function SearchField({
+  value,
+  onChange,
+  label,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+  placeholder?: string;
+}) {
+  return (
+    <label className="toolfield">
+      <Icon name="search" size={18} />
+      <input
+        className="input"
+        type="search"
+        aria-label={label}
+        placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+export function SelectField<T extends string>({
+  icon,
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  icon: IconName;
+  label: string;
+  value: T;
+  onChange: (value: T) => void;
+  options: readonly { value: T; label: string }[];
+}) {
+  return (
+    <label className="toolfield">
+      <Icon name={icon} size={18} />
+      <select className="select" aria-label={label} value={value} onChange={(event) => onChange(event.target.value as T)}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '../design/icons';
+import { NeonArt } from '../design/neon';
 import { Button } from '../design/primitives';
 import {
   capturePhoto,
@@ -25,13 +26,17 @@ export function CameraCapture({
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [facing, setFacing] = useState<'environment' | 'user'>('environment');
+  const [canFlip, setCanFlip] = useState(false);
 
+  // Reruns on a flip: the cleanup stops the old stream before the new one opens.
   useEffect(() => {
     let cancelled = false;
+    setReady(false);
 
     void (async () => {
       try {
-        const stream = await openCamera();
+        const stream = await openCamera(facing);
         if (cancelled) {
           closeCamera(stream);
           return;
@@ -42,6 +47,9 @@ export function CameraCapture({
           await videoRef.current.play().catch(() => undefined);
         }
         setReady(true);
+        // Device labels and counts are only reliable once permission is granted.
+        const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+        if (!cancelled) setCanFlip(devices.filter((device) => device.kind === 'videoinput').length > 1);
       } catch (caught) {
         setError(isCameraFailure(caught) ? caught.message : 'The camera could not be opened.');
       }
@@ -53,7 +61,7 @@ export function CameraCapture({
       closeCamera(streamRef.current);
       streamRef.current = null;
     };
-  }, []);
+  }, [facing]);
 
   const take = useCallback(async () => {
     if (!videoRef.current || busy) return;
@@ -73,11 +81,11 @@ export function CameraCapture({
   if (error) {
     return (
       <div className="card card--status is-late stack">
-        <div className="row" style={{ gap: 'var(--space-3)' }}>
-          <Icon name="alert" size={22} />
+        <div className="state-inline">
+          <NeonArt group="states" name="camera-blocked" />
           <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
         </div>
-        <Button tone="quiet" block onClick={onCancel}>
+        <Button tone="quiet" block icon="back" onClick={onCancel}>
           Go back
         </Button>
       </div>
@@ -100,8 +108,27 @@ export function CameraCapture({
           playsInline
           muted
           aria-label="Camera preview"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          // The selfie camera is mirrored on screen only, like every phone camera app; the photo is not.
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+            transform: facing === 'user' ? 'scaleX(-1)' : undefined,
+          }}
         />
+        {canFlip && (
+          <button
+            type="button"
+            className="iconbtn"
+            aria-label={facing === 'environment' ? 'Switch to front camera' : 'Switch to back camera'}
+            disabled={!ready || busy}
+            onClick={() => setFacing((current) => (current === 'environment' ? 'user' : 'environment'))}
+            style={{ position: 'absolute', top: 'var(--space-2)', right: 'var(--space-2)', zIndex: 1 }}
+          >
+            <Icon name="camera-flip" size={22} />
+          </button>
+        )}
         {!ready && (
           <p
             aria-live="polite"

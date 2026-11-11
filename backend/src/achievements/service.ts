@@ -1,7 +1,18 @@
 import type pg from 'pg';
 import { ACHIEVEMENTS, type AchievementStats } from './catalogue.js';
 import { streakLength } from '../chores/queries.js';
-import { addHouseholdDays } from '../time.js';
+import { familyWeekXp } from '../chores/boosts.js';
+import { env } from '../env.js';
+import {
+  addHouseholdDays,
+  householdMinutesOfDay,
+  householdToday,
+  householdWeekStart,
+  minutesFromClockTime,
+} from '../time.js';
+
+/** How far ahead of the reminder counts as a speed run. */
+const SPEED_RUN_LEAD_MINUTES = 120;
 
 /**
  * Working out which badges a child has, by asking the household rather than by
@@ -78,6 +89,10 @@ export async function achievementStats(
     punctual: number;
     lifetime_points: number;
     rewards_redeemed: number;
+    perfect_weeks: number;
+    clean_sweeps: number;
+    goal: number | null;
+    reminder_time: string;
   }>(
     `SELECT
        (SELECT count(*)::int FROM chore_instances ci
@@ -88,14 +103,64 @@ export async function achievementStats(
          WHERE ci.assigned_to = $1 AND ci.status = 'approved' AND d.kind = 'bonus') AS bonus_approved,
        (SELECT count(*)::int FROM chore_instances
          WHERE assigned_to = $1 AND status = 'approved' AND submitted_punctual) AS punctual,
-       (SELECT coalesce(sum(delta), 0)::int FROM points_ledger
-         WHERE child_id = $1 AND delta > 0) AS lifetime_points,
+       (SELECT coalesce(sum(xp), 0)::int FROM xp_ledger WHERE child_id = $1) AS lifetime_points,
        -- Asked for and not refused. A denied request was refunded and never
        -- cost this child anything, so it is not something they spent points on.
        (SELECT count(*)::int FROM reward_redemptions
-         WHERE child_id = $1 AND status <> 'denied' AND status <> 'cancelled') AS rewards_redeemed`,
+         WHERE child_id = $1 AND status <> 'denied' AND status <> 'cancelled') AS rewards_redeemed,
+       -- Weeks bucketed by date arithmetic on chore_date (Monday = isodow 1),
+       -- never by timezone. Seven distinct days, so a week with a chore-free day
+       -- is not "every day Mon-Sun". Only past days are counted (<= today).
+       (SELECT count(*)::int FROM (
+          SELECT bool_and(ci.status = 'approved') AS ok, count(DISTINCT ci.chore_date) AS days
+            FROM chore_instances ci
+            JOIN chore_definitions d ON d.id = ci.chore_definition_id
+           WHERE ci.assigned_to = $1 AND d.kind = 'core' AND ci.chore_date <= $2::date
+           GROUP BY ci.chore_date - (extract(isodow FROM ci.chore_date)::int - 1)
+        ) w WHERE w.ok AND w.days = 7) AS perfect_weeks,
+       (SELECT count(*)::int FROM (
+          SELECT ci.chore_date
+            FROM chore_instances ci
+            JOIN chore_definitions d ON d.id = ci.chore_definition_id
+           WHERE ci.assigned_to = $1 AND d.kind = 'core'
+           GROUP BY ci.chore_date
+          HAVING count(*) >= 2
+             AND bool_and(ci.status = 'approved' AND coalesce(ci.submitted_punctual, false))
+        ) s) AS clean_sweeps,
+       (SELECT weekly_xp_goal FROM household_settings) AS goal,
+       (SELECT reminder_time::text FROM household_settings) AS reminder_time`,
+    [childId, today],
+  );
+
+  // Speed runs need the submission's household clock time, which is Intl's
+  // job, not Postgres's (DECISIONS: household time is computed with Intl).
+  // shortcut: measured against today's reminder_time, so moving the reminder
+  // re-scores past chores; store the margin at submission if that ever matters.
+  const { rows: punctual } = await db.query<{ submitted_at: Date; chore_date: string }>(
+    `SELECT submitted_at, chore_date::text AS chore_date FROM chore_instances
+      WHERE assigned_to = $1 AND status = 'approved' AND submitted_punctual AND submitted_at IS NOT NULL`,
     [childId],
   );
+  const cutoff = minutesFromClockTime(rows[0]?.reminder_time ?? '20:45') - SPEED_RUN_LEAD_MINUTES;
+  const speedRuns = punctual.filter(
+    (chore) =>
+      householdToday(env.HOUSEHOLD_TZ, chore.submitted_at) === chore.chore_date &&
+      householdMinutesOfDay(env.HOUSEHOLD_TZ, chore.submitted_at) < cutoff,
+  ).length;
+
+  // This week and last, so a goal hit on Sunday night is still awarded to a
+  // child who next opens the app on Monday.
+  // shortcut: older weeks are not looked at; the approval hook syncs every
+  // child, so only a server outage spanning a whole week could miss one.
+  let teamGoalWeeks = 0;
+  const goal = rows[0]?.goal ?? null;
+  if (goal !== null) {
+    const thisWeek = householdWeekStart(today);
+    for (const weekStart of [thisWeek, addHouseholdDays(thisWeek, -7)]) {
+      const { total, mine } = await familyWeekXp(db, weekStart, childId);
+      if (total >= goal && mine > 0) teamGoalWeeks += 1;
+    }
+  }
 
   const row = rows[0];
   return {
@@ -105,6 +170,10 @@ export async function achievementStats(
     lifetimePoints: row?.lifetime_points ?? 0,
     rewardsRedeemed: row?.rewards_redeemed ?? 0,
     streakDays: await streakLength(db, childId, today),
+    perfectWeeks: row?.perfect_weeks ?? 0,
+    speedRuns,
+    cleanSweeps: row?.clean_sweeps ?? 0,
+    teamGoalWeeks,
   };
 }
 

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icon, type IconName } from '../../design/icons';
-import { Button, CheckItem, Meter, PointsPill } from '../../design/primitives';
+import { NeonArt } from '../../design/neon';
+import { Button, CheckItem, Meter } from '../../design/primitives';
 import { CameraCapture } from '../../components/CameraCapture';
 import { ScreenTop } from '../../components/ScreenTop';
 import { playSound } from '../../design/sound';
@@ -10,7 +11,7 @@ import { isSecureForCamera } from '../../lib/camera';
 import type { CapturedPhoto } from '../../lib/camera';
 import { useAuth } from '../../lib/auth';
 import { useChildDay } from '../../lib/childDay';
-import { StatusBadge } from './choreStatus';
+import { BoostToggle, Loot, StatusBadge } from './choreStatus';
 
 type Phase = 'checklist' | 'camera' | 'review' | 'submitted';
 
@@ -95,7 +96,7 @@ export function ChoreDetail() {
         <section className="panel panel--sky" style={{ marginBottom: 'var(--space-4)' }}>
           <div className="row row--between" style={{ marginBottom: 'var(--space-3)' }}>
             <span className="eyebrow">{chore.kind === 'bonus' ? 'Bonus chore' : 'Required chore'}</span>
-            <PointsPill value={chore.points} small />
+            <Loot points={chore.points} row boosted={chore.boosted} />
           </div>
           <div className="row" style={{ gap: 'var(--space-4)' }}>
             <span
@@ -113,10 +114,14 @@ export function ChoreDetail() {
           </div>
         </section>
 
+        {mode === 'live' && phase !== 'submitted' && (
+          <BoostToggle chore={chore} available={day?.summary.boosts ?? 0} onChange={reload} />
+        )}
+
         {wasRejected && phase !== 'submitted' && (
           <div className="card card--status is-late" style={{ marginBottom: 'var(--space-4)' }}>
             <div className="row" style={{ marginBottom: 'var(--space-2)' }}>
-              <Icon name="alert" size={20} />
+              <Icon name="retake" size={20} style={{ color: 'var(--red)' }} />
               <strong>A parent sent this back</strong>
             </div>
             <p style={{ margin: 0 }}>{chore.rejectionNote}</p>
@@ -152,7 +157,9 @@ export function ChoreDetail() {
             </section>
 
             <section style={{ marginTop: 'var(--space-5)' }}>
-              <h2 className="subtitle">Photo proof</h2>
+              <h2 className="subtitle row" style={{ gap: 'var(--space-2)' }}>
+                <Icon name="photo" size={22} /> Photo proof
+              </h2>
 
               {!allDone && (
                 <div className="card row" style={{ gap: 'var(--space-3)' }}>
@@ -229,6 +236,7 @@ export function ChoreDetail() {
                     <Button
                       tone="quiet"
                       block
+                      icon="retake"
                       disabled={uploading}
                       onClick={() => {
                         URL.revokeObjectURL(captured.previewUrl);
@@ -238,7 +246,7 @@ export function ChoreDetail() {
                     >
                       Retake
                     </Button>
-                    <Button tone="go" size="lg" block disabled={uploading} onClick={() => void submit()}>
+                    <Button tone="go" size="lg" block icon="upload" disabled={uploading} onClick={() => void submit()}>
                       {uploading
                         ? 'Sending…'
                         : wasRejected
@@ -263,45 +271,18 @@ function SubmittedState({ choreName }: { choreName: string }) {
       className="panel panel--sky celebrate"
       style={{ textAlign: 'center', display: 'grid', justifyItems: 'center', gap: 'var(--space-3)' }}
     >
-      <Confetti />
+      <NeonArt group="ui" name="confetti" style={{ width: '100%', maxWidth: 260, height: 'auto', marginBottom: -40 }} />
+      <NeonArt group="celebrations" name="chore-submitted" className="float" style={{ width: 200, height: 'auto', margin: '-30px 0 -40px' }} />
       <h2 className="title" style={{ fontSize: 'var(--text-2xl)' }}>
-        Great job!
+        Sent for review
       </h2>
       <p style={{ margin: 0, fontWeight: 700 }}>You submitted {choreName}</p>
       <span className="badge badge--waiting" style={{ fontSize: 'var(--text-sm)' }}>
-        <Icon name="clock" size={16} /> Pending approval
+        <Icon name="hourglass" size={16} /> Pending approval
       </span>
       <p style={{ margin: 0, fontSize: 'var(--text-sm)', opacity: 0.9 }}>
-        Points arrive once a parent approves it.
+        XP and coins land once a parent approves it.
       </p>
     </div>
-  );
-}
-
-function Confetti() {
-  const pieces = [
-    { x: 8, y: 10, color: 'var(--gold)' },
-    { x: 26, y: 4, color: 'var(--green)' },
-    { x: 48, y: 12, color: 'var(--light)' },
-    { x: 70, y: 3, color: 'var(--purple)' },
-    { x: 88, y: 14, color: 'var(--red)' },
-    { x: 16, y: 30, color: 'var(--purple)' },
-    { x: 82, y: 34, color: 'var(--green)' },
-  ];
-  return (
-    <svg viewBox="0 0 100 44" style={{ width: '100%', maxWidth: 260 }} aria-hidden="true">
-      {pieces.map((piece, index) => (
-        <rect
-          key={index}
-          x={piece.x}
-          y={piece.y}
-          width="5"
-          height="8"
-          rx="1.5"
-          fill={piece.color}
-          transform={`rotate(${index * 37} ${piece.x + 2.5} ${piece.y + 4})`}
-        />
-      ))}
-    </svg>
   );
 }

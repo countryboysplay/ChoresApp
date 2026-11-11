@@ -30,6 +30,45 @@ const TEMPLATES: { name: string; icon: IconName; subtasks: string[] }[] = [
   { name: 'Yard', icon: 'yard', subtasks: ['Pick up sticks', 'Rake leaves', 'Bag the piles'] },
 ];
 
+/** Icons a parent can give a chore: the eight template rooms plus the pack's extras. */
+export const CHORE_ICONS: { icon: IconName; label: string }[] = [
+  { icon: 'kitchen', label: 'Kitchen' },
+  { icon: 'bathroom', label: 'Bathroom' },
+  { icon: 'bedroom', label: 'Bedroom' },
+  { icon: 'trash', label: 'Trash' },
+  { icon: 'laundry', label: 'Laundry' },
+  { icon: 'floors', label: 'Floors' },
+  { icon: 'home', label: 'Living room' },
+  { icon: 'yard', label: 'Yard' },
+  { icon: 'pet', label: 'Pet care' },
+  { icon: 'maintenance', label: 'Fix it' },
+  { icon: 'cleaning', label: 'Cleaning' },
+  { icon: 'movie', label: 'Movie night' },
+];
+
+export function ChoreIconPicker({ value, onPick }: { value: string; onPick: (icon: IconName) => void }) {
+  return (
+    <div className="stack stack--tight">
+      <span className="eyebrow">Icon</span>
+      <div className="chip-row" role="group" aria-label="Chore icon" style={{ flexWrap: 'wrap' }}>
+        {CHORE_ICONS.map((choice) => (
+          <button
+            key={choice.icon}
+            type="button"
+            className="chip"
+            aria-pressed={value === choice.icon}
+            aria-label={choice.label}
+            title={choice.label}
+            onClick={() => onPick(choice.icon)}
+          >
+            <Icon name={choice.icon} size={20} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ChoreWizard() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -176,6 +215,8 @@ export function ChoreWizard() {
               />
             </label>
 
+            <ChoreIconPicker value={icon} onPick={setIcon} />
+
             <label className="stack stack--tight">
               <span className="eyebrow">Points</span>
               <input
@@ -219,7 +260,7 @@ export function ChoreWizard() {
                   aria-label={`Remove step ${index + 1}`}
                   onClick={() => setSubtasks(subtasks.filter((_, i) => i !== index))}
                 >
-                  <Icon name="close" size={18} />
+                  <Icon name="trash-can" size={18} />
                 </button>
               </div>
             ))}

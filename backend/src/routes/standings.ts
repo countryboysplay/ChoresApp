@@ -1,6 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { ChildProfileResponse, LeaderboardResponse, StandingEntry } from '@chore-quest/shared';
+import type {
+  AvatarBanner,
+  AvatarFrame,
+  ChildProfileResponse,
+  LeaderboardResponse,
+  StandingEntry,
+} from '@chore-quest/shared';
 import type { Env } from '../env.js';
 import { getPool } from '../db.js';
 import { streakLength } from '../chores/queries.js';
@@ -47,20 +53,24 @@ export async function standingRoutes(app: FastifyInstance, opts: { env: Env }): 
       avatar: unknown;
       lifetime: number;
       week: number;
+      month: number;
       approved: number;
     }>(
       `SELECT u.id, u.display_name, u.avatar,
-              coalesce((SELECT sum(delta) FROM points_ledger p
-                         WHERE p.child_id = u.id AND p.delta > 0), 0)::int AS lifetime,
-              coalesce((SELECT sum(delta) FROM points_ledger p
-                         WHERE p.child_id = u.id AND p.delta > 0
-                           AND p.created_at >= $1::date), 0)::int AS week,
+              coalesce((SELECT sum(xp) FROM xp_ledger x
+                         WHERE x.child_id = u.id), 0)::int AS lifetime,
+              coalesce((SELECT sum(xp) FROM xp_ledger x
+                         WHERE x.child_id = u.id AND x.created_at >= $1::date), 0)::int AS week,
+              coalesce((SELECT sum(xp) FROM xp_ledger x
+                         WHERE x.child_id = u.id AND x.created_at >= $2::date), 0)::int AS month,
               coalesce((SELECT count(*) FROM chore_instances ci
                          WHERE ci.assigned_to = u.id AND ci.status = 'approved'), 0)::int AS approved
          FROM users u
         WHERE u.role = 'child' AND u.is_active
         ORDER BY u.sort_order, u.display_name`,
-      [weekStart],
+      // The household month, same window rule as the week: the 1st of the
+      // month `today` falls in.
+      [weekStart, `${today.slice(0, 7)}-01`],
     );
 
     const entries: StandingEntry[] = [];
@@ -71,6 +81,7 @@ export async function standingRoutes(app: FastifyInstance, opts: { env: Env }): 
         avatar: row.avatar,
         lifetimePoints: row.lifetime,
         weekPoints: row.week,
+        monthPoints: row.month,
         streakDays: await streakLength(db, row.id, today),
         choresApproved: row.approved,
       });
@@ -120,8 +131,8 @@ export async function standingRoutes(app: FastifyInstance, opts: { env: Env }): 
         [childId],
       );
 
-      const { rows: goal } = await db.query<{ id: string; name: string; point_cost: number }>(
-        `SELECT r.id, r.name, r.point_cost
+      const { rows: goal } = await db.query<{ id: string; name: string; cost_points: number }>(
+        `SELECT r.id, r.name, r.cost_points
            FROM child_reward_preferences p
            JOIN rewards r ON r.id = p.reward_id
           WHERE p.child_id = $1 AND p.is_primary_goal AND r.is_active
@@ -133,7 +144,7 @@ export async function standingRoutes(app: FastifyInstance, opts: { env: Env }): 
         me,
         spendablePoints: spend[0]?.spendable ?? 0,
         primaryGoal: goal[0]
-          ? { id: goal[0].id, name: goal[0].name, pointCost: goal[0].point_cost }
+          ? { id: goal[0].id, name: goal[0].name, pointCost: goal[0].cost_points }
           : null,
       };
     },
@@ -147,7 +158,13 @@ export async function standingRoutes(app: FastifyInstance, opts: { env: Env }): 
    * screen that is theirs, so it is theirs to change - unlike a display name or
    * a PIN, which stay with a parent.
    */
-  const avatarBody = z.object({ avatar: z.record(z.string(), z.unknown()) });
+  // Shared is type-only for the backend, so the names are listed here and checked against its types.
+  const frames = ['frame-basic', 'frame-cyan', 'frame-violet', 'frame-gold', 'frame-flame', 'frame-lightning', 'frame-crown', 'frame-diamond'] as const satisfies readonly AvatarFrame[];
+  const banners = ['banner-nebula', 'banner-grid', 'banner-waves', 'banner-circuit', 'banner-city', 'banner-aurora'] as const satisfies readonly AvatarBanner[];
+  // shortcut: names are checked, the level unlock is not (levels live in the frontend); move levels to shared to enforce.
+  const avatarBody = z.object({
+    avatar: z.object({ frame: z.enum(frames).optional(), banner: z.enum(banners).optional() }).passthrough(),
+  });
 
   app.patch(
     '/api/child/profile',

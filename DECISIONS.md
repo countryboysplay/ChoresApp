@@ -2070,3 +2070,122 @@ The only place this is asserted in code is `SESSION_TTL_DAYS` in
 `backend/src/auth/sessions.ts`; `backend/src/test/auth.test.ts` was updated to
 expect the parent and child TTLs to match rather than the old parent-shorter-
 than-child assumption.
+
+---
+
+## 2026-11-10 — Boost XP is derived by a view, never written as points
+
+**Decision.** A boost doubles a chore's XP and never its coins. No row is
+written for the extra XP. Migration `1755720000000_boosts-and-family-goal`
+adds a `boosts` table (one row per boost, `chore_instance_id` set while it is
+armed) and a view, `xp_ledger`: every positive `points_ledger` row, plus a
+second copy of the positive rows of any chore a boost is armed on. Lifetime
+XP, levels, the leaderboard (week, month, all time), the parent dashboard's
+"points this week", the profile picker and the points badges now read
+`xp_ledger`. Every balance, reward-affordability and cash-out query still sums
+`points_ledger` directly and was not touched.
+
+**Reason.** The owner's rule is that coins - which convert to real money - are
+completely unaffected. The alternatives were an XP-only ledger reason or column,
+which would have needed a filter added to all eight balance queries and would
+break silently the first time a new one forgot it, or a separate XP table, which
+approval would have to write to - a second payment path. The view keeps the
+ledger the only source of truth for points (the doubled XP is computed from the
+award row approval already wrote) and keeps approval the only thing that writes
+it. Balance is unaffected by construction rather than by discipline. "Doubled"
+means every positive row of that chore, so an on-time bonus doubles too.
+
+**Consequences.** A boost can only be armed or taken off while the chore is
+undecided (not started, in progress, submitted, rejected), and both endpoints
+lock the chore row exactly as approval does, so a boost cannot land on or come
+off a chore after it is paid - otherwise past XP would change. A boost armed on a
+chore that ends missed, excused or carried over counts as free again. Lifetime
+XP still includes refunded points, as `delta > 0` always did.
+
+---
+
+## 2026-11-10 — Boosts are armed on a chosen chore, earned per 7-day streak milestone
+
+**Decision.** A child arms a boost on a specific chore (from the chore screen
+or the Home quest card), not on "my next approved chore". A boost is granted
+for each multiple of 7 the current streak run reaches, keyed by
+`(child, first day of the run, milestone)` with a unique constraint, by a
+reconciliation (`syncBoosts`) run on the Home read and after each approval.
+
+**Reason.** "Next approved chore" sounds simpler but is ambiguous under Approve
+All (which chore was next?) and takes the choice away from the teen. Per-chore
+is the same amount of code and has one obvious answer. Keying on the run's start
+day is what makes "once per milestone, never twice for the same run" a database
+guarantee; the streak itself is still `streakLength`'s rule, so only a parent's
+decision ever ends a run.
+
+**Consequences.** If a parent later marks a day inside a run as missed, the run
+splits and its later part has a new start day, so its milestones can be earned
+again. That only happens through a deliberate parent decision and is accepted.
+
+---
+
+## 2026-11-10 — The weekly family goal is a setting, and Team Player is reconciled
+
+**Decision.** `household_settings.weekly_xp_goal` (null = no goal, no bar) and
+`weekly_goal_reward` (optional label, 60 chars). Progress is all children's
+`xp_ledger` XP in the household week from `householdWeekStart` - the same
+`created_at >= week_start::date` window the leaderboard and dashboard use.
+Team Player is an ordinary catalogue badge measured from recorded data: the
+family met the current goal this week or last week and this child earned XP in
+that week. After an approval, achievements are now synced for every active
+child, not only the one approved, so everyone who helped is told at once.
+
+**Consequences.** Older weeks are not looked at (a server outage spanning a
+whole week could miss one), and last week is judged against the goal as it is
+now. Both are marked as shortcuts in `achievements/service.ts`.
+
+---
+
+## 2026-11-10 — Rules for Perfect Week, Speed Run and Clean Sweep
+
+**Decision.**
+- **perfect-week**: a household week (Mon-Sun, bucketed by date arithmetic on
+  `chore_date`) with a core chore on all seven days, every one approved. A week
+  with a chore-free day is not "every day Mon-Sun"; excused is not done.
+- **speed-run**: 10 approved chores sent in on time (`submitted_punctual`) at
+  least two hours before the reminder time on their own chore day. Clock time is
+  worked out with Intl in `HOUSEHOLD_TZ`.
+- **clean-sweep**: 5 days with two or more core chores, every one sent in on time
+  and approved. Chore `category` is free text and often null, so "25 cleaning
+  chores" is not something the data can answer honestly.
+
+**Consequences.** Speed Run is scored against today's `reminder_time`, so moving
+the reminder re-scores past chores (a `shortcut:` comment says so). Badges never
+lose `earned_at`, so that can only add badges, never take one away.
+
+---
+
+## 2026-11-10 — Local backend tests need DATABASE_URL pointed at the test database too
+
+**Finding, not a change.** `getPool()` reads the module-level `env`, which loads
+`backend/.env`, not the env a test passes to `buildApp`. With only
+`TEST_DATABASE_URL` set, the app under test talks to the *dev* database while the
+suite seeds the test one, so 118 tests failed (login 401s). Running with both
+`DATABASE_URL` and `TEST_DATABASE_URL` set to `chore_quest_test` (allowed by the
+guard because the name contains "test") passes everything. CI already does this.
+
+## 2026-11-10 — Arcade HUD replaces the design board on the kid side
+
+**Decision.** The kid screens use the Arcade HUD look. It has:
+- chamfered plates with lit rims and the Chakra Petch display face;
+- a player plate with an XP ring;
+- a "today's run" track and a mission card;
+- an animated NEON sky behind everything;
+- tile motion.
+
+It supersedes the 2026-08-18 design-board decision for the kid side.
+
+**Reason.** Owner asked for a less basic, game-like look for players aged 13 and
+up, and chose the Arcade HUD over a quest map or collectible cards.
+
+**Consequences.**
+- **Fonts.** The kid side now has a third font family (Chakra Petch); the parent side resets `--font-display` to Inter.
+- **Shape.** `clip-path` chamfers clip outer glows and focus outlines, so focus styling on kid buttons needs checking.
+- **Motion.** All motion honours `prefers-reduced-motion`.
+- **Dependencies.** Two new frontend dependencies: `@fontsource/chakra-petch` (OFL) and `canvas-confetti` (ISC).

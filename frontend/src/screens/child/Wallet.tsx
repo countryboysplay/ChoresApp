@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { CashOutRequest, WalletResponse } from '@chore-quest/shared';
-import { Icon } from '../../design/icons';
-import { Badge, Button, Meter } from '../../design/primitives';
+import { Icon, type IconName } from '../../design/icons';
+import { Badge, Button, Meter, EmptyState } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { api, ApiRequestError } from '../../lib/api';
+
+/** A ledger line's icon, by why the coins moved. */
+const TX_ICON: Record<string, IconName> = {
+  chore_approved: 'approve',
+  punctuality_bonus: 'timer',
+  reward_redeemed: 'rewards',
+  reward_refunded: 'undo',
+  cash_out: 'cash-out',
+};
 
 /**
  * The wallet.
@@ -120,29 +129,37 @@ export function Wallet() {
       <ScreenTop title="Wallet" />
       <main className="screen">
         <section className="panel panel--sky" style={{ textAlign: 'center' }}>
-          <span className="eyebrow">Points to spend</span>
+          <span className="eyebrow">Coins to spend</span>
           <p
-            className="numeric"
+            className="numeric row"
             style={{
               fontFamily: 'var(--font-display)',
               fontSize: 'var(--text-3xl)',
+              fontWeight: 900,
               margin: 'var(--space-2) 0 0',
+              justifyContent: 'center',
+              gap: 'var(--space-2)',
             }}
           >
+            <Icon name="coin" size={44} />
             {wallet.spendablePoints.toLocaleString('en-US')}
           </p>
           <div className="row" style={{ justifyContent: 'center', gap: 'var(--space-4)', marginTop: 'var(--space-3)' }}>
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-              {wallet.lifetimePoints.toLocaleString('en-US')} earned
+            <span className="row" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, gap: 4 }}>
+              <Icon name="xp" size={18} />
+              {wallet.lifetimePoints.toLocaleString('en-US')} XP earned
             </span>
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-              {wallet.spentPoints.toLocaleString('en-US')} spent
+            <span className="row" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, gap: 4 }}>
+              <Icon name="cash" size={18} />
+              {wallet.spentPoints.toLocaleString('en-US')} coins spent
             </span>
           </div>
         </section>
 
         <section style={{ marginTop: 'var(--space-5)' }}>
-          <h2 className="subtitle">Cash out</h2>
+          <h2 className="subtitle row" style={{ gap: 'var(--space-2)' }}>
+            <Icon name="cash-out" size={22} /> Cash out
+          </h2>
           {cashOut.configured ? (
             <div className="card stack">
               <div className="meter-label">
@@ -159,7 +176,7 @@ export function Wallet() {
                 label="Weekly cash-out used"
               />
               <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
-                {cashOut.pointsPerDollar} points is $1. You need at least {cashOut.minimumPoints} points
+                {cashOut.pointsPerDollar} coins is $1. You need at least {cashOut.minimumPoints} coins
                 to cash out.
               </p>
 
@@ -187,12 +204,13 @@ export function Wallet() {
                   </label>
                   <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
                     {wanted > 0
-                      ? `That is ${wanted * rate} points, leaving you ${wallet.spendablePoints - wanted * rate}.`
+                      ? `That is ${wanted * rate} coins, leaving you ${wallet.spendablePoints - wanted * rate}.`
                       : `You can ask for up to $${maxDollars} right now.`}
                   </p>
                   <Button
                     tone="go"
                     block
+                    icon="cash-out"
                     disabled={asking || wanted <= 0 || wanted > maxDollars}
                     onClick={() => void ask()}
                   >
@@ -204,7 +222,7 @@ export function Wallet() {
                 // with no reason is the kind of thing a child reads as broken.
                 <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
                   {wallet.spendablePoints < minimumPoints
-                    ? `Keep going - ${minimumPoints - wallet.spendablePoints} more points and you can ask.`
+                    ? `Keep going - ${minimumPoints - wallet.spendablePoints} more coins and you can ask.`
                     : 'That is the whole of this week already. You can ask again next week.'}
                 </p>
               )}
@@ -215,7 +233,7 @@ export function Wallet() {
                   {mine.slice(0, 5).map((entry) => (
                     <div key={entry.id} className="row row--between" style={{ fontSize: 'var(--text-sm)' }}>
                       <span className="muted">
-                        ${(entry.amountCents / 100).toFixed(2)} · {entry.points} points
+                        ${(entry.amountCents / 100).toFixed(2)} · {entry.points} coins
                       </span>
                       <Badge
                         tone={
@@ -247,7 +265,7 @@ export function Wallet() {
             <div className="card row" style={{ gap: 'var(--space-3)' }}>
               <Icon name="lock" size={22} />
               <p style={{ margin: 0 }} className="muted">
-                Cash out is turned off. A parent needs to set how many points make a dollar in
+                Cash out is turned off. A parent needs to set how many coins make a dollar in
                 Settings first.
               </p>
             </div>
@@ -255,22 +273,26 @@ export function Wallet() {
         </section>
 
         <section style={{ marginTop: 'var(--space-5)' }}>
-          <h2 className="subtitle">History</h2>
+          <h2 className="subtitle row" style={{ gap: 'var(--space-2)' }}>
+            <Icon name="receipt" size={22} /> History
+          </h2>
           {wallet.history.length === 0 ? (
-            <p className="muted" style={{ margin: 0 }}>
-              Nothing yet. Points show up here as soon as a chore is approved.
-            </p>
+            <div className="card">
+              <EmptyState
+                art="no-history"
+                title="Nothing yet"
+                message="Coins show up here as soon as a chore is approved."
+              />
+            </div>
           ) : (
             <div className="stack stack--tight">
               {wallet.history.map((entry) => (
-                <div key={entry.id} className="card row" style={{ gap: 'var(--space-3)' }}>
-                  <Icon
-                    name={entry.delta > 0 ? 'check' : 'gift'}
-                    size={20}
-                    style={{ color: entry.delta > 0 ? 'var(--green)' : 'var(--purple)' }}
-                  />
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontWeight: 700, display: 'block' }}>{entry.label}</span>
+                <div key={entry.id} className="neon-tx">
+                  <span className={`tile-icon tile-icon--sm ${entry.delta > 0 ? 'tile-icon--green' : 'tile-icon--purple'}`}>
+                    <Icon name={TX_ICON[entry.reason] ?? (entry.delta > 0 ? 'coin' : 'receipt')} size={18} />
+                  </span>
+                  <span className="neon-tx__main">
+                    <span style={{ fontWeight: 700 }}>{entry.label}</span>
                     <span className="muted" style={{ fontSize: 'var(--text-xs)' }}>
                       {new Date(entry.at).toLocaleDateString('en-US', {
                         month: 'short',
@@ -278,11 +300,10 @@ export function Wallet() {
                       })}
                     </span>
                   </span>
-                  {entry.delta > 0 ? (
-                    <Badge tone="done">+{entry.delta}</Badge>
-                  ) : (
-                    <Badge tone="neutral">{entry.delta}</Badge>
-                  )}
+                  <span className={`neon-tx__amount ${entry.delta > 0 ? 'is-plus' : 'is-minus'}`}>
+                    {entry.delta > 0 ? `+${entry.delta}` : entry.delta} coins
+                    {entry.boostXp > 0 && <span className="neon-boost-tag">2× XP</span>}
+                  </span>
                 </div>
               ))}
             </div>

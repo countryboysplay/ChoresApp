@@ -37,9 +37,8 @@ export async function dashboardRoutes(app: FastifyInstance, opts: { env: Env }):
     const { rows: children } = await db.query(
       `SELECT u.id, u.display_name, u.avatar,
               coalesce((SELECT sum(delta) FROM points_ledger p WHERE p.child_id = u.id), 0)::int AS balance,
-              coalesce((SELECT sum(delta) FROM points_ledger p
-                         WHERE p.child_id = u.id AND p.delta > 0
-                           AND p.created_at >= $1::date), 0)::int AS week_points
+              coalesce((SELECT sum(xp) FROM xp_ledger x
+                         WHERE x.child_id = u.id AND x.created_at >= $1::date), 0)::int AS week_points
          FROM users u
         WHERE u.role = 'child' AND u.is_active
         ORDER BY u.sort_order, u.display_name`,

@@ -4,7 +4,8 @@ import type { ChoreResolution, DashboardResponse, UnresolvedChore } from '@chore
 import type { AvatarConfig } from '../../design/Avatar';
 import { Avatar, DEFAULT_AVATAR } from '../../design/Avatar';
 import { Icon, type IconName } from '../../design/icons';
-import { Badge, Button, EmptyState, PointsPill, Sheet, StatRow } from '../../design/primitives';
+import { NeonArt } from '../../design/neon';
+import { Badge, Button, PointsPill, Sheet, StatRow } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { InboxBell } from '../../components/InboxBell';
 import { ReminderWarning } from '../../components/ReminderWarning';
@@ -77,18 +78,28 @@ export function ParentDashboard() {
           </p>
         )}
 
+        <section className="parent-hero" style={{ marginBottom: 'var(--space-3)' }}>
+          <NeonArt group="ui" name="parent-dashboard-mark" size={52} />
+          <div>
+            <h2 className="subtitle">Household overview</h2>
+            <p>
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+        </section>
+
         <ReminderWarning />
 
         <section className="stack stack--tight" style={{ marginTop: 'var(--space-3)' }}>
           <StatRow
-            icon="check"
+            icon="calendar-check"
             tone="green"
             label="Chores done this week"
             value={`${counts.choresDoneThisWeek} / ${counts.choresDueThisWeek}`}
           />
           <Link to="/parent/approvals" style={{ textDecoration: 'none', color: 'inherit' }}>
             <StatRow
-              icon="inbox"
+              icon="approve"
               tone="blue"
               label="Waiting for review"
               value={String(counts.pendingApprovals)}
@@ -96,7 +107,7 @@ export function ParentDashboard() {
           </Link>
           <Link to="/parent/rewards" style={{ textDecoration: 'none', color: 'inherit' }}>
             <StatRow
-              icon="gift"
+              icon="rewards"
               tone="purple"
               label="Reward requests"
               value={String(counts.pendingRewardRequests)}
@@ -107,11 +118,11 @@ export function ParentDashboard() {
         <section style={{ marginTop: 'var(--space-5)' }}>
           <h2 className="subtitle">Needs attention</h2>
           {data.needsAttention.length === 0 ? (
-            <EmptyState
-              icon="check"
-              title="Nothing outstanding"
-              message="Chores nobody finished on a past day show up here."
-            />
+            <div className="empty">
+              <NeonArt group="states" name="all-done-today" style={{ width: 160, height: 'auto' }} />
+              <h3 className="subtitle">Nothing outstanding</h3>
+              <p style={{ margin: 0 }}>Chores nobody finished on a past day show up here.</p>
+            </div>
           ) : (
             <div className="stack stack--tight">
               {data.needsAttention.map((item) => (
@@ -187,10 +198,10 @@ export function ParentDashboard() {
                             fontWeight: 800,
                             background:
                               row.missed > 0
-                                ? 'rgba(255,82,82,0.28)'
+                                ? 'rgba(255, 92, 122, 0.24)'
                                 : row.approved > 0
-                                  ? 'rgba(0,200,83,0.28)'
-                                  : 'rgba(0,0,0,0.25)',
+                                  ? 'rgba(79, 224, 164, 0.26)'
+                                  : 'var(--surface-sunken)',
                             color: 'var(--text)',
                           }}
                         >
@@ -231,7 +242,7 @@ export function ParentDashboard() {
           <Button tone="quiet" block icon="plus" onClick={() => navigate('/parent/chores/new')}>
             New chore
           </Button>
-          <Button tone="purple" block icon="star" onClick={() => navigate('/parent/bonus')}>
+          <Button tone="purple" block icon="bonus" onClick={() => navigate('/parent/bonus')}>
             Post a bonus
           </Button>
         </div>
@@ -251,7 +262,7 @@ export function ParentDashboard() {
             </p>
 
             <div className="stack stack--tight">
-              <Button tone="quiet" block disabled={working} onClick={() => void resolve('excused')}>
+              <Button tone="quiet" block icon="shield" disabled={working} onClick={() => void resolve('excused')}>
                 Excuse it
               </Button>
               <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
@@ -260,7 +271,7 @@ export function ParentDashboard() {
             </div>
 
             <div className="stack stack--tight">
-              <Button tone="purple" block disabled={working} onClick={() => void resolve('carried_over')}>
+              <Button tone="purple" block icon="undo" disabled={working} onClick={() => void resolve('carried_over')}>
                 Carry it over to today
               </Button>
               <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
@@ -269,7 +280,7 @@ export function ParentDashboard() {
             </div>
 
             <div className="stack stack--tight">
-              <Button tone="stop" block disabled={working} onClick={() => void resolve('missed')}>
+              <Button tone="stop" block icon="reject" disabled={working} onClick={() => void resolve('missed')}>
                 Mark it missed
               </Button>
               <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>

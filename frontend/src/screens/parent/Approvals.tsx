@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Submission } from '@chore-quest/shared';
 import { Icon, type IconName } from '../../design/icons';
-import { Badge, Button, EmptyState, PointsPill, Segmented } from '../../design/primitives';
+import { NeonArt } from '../../design/neon';
+import { Badge, Button, EmptyState, PointsPill, Segmented, SelectField } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { relativeTime } from '../../config/format';
 import { api, ApiRequestError } from '../../lib/api';
@@ -20,6 +21,7 @@ const TABS = ['Pending', 'Reviewed'] as const;
 export function ApprovalQueue() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Pending');
+  const [childFilter, setChildFilter] = useState('');
   const [pending, setPending] = useState<Submission[]>([]);
   const [reviewed, setReviewed] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,13 +63,29 @@ export function ApprovalQueue() {
     }
   };
 
-  const list = tab === 'Pending' ? pending : reviewed;
+  // Children come from the queue itself, so the filter only offers someone with something in it.
+  const kids = [...new Map([...pending, ...reviewed].map((item) => [item.child.id, item.child.displayName])).entries()];
+  // A child whose last item left the queue falls back to everyone.
+  const activeChild = kids.some(([id]) => id === childFilter) ? childFilter : '';
+  const list = (tab === 'Pending' ? pending : reviewed).filter((item) => !activeChild || item.child.id === activeChild);
 
   return (
     <>
       <ScreenTop title="Approvals" />
       <main className="screen screen--wide">
         <Segmented options={TABS} value={tab} onChange={setTab} label="Queue" />
+
+        {kids.length > 1 && (
+          <div className="toolbar">
+            <SelectField
+              icon="filter"
+              label="Filter by child"
+              value={activeChild}
+              onChange={setChildFilter}
+              options={[{ value: '', label: 'Every child' }, ...kids.map(([value, label]) => ({ value, label }))]}
+            />
+          </div>
+        )}
 
         {error && (
           <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
@@ -81,15 +99,19 @@ export function ApprovalQueue() {
           </p>
         ) : list.length === 0 ? (
           <div style={{ marginTop: 'var(--space-5)' }}>
-            <EmptyState
-              icon="check"
-              title={tab === 'Pending' ? 'Nothing waiting' : 'Nothing reviewed yet today'}
-              message={
-                tab === 'Pending'
-                  ? 'Chores appear here as soon as they are sent in.'
-                  : 'Approved and returned chores from today will show here.'
-              }
-            />
+            {tab === 'Pending' ? (
+              <EmptyState
+                icon="check"
+                title="Nothing waiting"
+                message="Chores appear here as soon as they are sent in."
+              />
+            ) : (
+              <div className="empty">
+                <NeonArt group="states" name="no-history" style={{ width: 160, height: 'auto' }} />
+                <h3 className="subtitle">Nothing reviewed yet today</h3>
+                <p style={{ margin: 0 }}>Approved and returned chores from today will show here.</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="stack" style={{ marginTop: 'var(--space-4)' }}>
@@ -109,20 +131,20 @@ export function ApprovalQueue() {
                   <span style={{ fontWeight: 800, display: 'block' }}>{item.choreName}</span>
                   <span className="muted" style={{ fontSize: 'var(--text-sm)', display: 'block' }}>
                     {item.child.displayName} · {item.subtasksDone}/{item.subtasksTotal} steps ·{' '}
-                    {item.photos.length} photo{item.photos.length === 1 ? '' : 's'}
+                    <Icon name="photo" size={14} style={{ verticalAlign: '-2px' }} /> {item.photos.length} photo{item.photos.length === 1 ? '' : 's'}
                     {item.submittedAt ? ` · ${relativeTime(minutesSince(item.submittedAt))}` : ''}
                   </span>
                   <span style={{ display: 'inline-flex', gap: 'var(--space-2)', marginTop: 6 }}>
                     {item.status === 'submitted' ? (
                       item.photos.every((photo) => photo.viewed) ? (
-                        <Badge tone="done" icon="check">Photo viewed</Badge>
+                        <Badge tone="done" icon="eye">Photo viewed</Badge>
                       ) : (
-                        <Badge tone="neutral">Not reviewed</Badge>
+                        <Badge tone="neutral" icon="eye-off">Not reviewed</Badge>
                       )
                     ) : item.status === 'approved' ? (
-                      <Badge tone="done" icon="check">Approved</Badge>
+                      <Badge tone="done" icon="approve">Approved</Badge>
                     ) : (
-                      <Badge tone="late" icon="alert">Sent back</Badge>
+                      <Badge tone="late" icon="reject">Sent back</Badge>
                     )}
                     {item.punctual && <Badge tone="bonus">On time</Badge>}
                   </span>
@@ -146,6 +168,7 @@ export function ApprovalQueue() {
               tone="go"
               size="lg"
               block
+              icon="approve"
               disabled={!allViewed || working}
               onClick={() => void approveAll()}
             >

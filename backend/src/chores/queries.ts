@@ -1,6 +1,7 @@
 import type pg from 'pg';
 import type { ChoreKind, ChoreStatus } from '@chore-quest/shared';
 import { addHouseholdDays } from '../time.js';
+import { availableBoosts, familyGoal, syncBoosts, type FamilyGoal } from './boosts.js';
 
 /** Shapes returned to the client. Kept close to what a screen actually draws. */
 export interface SubtaskRow {
@@ -25,6 +26,8 @@ export interface ChoreRow {
   /** When the chore appeared on a board. What "newest" sorts on. */
   postedAt: string;
   claimed: boolean;
+  /** A boost is armed on it: its XP counts double once approved. */
+  boosted: boolean;
   subtasks: SubtaskRow[];
 }
 
@@ -41,6 +44,7 @@ const CHORE_SELECT = `
          ci.expires_at,
          ci.created_at,
          (ci.assigned_to IS NOT NULL) AS claimed,
+         EXISTS (SELECT 1 FROM boosts b WHERE b.chore_instance_id = ci.id) AS boosted,
          coalesce(
            (
              SELECT json_agg(json_build_object(
@@ -72,6 +76,7 @@ interface RawChore {
   created_at: Date;
   expires_at: Date | null;
   claimed: boolean;
+  boosted: boolean;
   subtasks: SubtaskRow[];
 }
 
@@ -89,6 +94,7 @@ function toChore(row: RawChore): ChoreRow {
     expiresAt: row.expires_at?.toISOString() ?? null,
     postedAt: row.created_at.toISOString(),
     claimed: row.claimed,
+    boosted: row.boosted,
     subtasks: row.subtasks,
   };
 }
@@ -174,6 +180,8 @@ export interface ChildSummary {
   lifetimePoints: number;
   streakDays: number;
   recentWin: { label: string; delta: number; at: string } | null;
+  boosts: number;
+  familyGoal: FamilyGoal | null;
 }
 
 /**
@@ -189,7 +197,7 @@ export async function childSummary(
 ): Promise<ChildSummary> {
   const { rows: totals } = await db.query<{ spendable: number; lifetime: number }>(
     `SELECT coalesce(sum(delta), 0)::int AS spendable,
-            coalesce(sum(delta) FILTER (WHERE delta > 0), 0)::int AS lifetime
+            (SELECT coalesce(sum(xp), 0)::int FROM xp_ledger WHERE child_id = $1) AS lifetime
        FROM points_ledger WHERE child_id = $1`,
     [childId],
   );
@@ -201,13 +209,18 @@ export async function childSummary(
     [childId],
   );
 
+  const streak = await streakRun(db, childId, today);
+  await syncBoosts(db, childId, streak);
+
   return {
     spendablePoints: totals[0]?.spendable ?? 0,
     lifetimePoints: totals[0]?.lifetime ?? 0,
-    streakDays: await streakLength(db, childId, today),
+    streakDays: streak.days,
     recentWin: recent[0]
       ? { label: recent[0].label, delta: recent[0].delta, at: recent[0].created_at.toISOString() }
       : null,
+    boosts: await availableBoosts(db, childId),
+    familyGoal: await familyGoal(db, today),
   };
 }
 
@@ -225,6 +238,15 @@ export async function childSummary(
  * unresolved for most of the day and is covered by the same rule.
  */
 export async function streakLength(db: pg.Pool, childId: string, today: string): Promise<number> {
+  return (await streakRun(db, childId, today)).days;
+}
+
+/** The streak and the first day it counts from, which names the run for boosts. */
+export async function streakRun(
+  db: pg.Pool,
+  childId: string,
+  today: string,
+): Promise<{ days: number; start: string | null }> {
   const { rows } = await db.query<{ chore_date: string; state: string }>(
     `SELECT ci.chore_date::text AS chore_date,
             CASE
@@ -245,15 +267,19 @@ export async function streakLength(db: pg.Pool, childId: string, today: string):
   );
 
   let streak = 0;
+  let start: string | null = null;
   let expected = today;
 
   for (const row of rows) {
     if (row.chore_date !== expected) break; // a day with no chores at all ends it
     if (row.state === 'broken') break;
-    if (row.state === 'done') streak += 1;
+    if (row.state === 'done') {
+      streak += 1;
+      start = row.chore_date;
+    }
     // 'paused' falls through: it carries the count back without adding to it.
     expected = addHouseholdDays(expected, -1);
   }
 
-  return streak;
+  return { days: streak, start };
 }

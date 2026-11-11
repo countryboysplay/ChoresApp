@@ -1,10 +1,13 @@
 /**
- * Code-drawn icons. No icon font, no raster assets, no image-generation
- * dependency. Every icon inherits `currentColor` and scales with `size`.
+ * Icons. Names with NEON line art render that SVG as a CSS mask, so the
+ * shape comes from the art pack and the color still comes from `currentColor`
+ * (or `--icon-paint`, e.g. the brand gradient). Names the pack has no match
+ * for keep their code-drawn path.
  */
-import type { SVGProps } from 'react';
+import type { CSSProperties } from 'react';
 
-export type IconName =
+/** The app's original names (kept so no caller changes). */
+type LegacyIconName =
   | 'home'
   | 'missions'
   | 'gift'
@@ -46,13 +49,137 @@ export type IconName =
   | 'sparkle'
   | 'compass';
 
-interface IconProps extends SVGProps<SVGSVGElement> {
+/** Every line icon in public/neon/icons, usable by its own file name. */
+type PackIconName =
+  | 'achievements'
+  | 'alert'
+  | 'approve'
+  | 'back'
+  | 'bathroom'
+  | 'bedroom'
+  | 'bell'
+  | 'bell-off'
+  | 'bonus'
+  | 'calendar'
+  | 'calendar-check'
+  | 'camera'
+  | 'camera-flip'
+  | 'cash'
+  | 'cash-out'
+  | 'check'
+  | 'chest'
+  | 'chevron-right'
+  | 'chores'
+  | 'cleaning'
+  | 'clock'
+  | 'close'
+  | 'cloud-check'
+  | 'coin'
+  | 'crown'
+  | 'download'
+  | 'edit'
+  | 'eye'
+  | 'eye-off'
+  | 'filter'
+  | 'flame'
+  | 'floors'
+  | 'food'
+  | 'gaming'
+  | 'help'
+  | 'home'
+  | 'hourglass'
+  | 'inbox'
+  | 'info'
+  | 'key'
+  | 'kitchen'
+  | 'laundry'
+  | 'leaderboard'
+  | 'lock'
+  | 'logout'
+  | 'maintenance'
+  | 'medal'
+  | 'minus'
+  | 'moon'
+  | 'more-horizontal'
+  | 'movie'
+  | 'pet'
+  | 'photo'
+  | 'plus'
+  | 'podium'
+  | 'profile'
+  | 'receipt'
+  | 'refresh'
+  | 'reject'
+  | 'retake'
+  | 'rewards'
+  | 'search'
+  | 'server'
+  | 'settings'
+  | 'shield'
+  | 'sort'
+  | 'spark'
+  | 'sun'
+  | 'target'
+  | 'timer'
+  | 'trash'
+  | 'trash-can'
+  | 'undo'
+  | 'upload'
+  | 'user-plus'
+  | 'users'
+  | 'wallet'
+  | 'wifi-off'
+  | 'xp'
+  | 'yard';
+
+export type IconName = LegacyIconName | PackIconName;
+
+interface IconProps {
   name: IconName;
   size?: number;
   title?: string;
+  style?: CSSProperties;
+  className?: string;
 }
 
-const paths: Record<IconName, string> = {
+/** IconName -> file in public/neon/icons. */
+const neon: Partial<Record<LegacyIconName, string>> = {
+  home: 'home',
+  missions: 'chores',
+  gift: 'rewards',
+  trophy: 'leaderboard',
+  more: 'more-horizontal',
+  bell: 'bell',
+  user: 'profile',
+  camera: 'camera',
+  close: 'close',
+  chevron: 'chevron-right',
+  plus: 'plus',
+  settings: 'settings',
+  clock: 'clock',
+  alert: 'alert',
+  flame: 'flame',
+  lock: 'lock',
+  kitchen: 'kitchen',
+  trash: 'trash',
+  laundry: 'laundry',
+  bedroom: 'bedroom',
+  bathroom: 'bathroom',
+  floors: 'floors',
+  yard: 'yard',
+  screen: 'gaming',
+  food: 'food',
+  chest: 'chest',
+  target: 'target',
+  medal: 'medal',
+  calendar: 'calendar',
+  inbox: 'inbox',
+  wallet: 'wallet',
+  sparkle: 'spark',
+  coin: 'coin',
+};
+
+const paths: Partial<Record<IconName, string>> = {
   home: 'M3 11 12 3l9 8M5 10v10h14V10',
   missions: 'M12 3v3M12 18v3M3 12h3M18 12h3M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z',
   gift: 'M4 11h16v9H4zM3 7h18v4H3zM12 7v13M12 7C10 3 6 4 7 7M12 7c2-4 6-3 5 0',
@@ -98,9 +225,45 @@ const paths: Record<IconName, string> = {
   compass: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 3v3M12 18v3M3 12h3M18 12h3M12 7l2 5-2 5-2-5Z',
 };
 
-export function Icon({ name, size = 22, title, ...rest }: IconProps) {
+export function Icon({ name, size = 22, title, style, className }: IconProps) {
+  const a11y = title ? { role: 'img' as const, 'aria-label': title } : { 'aria-hidden': true as const };
+  // App names use their mapping (or their drawn path); pack names use their own file.
+  const file = name in paths ? neon[name as LegacyIconName] : name;
+  // Full-color art (not a line icon): draw it as an image, not a mask.
+  if (file === 'check' || file === 'coin') {
+    return (
+      <img
+        src={`${import.meta.env.BASE_URL}neon/icons/${file}.svg`}
+        width={size}
+        height={size}
+        alt={title ?? ''}
+        aria-hidden={title ? undefined : true}
+        className={className}
+        style={{ display: 'inline-block', flexShrink: 0, verticalAlign: 'middle', ...style }}
+      />
+    );
+  }
+  if (file) {
+    const url = `url("${import.meta.env.BASE_URL}neon/icons/${file}.svg")`;
+    return (
+      <span
+        className={['icon', className].filter(Boolean).join(' ')}
+        {...a11y}
+        style={{
+          width: size,
+          height: size,
+          WebkitMaskImage: url,
+          maskImage: url,
+          // An explicit color means a status color: paint with it, not the gradient.
+          ...(style?.color ? { '--icon-paint': 'currentColor' } : null),
+          ...style,
+        } as CSSProperties}
+      />
+    );
+  }
   return (
     <svg
+      className={className}
       width={size}
       height={size}
       viewBox="0 0 24 24"
@@ -109,10 +272,9 @@ export function Icon({ name, size = 22, title, ...rest }: IconProps) {
       strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden={title ? undefined : true}
-      role={title ? 'img' : undefined}
       focusable="false"
-      {...rest}
+      style={style}
+      {...a11y}
     >
       {title ? <title>{title}</title> : null}
       <path d={paths[name]} />

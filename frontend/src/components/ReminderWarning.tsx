@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../design/icons';
+import { NeonArt } from '../design/neon';
 import { api } from '../lib/api';
 
 /**
@@ -55,7 +56,7 @@ export function ReminderWarning() {
         textDecoration: 'none',
       }}
     >
-      <Icon name="alert" size={20} style={{ color: 'var(--red)', flexShrink: 0 }} />
+      <NeonArt group="states" name="notifications-off" size={56} style={{ flexShrink: 0 }} />
       <span style={{ flex: 1, minWidth: 0 }}>
         <strong style={{ display: 'block' }}>
           Evening reminders are not reaching {who}

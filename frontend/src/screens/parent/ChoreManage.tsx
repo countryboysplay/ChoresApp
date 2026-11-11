@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ChoreDefinition, HouseholdMember } from '@chore-quest/shared';
 import { Icon, type IconName } from '../../design/icons';
-import { Button, EmptyState, PointsPill, Segmented, Sheet } from '../../design/primitives';
+import { Button, EmptyState, PointsPill, SearchField, Segmented, SelectField, Sheet } from '../../design/primitives';
+import { ChoreIconPicker } from './ChoreWizard';
 import { ScreenTop } from '../../components/ScreenTop';
 import { api, ApiRequestError } from '../../lib/api';
 
@@ -17,9 +18,33 @@ const WEEKDAYS = [
   { iso: 7, label: 'Sun' },
 ] as const;
 
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Active and retired' },
+  { value: 'active', label: 'Active only' },
+  { value: 'retired', label: 'Retired only' },
+] as const;
+export type ChoreStatusFilter = (typeof STATUS_OPTIONS)[number]['value'];
+
+/** Client-side list filter: name search, assigned child ('' = anyone), active state. */
+export function filterChores(
+  chores: ChoreDefinition[],
+  query: string,
+  childId: string,
+  status: ChoreStatusFilter,
+): ChoreDefinition[] {
+  const q = query.trim().toLowerCase();
+  return chores.filter(
+    (chore) =>
+      (!q || chore.name.toLowerCase().includes(q)) &&
+      (!childId || chore.schedules.some((schedule) => schedule.assignedTo === childId)) &&
+      (status === 'all' || chore.isActive === (status === 'active')),
+  );
+}
+
 interface Draft {
   id: string;
   name: string;
+  icon: string;
   points: string;
   subtasks: string[];
   assignedTo: string[];
@@ -59,6 +84,9 @@ export function ChoreManage() {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [working, setWorking] = useState(false);
+  const [query, setQuery] = useState('');
+  const [childFilter, setChildFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ChoreStatusFilter>('all');
 
   const load = useCallback(async () => {
     try {
@@ -89,6 +117,7 @@ export function ChoreManage() {
     setDraft({
       id: chore.id,
       name: chore.name,
+      icon: chore.icon,
       points: String(chore.points),
       subtasks: chore.subtasks.length > 0 ? chore.subtasks.map((subtask) => subtask.title) : [''],
       assignedTo: [...new Set(chore.schedules.map((schedule) => schedule.assignedTo))],
@@ -131,6 +160,7 @@ export function ChoreManage() {
     try {
       await api.household.updateChore(draft.id, {
         name: draft.name.trim(),
+        icon: draft.icon,
         points: value,
         // Saving a retired chore is how it comes back, so the Retire button is
         // never a one-way door.
@@ -186,6 +216,8 @@ export function ChoreManage() {
     });
   };
 
+  const shown = filterChores(chores, query, childFilter, statusFilter);
+
   return (
     <>
       <ScreenTop title="Chores" />
@@ -213,6 +245,23 @@ export function ChoreManage() {
               Add a chore
             </Button>
 
+            {chores.length > 0 && (
+              <div className="toolbar">
+                <SearchField value={query} onChange={setQuery} label="Search chores" placeholder="Search chores" />
+                <SelectField
+                  icon="filter"
+                  label="Filter by child"
+                  value={childFilter}
+                  onChange={setChildFilter}
+                  options={[
+                    { value: '', label: 'Every child' },
+                    ...children.map((child) => ({ value: child.id, label: child.displayName })),
+                  ]}
+                />
+                <SelectField icon="filter" label="Filter by status" value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
+              </div>
+            )}
+
             {chores.length === 0 ? (
               <div style={{ marginTop: 'var(--space-5)' }}>
                 <EmptyState
@@ -221,16 +270,20 @@ export function ChoreManage() {
                   message="Add the first one and it appears on the schedule and on the kids' day."
                 />
               </div>
+            ) : shown.length === 0 ? (
+              <p className="muted" role="status" style={{ textAlign: 'center', marginTop: 'var(--space-5)' }}>
+                No chores match. Clear the search or change the filters.
+              </p>
             ) : (
               <div className="stack" style={{ marginTop: 'var(--space-4)' }}>
-                {chores.map((chore) => (
+                {shown.map((chore) => (
                   <article
                     key={chore.id}
                     className="card row"
                     style={{ gap: 'var(--space-3)', opacity: chore.isActive ? 1 : 0.55 }}
                   >
-                    <span className="tile-icon tile-icon--gold tile-icon--sm">
-                      <Icon name={chore.icon as IconName} size={20} />
+                    <span className="tile-icon tile-icon--gold">
+                      <Icon name={chore.icon as IconName} size={26} />
                     </span>
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontWeight: 800, display: 'block' }}>{chore.name}</span>
@@ -245,7 +298,7 @@ export function ChoreManage() {
                       aria-label={`Edit ${chore.name}`}
                       onClick={() => edit(chore)}
                     >
-                      <Icon name="chevron" size={18} />
+                      <Icon name="edit" size={18} />
                     </button>
                   </article>
                 ))}
@@ -272,6 +325,8 @@ export function ChoreManage() {
                 onChange={(event) => setDraft({ ...draft, name: event.target.value })}
               />
             </label>
+
+            <ChoreIconPicker value={draft.icon} onPick={(icon) => setDraft({ ...draft, icon })} />
 
             <label className="stack stack--tight">
               <span className="eyebrow">Points</span>
@@ -308,7 +363,7 @@ export function ChoreManage() {
                     setDraft({ ...draft, subtasks: draft.subtasks.filter((_, i) => i !== index) })
                   }
                 >
-                  <Icon name="close" size={18} />
+                  <Icon name="trash-can" size={18} />
                 </button>
               </div>
             ))}
@@ -386,11 +441,11 @@ export function ChoreManage() {
 
             <div className="row" style={{ gap: 'var(--space-3)' }}>
               {draft.isActive && (
-                <Button tone="stop" block disabled={working} onClick={() => void retire()}>
+                <Button tone="stop" block icon="trash-can" disabled={working} onClick={() => void retire()}>
                   Retire
                 </Button>
               )}
-              <Button tone="go" block disabled={working} onClick={() => void save()}>
+              <Button tone="go" block icon={draft.isActive ? 'check' : 'undo'} disabled={working} onClick={() => void save()}>
                 {working ? 'Saving…' : 'Save'}
               </Button>
             </div>

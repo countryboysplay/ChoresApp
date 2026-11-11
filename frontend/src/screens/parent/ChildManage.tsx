@@ -17,11 +17,11 @@ import { api, ApiRequestError } from '../../lib/api';
  * parent looks for them.
  */
 const MORE: { to: string; label: string; hint: string; icon: IconName }[] = [
-  { to: '/parent/chores', label: 'Chores', hint: 'Edit, reassign, or retire a chore', icon: 'missions' },
-  { to: '/parent/bonus', label: 'Bonus chores', hint: 'Post something extra for points', icon: 'star' },
-  { to: '/parent/rewards', label: 'Rewards', hint: 'What points can be spent on', icon: 'gift' },
-  { to: '/parent/notifications', label: 'Inbox', hint: 'Everything the app has sent', icon: 'bell' },
-  { to: '/parent/system', label: 'System status', hint: 'Backups, reminders, and the server', icon: 'alert' },
+  { to: '/parent/chores', label: 'Chores', hint: 'Edit, reassign, or retire a chore', icon: 'chores' },
+  { to: '/parent/bonus', label: 'Bonus chores', hint: 'Post something extra for points', icon: 'bonus' },
+  { to: '/parent/rewards', label: 'Rewards', hint: 'What points can be spent on', icon: 'rewards' },
+  { to: '/parent/notifications', label: 'Inbox', hint: 'Everything the app has sent', icon: 'inbox' },
+  { to: '/parent/system', label: 'System status', hint: 'Backups, reminders, and the server', icon: 'server' },
 ];
 
 /**
@@ -147,7 +147,7 @@ export function ChildManage() {
           tone="purple"
           size="lg"
           block
-          icon="plus"
+          icon="user-plus"
           style={{ marginTop: 'var(--space-3)' }}
           onClick={() => setAdding(true)}
         >
@@ -157,7 +157,7 @@ export function ChildManage() {
         {children.length === 0 ? (
           <div style={{ marginTop: 'var(--space-5)' }}>
             <EmptyState
-              icon="user"
+              icon="users"
               title="No children yet"
               message="Add one and they can pick their hero and sign in with a PIN."
             />
@@ -190,7 +190,7 @@ export function ChildManage() {
 
                 <div className="row" style={{ gap: 'var(--space-2)' }}>
                   {child.hasPin ? (
-                    <Badge tone="done" icon="check">PIN set</Badge>
+                    <Badge tone="done" icon="key">PIN set</Badge>
                   ) : (
                     <Badge tone="waiting" icon="lock">No PIN yet</Badge>
                   )}
@@ -201,7 +201,7 @@ export function ChildManage() {
                   <Button
                     tone="quiet"
                     block
-                    icon="lock"
+                    icon="key"
                     disabled={working}
                     onClick={() => {
                       setPinFor(child);
@@ -213,6 +213,7 @@ export function ChildManage() {
                   <Button
                     tone={child.isActive ? 'stop' : 'go'}
                     block
+                    icon={child.isActive ? 'minus' : 'undo'}
                     disabled={working}
                     onClick={() => void setActive(child, !child.isActive)}
                   >
@@ -230,10 +231,10 @@ export function ChildManage() {
             {parents.map((parent) => (
               <div key={parent.id} className="card row" style={{ gap: 'var(--space-3)' }}>
                 <span className="iconbtn">
-                  <Icon name="user" size={20} />
+                  <Icon name="profile" size={20} />
                 </span>
                 <span style={{ flex: 1, fontWeight: 700 }}>{parent.displayName}</span>
-                <Badge tone="neutral">Managed on the laptop</Badge>
+                <Badge tone="neutral" icon="shield">Managed on the laptop</Badge>
               </div>
             ))}
           </div>
@@ -294,6 +295,7 @@ export function ChildManage() {
             <Button
               tone="go"
               size="lg"
+              icon="user-plus"
               block
               disabled={working || newName.trim().length === 0}
               onClick={() => void addChild()}
@@ -323,6 +325,7 @@ export function ChildManage() {
             <Button
               tone="go"
               size="lg"
+              icon="key"
               block
               disabled={working || pinValue.length !== 4}
               onClick={() => void savePin()}

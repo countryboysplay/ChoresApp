@@ -1,17 +1,78 @@
+import { useEffect, useState } from 'react';
+import type { FamilyGoal } from '@chore-quest/shared';
 import { Link, useNavigate } from 'react-router-dom';
 import type { AvatarConfig } from '../../design/Avatar';
 import { Avatar, DEFAULT_AVATAR } from '../../design/Avatar';
 import { Icon, type IconName } from '../../design/icons';
-import { Badge, Button, LevelBar, Meter, PointsPill, Ring } from '../../design/primitives';
+import { NeonArt } from '../../design/neon';
+import { Button } from '../../design/primitives';
 import { levelForLifetimePoints } from '../../config/levels';
+import { countdown } from '../../config/format';
+import { api } from '../../lib/api';
+import { useCatchUp, useTween } from '../../lib/motion';
 import { useAuth } from '../../lib/auth';
 import { useChildDay } from '../../lib/childDay';
-import { StatusBadge } from './choreStatus';
+import { BoostToggle, Loot, StatusBadge, statusAccent } from './choreStatus';
+import {
+  approvalMoments,
+  badgeMoments,
+  CelebrationQueue,
+  levelMoments,
+  mergeMoments,
+  rewardMoments,
+  streakMoments,
+  type Moment,
+} from './celebrations';
+
+const FINISHED = ['approved', 'excused'];
 
 export function ChildHome() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { day, loading, error } = useChildDay();
+  const { user, mode } = useAuth();
+  const { day, loading, error, reload } = useChildDay();
+  const [moments, setMoments] = useState<Moment[]>([]);
+  const userId = mode === 'live' ? user?.id : undefined;
+  // Gains made while away play out once they can be seen: after the moments
+  // have loaded and no celebration is covering the screen.
+  const [momentsLoaded, setMomentsLoaded] = useState(!userId);
+  const [celebrationIdle, setCelebrationIdle] = useState(true);
+  const hold = !momentsLoaded || !celebrationIdle || !day;
+  const seenKey = userId ?? 'preview';
+  const coins = useTween(useCatchUp(`${seenKey}:coins`, day?.summary.spendablePoints, hold));
+  const xp = useTween(useCatchUp(`${seenKey}:xp`, day?.summary.lifetimePoints, hold));
+
+  // Level and streak come with the day.
+  useEffect(() => {
+    if (!userId || !day) return;
+    setMoments((list) =>
+      mergeMoments(list, [
+        ...levelMoments(userId, day.summary.lifetimePoints),
+        ...streakMoments(userId, day.summary.streakDays, day.today),
+      ]),
+    );
+  }, [userId, day]);
+
+  // Approvals, badges and granted rewards live elsewhere; read them once per visit.
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void Promise.allSettled([api.wallet.mine(), api.achievements.mine(), api.rewards.mine()]).then(
+      ([wallet, badges, rewards]) => {
+        if (cancelled) return;
+        setMomentsLoaded(true);
+        setMoments((list) =>
+          mergeMoments(list, [
+            ...(wallet.status === 'fulfilled' ? approvalMoments(userId, wallet.value.history) : []),
+            ...(badges.status === 'fulfilled' ? badgeMoments(userId, badges.value.achievements) : []),
+            ...(rewards.status === 'fulfilled' ? rewardMoments(userId, rewards.value.redemptions) : []),
+          ]),
+        );
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   if (loading && !day) {
     return (
@@ -34,11 +95,12 @@ export function ChildHome() {
   }
 
   const { summary } = day;
-  const level = levelForLifetimePoints(summary.lifetimePoints);
-  // The required chore is the first core one still outstanding, falling back to
-  // the last of the day so a finished day still shows what was done.
-  const chore =
-    day.core.find((entry) => entry.status !== 'approved') ?? day.core[day.core.length - 1] ?? null;
+  const level = levelForLifetimePoints(xp ?? summary.lifetimePoints);
+  const coinsShown = coins ?? summary.spendablePoints;
+  const allDone = day.core.length > 0 && day.core.every((entry) => FINISHED.includes(entry.status));
+  // The required chore is the first core one still outstanding. Once the whole
+  // day is approved the card gives way to the all-clear.
+  const chore = day.core.find((entry) => !FINISHED.includes(entry.status)) ?? null;
   const doneCount = chore ? chore.subtasks.filter((task) => task.done).length : 0;
   const totalCount = chore ? chore.subtasks.length : 0;
 
@@ -59,105 +121,143 @@ export function ChildHome() {
   /** The chores the card above is not already showing. */
   const alsoToday = day.core.filter((entry) => entry.id !== chore?.id);
   const nextBonus = [...day.availableBonus].sort((a, b) => b.points - a.points)[0] ?? null;
+  const bonusMinutes = nextBonus?.expiresAt
+    ? Math.max(0, Math.round((new Date(nextBonus.expiresAt).getTime() - Date.now()) / 60_000))
+    : null;
 
   const name = user?.displayName ?? 'Player';
   const avatar = (user?.avatar as AvatarConfig | null) ?? DEFAULT_AVATAR;
+  const levelPct = level.levelSpan ? Math.min(100, (level.pointsIntoLevel / level.levelSpan) * 100) : 100;
 
   return (
-    <main className="screen">
-      {/* Player header */}
-      <div className="row row--between" style={{ marginBottom: 'var(--space-3)' }}>
-        <Link
-          to="/child/profile"
-          className="row"
-          style={{ textDecoration: 'none', color: 'inherit', gap: 'var(--space-3)' }}
-        >
-          <span
-            style={{
-              padding: 3,
-              borderRadius: '50%',
-              background: 'linear-gradient(180deg, #cba871, var(--gold))',
-              display: 'grid',
-            }}
-          >
-            <Avatar config={avatar} size={48} label={`${name} avatar`} />
+    <main className="screen hud-screen">
+      <CelebrationQueue moments={moments} onIdle={setCelebrationIdle} />
+
+      {/* The player plate: who, what level, what they hold. */}
+      <header className="hud plate">
+        <Link to="/child/profile" className="hud__avatar" aria-label={`${name} profile`}>
+          <svg className="hud__ring" viewBox="0 0 100 100" aria-hidden="true">
+            <defs>
+              <linearGradient id="hud-ring" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#ffe498" />
+                <stop offset="100%" stopColor="#f2a33c" />
+              </linearGradient>
+            </defs>
+            <circle className="hud__ring-track" cx="50" cy="50" r="46" pathLength={100} />
+            <circle
+              className="hud__ring-fill"
+              cx="50"
+              cy="50"
+              r="46"
+              pathLength={100}
+              strokeDasharray="100"
+              strokeDashoffset={100 - levelPct}
+            />
+          </svg>
+          <Avatar config={avatar} size={62} />
+          <span key={level.level} className="hud__lvl numeric">
+            {level.level}
           </span>
-          <span className="subtitle">{name}</span>
         </Link>
-        <PointsPill value={summary.spendablePoints} />
-      </div>
 
-      <div className="row" style={{ gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <LevelBar level={level.level} into={level.pointsIntoLevel} span={level.levelSpan} />
-        </div>
-        <Link to="/child/profile" className="iconbtn" aria-label="Profile">
-          <Icon name="user" size={20} />
-        </Link>
-        <Link to="/child/notifications" className="iconbtn" aria-label="Notifications">
-          <Icon name="inbox" size={20} />
-        </Link>
-      </div>
-
-      {/* Today's progress */}
-      <button
-        type="button"
-        className="panel panel--sky card--interactive"
-        style={{ display: 'block' }}
-        onClick={() => navigate('/child/missions')}
-      >
-        <div className="row row--between" style={{ marginBottom: 'var(--space-3)' }}>
-          <span className="eyebrow">Today&apos;s quests</span>
-          <Icon name="arrow" size={20} />
-        </div>
-        <div className="row" style={{ gap: 'var(--space-4)' }}>
-          <Ring value={dayDone} max={Math.max(dayTotal, 1)} size={104} label="Steps finished today">
-            <span style={{ lineHeight: 1 }}>
-              <span
-                className="numeric"
-                style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-2xl)', color: 'var(--gold)' }}
-              >
-                {dayDone}
-              </span>
-              <span style={{ display: 'block', fontSize: 'var(--text-xs)', fontWeight: 700 }}>
-                of {dayTotal}
-              </span>
-            </span>
-          </Ring>
-          <div style={{ flex: 1 }}>
-            <Chest />
+        <div className="hud__id">
+          <span className="hud__name">{name}</span>
+          <span className="hud__xp numeric">
+            {level.levelSpan
+              ? `${level.pointsIntoLevel.toLocaleString('en-US')} / ${level.levelSpan.toLocaleString('en-US')} XP`
+              : 'Max level'}
+          </span>
+          <div
+            className="hud__xpbar"
+            role="progressbar"
+            aria-label={`Level ${level.level} progress`}
+            aria-valuenow={Math.round(levelPct)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <i style={{ width: `${levelPct}%` }} />
           </div>
         </div>
-      </button>
 
-      {/* Today's required chore */}
+        <Link to="/child/notifications" className="hud__bell" aria-label="Notifications">
+          <Icon name="bell" size={20} />
+        </Link>
+
+        <div className="hud__stats">
+          <span className="hud-stat hud-stat--coin">
+            <Icon name="coin" size={20} />
+            <b className="numeric">{coinsShown.toLocaleString('en-US')}</b>
+            <small>Coins</small>
+          </span>
+          <span className={`hud-stat hud-stat--boost${summary.boosts > 0 ? ' is-live' : ''}`}>
+            <Icon name="bonus" size={20} />
+            <b className="numeric">{summary.boosts}</b>
+            <small>{summary.boosts === 1 ? 'Boost' : 'Boosts'}</small>
+          </span>
+          <Link to="/child/achievements" className="hud-stat hud-stat--streak">
+            <Icon name="flame" size={20} />
+            <b className="numeric">{summary.streakDays}</b>
+            <small>Day streak</small>
+          </Link>
+        </div>
+      </header>
+
+      {/* Today's run: every required chore as a stop, the chest at the end. */}
+      <DayRun
+        chores={day.core}
+        current={chore?.id ?? null}
+        done={dayDone}
+        total={dayTotal}
+        allDone={allDone}
+        seenKey={`${seenKey}:steps:${day.today}`}
+        hold={hold}
+        onOpen={() => navigate('/child/missions')}
+      />
+
+      {/* The mission. */}
       {chore ? (
-        <section className="card card--status is-info" style={{ marginTop: 'var(--space-4)', padding: 'var(--space-5)' }}>
-          <div className="row row--between" style={{ marginBottom: 'var(--space-3)' }}>
-            <span className="eyebrow">Today&apos;s quest</span>
+        <section className={`mission plate is-${chore.status}`} aria-labelledby="mission-title">
+          <div className="mission__top">
+            <span className="mission__tag">Today&apos;s quest</span>
             <StatusBadge status={chore.status} />
           </div>
 
-          <div className="row" style={{ gap: 'var(--space-3)' }}>
-            <span className="tile-icon tile-icon--gold">
-              <Icon name={chore.icon as IconName} size={24} />
+          <div className="mission__art" aria-hidden="true">
+            <span className="mission__core">
+              <Icon name={chore.icon as IconName} size={64} />
             </span>
-            <div style={{ flex: 1 }}>
-              <h2 className="subtitle" style={{ marginBottom: 4 }}>
-                {chore.name}
-              </h2>
-              <div className="row" style={{ gap: 'var(--space-2)' }}>
-                <PointsPill value={chore.points} small />
-                <span className="muted numeric" style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-                  {doneCount} of {totalCount} done
-                </span>
-              </div>
-            </div>
           </div>
 
-          <div style={{ margin: 'var(--space-4) 0' }}>
-            <Meter value={doneCount} max={Math.max(totalCount, 1)} tone="green" />
+          <h2 id="mission-title" className="mission__title">
+            {chore.name}
+          </h2>
+
+          <div
+            className="mission__pips"
+            role="progressbar"
+            aria-label={`${chore.name} steps done`}
+            aria-valuenow={doneCount}
+            aria-valuemin={0}
+            aria-valuemax={totalCount}
+          >
+            {chore.subtasks.map((task, index) => (
+              <i key={index} className={task.done ? 'is-on' : ''} />
+            ))}
           </div>
+          <div className="mission__meta">
+            <span className="numeric">
+              {doneCount} of {totalCount} done
+            </span>
+            <span>
+              <Icon name="calendar-check" size={14} /> Due today
+            </span>
+          </div>
+
+          <div className="mission__loot">
+            <Loot points={chore.points} row boosted={chore.boosted} />
+          </div>
+
+          {mode === 'live' && <BoostToggle chore={chore} available={summary.boosts} onChange={reload} />}
 
           <Button
             tone="purple"
@@ -165,133 +265,209 @@ export function ChildHome() {
             block
             sound="tap"
             icon="target"
+            className="cta"
             onClick={() => navigate(`/child/chore/${chore.id}`)}
           >
             {doneCount === 0 ? 'Start chore' : 'Continue chore'}
           </Button>
         </section>
       ) : (
-        // A real state, not an error: a day off, or nobody has set up a
-        // schedule for this child yet.
-        <section className="card" style={{ marginTop: 'var(--space-4)', textAlign: 'center' }}>
-          <span className="eyebrow">Today&apos;s required chore</span>
-          <p style={{ fontWeight: 700, margin: 'var(--space-3) 0 0' }}>Nothing due today</p>
-          <p className="muted" style={{ margin: '4px 0 0' }}>Enjoy the day off.</p>
+        // A real state, not an error: everything approved, a day off, or
+        // nobody has set up a schedule for this child yet.
+        <section className={`mission plate mission--clear${allDone ? ' is-won' : ''}`} aria-labelledby="mission-title">
+          <NeonArt
+            group="states"
+            name={allDone ? 'all-done-today' : 'no-chores'}
+            className="float mission__clear-art"
+          />
+          <h2 id="mission-title" className="mission__title">
+            {allDone ? 'All clear' : 'Nothing due today'}
+          </h2>
+          <p className="mission__clear-note">
+            {allDone ? 'Every quest approved. The day is yours.' : 'Enjoy the day off.'}
+          </p>
         </section>
       )}
 
-      {/* The rest of the day.
-          The card above shows one chore, which was the whole of Home when a
-          child had one. A second required chore was invisible here - it was on
-          Missions, but Home is the screen they open - so a child could finish
-          what Home showed them and be told they had missed something. */}
-      {alsoToday.length > 0 && (
-        <section className="stack stack--tight" style={{ marginTop: 'var(--space-4)' }}>
-          <span className="eyebrow">Also today</span>
+      {/* The rest of the day, and the best bonus on the board.
+          The card above shows one chore; a second required chore must still be
+          visible here, or a child finishes what Home shows and misses one. */}
+      {(alsoToday.length > 0 || nextBonus) && (
+        <section className="sidequests" aria-labelledby="sidequests-title">
+          <h2 id="sidequests-title" className="hud-h">
+            {chore ? 'Next up' : 'Done today'}
+          </h2>
           {alsoToday.map((entry) => {
             const done = entry.subtasks.filter((task) => task.done).length;
             return (
               <button
                 key={entry.id}
                 type="button"
-                className="card card--interactive row"
-                style={{ gap: 'var(--space-3)' }}
+                className={`sidequest ${statusAccent[entry.status]}`}
                 onClick={() => navigate(`/child/chore/${entry.id}`)}
               >
-                <span className="tile-icon tile-icon--gold tile-icon--sm">
-                  <Icon name={entry.icon as IconName} size={20} />
+                <span className="sidequest__icon">
+                  <Icon name={entry.icon as IconName} size={22} />
                 </span>
-                <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                  <span style={{ fontWeight: 800, display: 'block' }}>{entry.name}</span>
-                  <span className="muted numeric" style={{ fontSize: 'var(--text-sm)' }}>
-                    {done} of {entry.subtasks.length} done
+                <span className="sidequest__main">
+                  <strong>{entry.name}</strong>
+                  <span className="sidequest__meta">
+                    <span className="numeric">
+                      {done} of {entry.subtasks.length} done
+                    </span>
+                    <StatusBadge status={entry.status} />
                   </span>
                 </span>
-                <StatusBadge status={entry.status} />
+                <Loot points={entry.points} boosted={entry.boosted} />
               </button>
             );
           })}
+          {nextBonus && (
+            <button type="button" className="sidequest sidequest--bonus" onClick={() => navigate('/child/missions')}>
+              <span className="sidequest__icon">
+                <Icon name="bonus" size={22} />
+              </span>
+              <span className="sidequest__main">
+                <strong>
+                  <span className="sidequest__flag">Bonus</span> {nextBonus.name}
+                </strong>
+                <span className="sidequest__meta">
+                  <span>
+                    <Icon name="timer" size={14} />
+                    {bonusMinutes === null ? 'No deadline' : countdown(bonusMinutes)}
+                  </span>
+                </span>
+              </span>
+              <Loot points={nextBonus.points} />
+            </button>
+          )}
         </section>
       )}
 
-      {/* Next bonus chore. Hidden entirely when the board is empty rather than
-          showing a panel that promises points nobody can claim. */}
-      {nextBonus && (
-        <button
-          type="button"
-          className="panel panel--purple card--interactive"
-          style={{ marginTop: 'var(--space-4)', display: 'block' }}
-          onClick={() => navigate('/child/missions')}
-        >
-          <div className="row row--between" style={{ marginBottom: 'var(--space-2)' }}>
-            <span className="eyebrow">Next bonus chore</span>
-            <Icon name="arrow" size={20} />
-          </div>
-          <div className="row" style={{ gap: 'var(--space-3)' }}>
-            <span className="tile-icon tile-icon--gold">
-              <Icon name="target" size={24} />
-            </span>
-            <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontWeight: 800 }}>{nextBonus.name}</span>
-              <span style={{ fontSize: 'var(--text-sm)', opacity: 0.85 }}>Claim it before it expires</span>
-            </span>
-            <strong className="numeric" style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-lg)' }}>
-              +{nextBonus.points}
-            </strong>
-          </div>
-        </button>
-      )}
+      {/* The family goal. No goal set, no bar. */}
+      {summary.familyGoal && <FamilyGoalBar goal={summary.familyGoal} seenKey={seenKey} hold={hold} />}
 
-      {/* Streak */}
-      <Link
-        to="/child/achievements"
-        className="panel panel--pale row"
-        style={{ marginTop: 'var(--space-4)', textDecoration: 'none', gap: 'var(--space-4)' }}
-      >
-        <span style={{ fontSize: 34 }} aria-hidden="true">
-          <Icon name="flame" size={34} style={{ color: 'var(--red)' }} />
-        </span>
-        <span style={{ flex: 1 }}>
-          <span className="eyebrow" style={{ color: 'rgba(15,17,19,0.7)' }}>
-            Streak
-          </span>
-          <span
-            style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', fontWeight: 600 }}
-          >
-            {summary.streakDays} {summary.streakDays === 1 ? 'day' : 'days'}
-          </span>
-        </span>
-        <Icon name="tree" size={34} style={{ color: 'var(--green)' }} />
-      </Link>
-
-      {/* Recent win. Nothing to celebrate yet on a brand new account. */}
+      {/* Most recent win. Nothing to show yet on a brand new account. */}
       {summary.recentWin && (
-        <div className="card card--status is-done row" style={{ marginTop: 'var(--space-4)' }}>
-          <Icon name="check" size={22} style={{ color: 'var(--green)' }} />
-          <div style={{ flex: 1 }}>
-            <span className="eyebrow" style={{ color: 'var(--text-muted)' }}>
-              Most recent win
-            </span>
-            <p style={{ margin: '2px 0 0', fontWeight: 700 }}>{summary.recentWin.label}</p>
-          </div>
-          <Badge tone="done">+{summary.recentWin.delta}</Badge>
+        <div className="lastwin">
+          <Icon name="check" size={18} />
+          <span className="lastwin__label">
+            <b>Last win</b> {summary.recentWin.label}
+          </span>
+          <span className="lastwin__xp numeric">+{summary.recentWin.delta} XP</span>
         </div>
       )}
     </main>
   );
 }
 
-/** Treasure chest, drawn in code to match the board without a raster asset. */
-function Chest() {
+type RunChore = { id: string; name: string; icon: string; status: string };
+
+/**
+ * Steps done across today's chores as a track of stops ending in the chest.
+ * The line sweeps up from what this device last saw (see useCatchUp).
+ */
+function DayRun({
+  chores,
+  current,
+  done,
+  total,
+  allDone,
+  seenKey,
+  hold,
+  onOpen,
+}: {
+  chores: RunChore[];
+  current: string | null;
+  done: number;
+  total: number;
+  allDone: boolean;
+  seenKey: string;
+  hold: boolean;
+  onOpen: () => void;
+}) {
+  const seen = useCatchUp(seenKey, done, hold);
+  const shown = useTween(seen);
+  const pct = total > 0 ? Math.min(100, (seen / total) * 100) : 0;
+
+  const stateOf = (chore: RunChore) =>
+    FINISHED.includes(chore.status)
+      ? 'is-done'
+      : chore.id === current
+        ? 'is-current'
+        : chore.status === 'submitted'
+          ? 'is-waiting'
+          : chore.status === 'rejected' || chore.status === 'missed'
+            ? 'is-late'
+            : '';
+
   return (
-    <svg viewBox="0 0 120 96" style={{ width: '100%', maxWidth: 132 }} aria-hidden="true">
-      <ellipse cx="60" cy="88" rx="42" ry="6" fill="rgba(0,0,0,0.18)" />
-      <path d="M22 44a38 24 0 0 1 76 0v6H22Z" fill="#a8752f" stroke="#6d4715" strokeWidth="3" />
-      <rect x="22" y="50" width="76" height="34" rx="6" fill="#c08b3c" stroke="#6d4715" strokeWidth="3" />
-      <rect x="22" y="56" width="76" height="8" fill="#e0b45f" />
-      <rect x="52" y="50" width="16" height="22" rx="3" fill="#cba871" stroke="#6d4715" strokeWidth="3" />
-      <circle cx="60" cy="62" r="3" fill="#6d4715" />
-      <path d="M30 40a30 18 0 0 1 60 0" fill="none" stroke="#e0b45f" strokeWidth="4" />
-    </svg>
+    <button type="button" className={`run plate${allDone ? ' is-won' : ''}`} onClick={onOpen} aria-label="Today's quests">
+      <span className="run__head">
+        <span className="hud-h">Today&apos;s run</span>
+        <span className="run__count numeric">
+          <b>{shown}</b> / {total} steps
+        </span>
+      </span>
+      <span className="run__track">
+        <span
+          className="run__line"
+          role="progressbar"
+          aria-label="Steps finished today"
+          aria-valuenow={seen}
+          aria-valuemin={0}
+          aria-valuemax={total}
+        >
+          <i style={{ width: `${pct}%` }} />
+        </span>
+        {chores.map((chore) => (
+          <span key={chore.id} className={`run__node ${stateOf(chore)}`} title={chore.name}>
+            <Icon name={(FINISHED.includes(chore.status) ? 'check' : chore.icon) as IconName} size={18} />
+          </span>
+        ))}
+        <span className={`run__node run__node--chest${allDone ? ' is-open' : ''}`} title="Day reward">
+          <Icon name="chest" size={22} />
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Everyone's XP this household week against the goal a parent set. The bar
+ * moves from where this device last saw it, so siblings' progress shows as progress.
+ */
+function FamilyGoalBar({ goal, seenKey, hold }: { goal: FamilyGoal; seenKey: string; hold: boolean }) {
+  const seen = useCatchUp(`${seenKey}:goal:${goal.weekStart}`, goal.xp, hold);
+  const xp = useTween(seen);
+  const reached = xp >= goal.target;
+  const pct = goal.target > 0 ? Math.min(100, (seen / goal.target) * 100) : 0;
+  return (
+    <section className={`squad plate${reached ? ' is-reached' : ''}`} aria-labelledby="squad-title">
+      <div className="squad__head">
+        <h2 id="squad-title" className="hud-h">
+          <Icon name="users" size={16} /> Family goal
+        </h2>
+        <span className="squad__count numeric">
+          {xp.toLocaleString('en-US')} / {goal.target.toLocaleString('en-US')} XP
+        </span>
+      </div>
+      <div
+        className="squad__bar"
+        role="progressbar"
+        aria-label="Family goal"
+        aria-valuenow={Math.min(seen, goal.target)}
+        aria-valuemin={0}
+        aria-valuemax={goal.target}
+      >
+        <i style={{ width: `${pct}%` }} />
+      </div>
+      <p className="squad__note">
+        {reached ? <Icon name="check" size={16} /> : null}
+        {reached
+          ? `Goal reached${goal.reward ? `: ${goal.reward}!` : '!'}`
+          : `${(goal.target - xp).toLocaleString('en-US')} XP to go together${goal.reward ? ` for ${goal.reward}` : ''}.`}
+      </p>
+    </section>
   );
 }

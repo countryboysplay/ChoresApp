@@ -161,7 +161,7 @@ export function BonusManage() {
                 <article key={entry.id} className="card stack stack--tight">
                   <div className="row" style={{ gap: 'var(--space-3)' }}>
                     <span className="tile-icon tile-icon--purple tile-icon--sm">
-                      <Icon name={entry.icon as IconName} size={20} />
+                      <Icon name={entry.icon as IconName} size={22} />
                     </span>
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontWeight: 800, display: 'block' }}>{entry.name}</span>
@@ -179,19 +179,20 @@ export function BonusManage() {
 
                   <div className="row" style={{ gap: 'var(--space-2)' }}>
                     {finished ? (
-                      <Badge tone="done" icon="check">
+                      <Badge tone="done" icon={entry.status === 'approved' ? 'approve' : 'hourglass'}>
                         {entry.status === 'approved' ? 'Done' : 'Waiting for review'}
                       </Badge>
                     ) : entry.claimedBy ? (
                       <Badge tone="waiting" icon="lock">Claimed by {entry.claimedBy}</Badge>
                     ) : (
-                      <Badge tone="bonus">Open to claim</Badge>
+                      <Badge tone="bonus" icon="bonus">Open to claim</Badge>
                     )}
                   </div>
 
                   {!finished && (
                     <Button
                       tone="quiet"
+                      icon={entry.claimedBy ? 'timer' : 'trash-can'}
                       block
                       disabled={working || Boolean(entry.claimedBy)}
                       onClick={() => void withdraw(entry.id)}

@@ -1,0 +1,347 @@
+/*
+ * Kid gameplay screens, from the NEON pack's NeonKit.css (.neon-chore,
+ * .neon-reward, .neon-achievement, .neon-rank). Colors come from
+ * tokens.css so a re-theme still reaches these.
+ */
+
+/* ---------- Chore rows ---------- */
+.neon-chore {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 12px;
+  color: var(--text-strong);
+  border-radius: 19px;
+  border: 1px solid rgba(155, 177, 255, 0.14);
+  background: linear-gradient(120deg, var(--surface-raised), #151b32);
+  text-align: left;
+  font: inherit;
+}
+.neon-chore:is(button) { cursor: pointer; transition: transform 220ms, border-color 220ms, box-shadow 220ms; }
+.neon-chore:is(button):hover { transform: translateY(-3px); border-color: #52d6ff; box-shadow: var(--glow-cyan); }
+.neon-chore.is-done { border-color: rgba(79, 224, 164, 0.35); }
+.neon-chore.is-late { border-color: rgba(255, 92, 122, 0.45); }
+.neon-chore.is-waiting { border-color: rgba(247, 199, 107, 0.35); }
+.neon-chore__main { flex: 1; min-width: 0; display: grid; gap: 5px; }
+.neon-chore__main > strong { font-size: 0.97rem; font-weight: 800; }
+.neon-chore__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 0.78rem;
+  color: #a1b0d0;
+  font-weight: 650;
+}
+.neon-chore__meta > span { display: inline-flex; align-items: center; gap: 4px; }
+.neon-chore__arrow { color: #8196c8; flex-shrink: 0; --icon-paint: currentColor; }
+
+/* "+20 XP  +20 coins" on a chore. */
+.neon-loot {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+  white-space: nowrap;
+  font-size: 0.74rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+.neon-loot > span { display: inline-flex; align-items: center; gap: 4px; }
+.neon-loot__xp { color: #72e6f8; }
+.neon-loot__coins { color: var(--gold); }
+.neon-loot--row { display: flex; gap: 12px; justify-items: start; }
+
+
+/* ---------- Rewards ---------- */
+.neon-rewards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.neon-reward {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px 10px 12px;
+  color: var(--text-strong);
+  text-align: center;
+  border: 1px solid rgba(170, 116, 255, 0.35);
+  border-radius: 22px;
+  background: radial-gradient(circle at 50% 12%, rgba(149, 85, 255, 0.22), transparent 50%), #171932;
+}
+.neon-reward.is-ready { border-color: #b87dff; box-shadow: var(--glow-violet); }
+.neon-reward.is-locked > img { filter: grayscale(0.8); opacity: 0.55; }
+.neon-reward > strong { font-size: 0.92rem; overflow-wrap: anywhere; }
+.neon-reward__desc { font-size: 0.75rem; color: var(--text-muted); }
+.neon-reward__cost { display: inline-flex; align-items: center; gap: 5px; font-weight: 800; color: #ffdf89; font-size: 0.85rem; }
+.neon-reward__goal { position: absolute; top: 6px; right: 6px; width: 38px; height: 38px; }
+.neon-reward__tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.neon-reward .meter { height: 8px; }
+.neon-reward > div,
+.neon-reward > .btn { width: 100%; }
+.neon-reward .btn { min-height: 42px; font-size: var(--text-sm); padding: 0 10px; }
+
+/* ---------- Achievements ---------- */
+.neon-achievements { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.neon-achievement {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  text-align: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 16px 10px;
+  color: var(--text-strong);
+  font: inherit;
+  border: 1px solid rgba(166, 165, 255, 0.2);
+  border-radius: 20px;
+  background: #161e36;
+  cursor: pointer;
+  transition: transform 220ms, border-color 220ms;
+}
+.neon-achievement:hover { transform: translateY(-3px); border-color: rgba(247, 199, 107, 0.5); }
+.neon-achievement.is-earned { border-color: rgba(247, 199, 107, 0.4); background: radial-gradient(circle at 50% 18%, rgba(247, 199, 107, 0.14), transparent 55%), #161e36; }
+.neon-achievement > strong { font-size: 0.9rem; }
+.neon-achievement > small { color: #9baccd; font-size: 0.74rem; }
+.neon-achievement__state { margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; font-size: 0.74rem; font-weight: 750; color: #79e1bc; }
+.neon-achievement:not(.is-earned) .neon-achievement__state { color: #b9c3dc; }
+.neon-achievement > .neon-meter { width: 100%; }
+
+/* Thin progress meter used inside tiles. */
+.neon-meter { display: grid; gap: 4px; }
+.neon-meter .meter { height: 7px; }
+.neon-meter > span { font-size: 0.72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* ---------- Leaderboard ---------- */
+.neon-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  padding-top: var(--space-2);
+}
+.neon-podium__slot { display: grid; justify-items: center; gap: 6px; min-width: 0; }
+.neon-podium__slot > strong { font-size: 0.85rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.neon-podium__crown { display: block; filter: drop-shadow(0 0 10px rgba(247, 199, 107, 0.55)); }
+.neon-podium__block {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 2px;
+  padding-top: 8px;
+  border-radius: 16px 16px 4px 4px;
+  border: 1px solid rgba(155, 177, 255, 0.2);
+  border-bottom: 0;
+  font-variant-numeric: tabular-nums;
+}
+.neon-podium__block > b { font-size: var(--text-xl); font-weight: 900; line-height: 1; }
+.neon-podium__block > span { font-size: 0.72rem; font-weight: 750; color: var(--text); }
+.neon-podium__block--1 { height: 96px; background: linear-gradient(180deg, rgba(247, 199, 107, 0.35), rgba(247, 199, 107, 0.04)); border-color: rgba(247, 199, 107, 0.5); color: var(--gold); }
+.neon-podium__block--2 { height: 72px; background: linear-gradient(180deg, rgba(64, 228, 255, 0.25), rgba(64, 228, 255, 0.03)); color: #9eeeff; }
+.neon-podium__block--3 { height: 56px; background: linear-gradient(180deg, rgba(170, 105, 255, 0.28), rgba(170, 105, 255, 0.03)); color: #c9a8ff; }
+
+.neon-rank {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  border-radius: 18px;
+  background: #171e36;
+  border: 1px solid rgba(145, 169, 238, 0.14);
+}
+.neon-rank.is-me { border-color: rgba(64, 228, 255, 0.55); box-shadow: var(--glow-cyan); }
+.neon-rank__number { min-width: 28px; color: #62dbff; font-weight: 900; font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
+.neon-rank__who { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.neon-rank__who > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.neon-rank__meta { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 0.75rem; color: var(--text-muted); font-weight: 650; }
+.neon-rank__meta > span { display: inline-flex; align-items: center; gap: 3px; }
+.neon-rank__score { display: grid; justify-items: end; font-size: 0.8rem; color: #aeeeff; font-variant-numeric: tabular-nums; }
+.neon-rank__score > b { font-size: var(--text-lg); color: var(--text-strong); }
+
+/* Tier emblem with the level number on it. */
+.neon-tier { position: relative; display: inline-grid; place-items: center; flex-shrink: 0; }
+.neon-tier > img { width: 100%; height: 100%; }
+.neon-tier > b {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 900;
+  color: var(--text-strong);
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Wallet ---------- */
+.neon-tx { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: #171e36; border: 1px solid rgba(145, 169, 238, 0.12); }
+.neon-tx__main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.neon-tx__amount { font-weight: 850; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.neon-tx__amount.is-plus { color: var(--green); }
+.neon-tx__amount.is-minus { color: var(--text-muted); }
+
+/* ---------- Accents ---------- */
+.neon-sparkle { position: absolute; pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .neon-sparkle { animation: neon-twinkle 3.2s ease-in-out infinite; }
+}
+@keyframes neon-twinkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.85) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(20deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-chore, .neon-achievement { transition: none; }
+  .neon-chore:hover, .neon-achievement:hover { transform: none; }
+}
+.neon-chore__main > .badge { justify-self: start; }
+
+/* ---------- Home stat tiles: coins, level, boosts ---------- */
+.neon-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.neon-stat {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border-radius: 16px;
+  border: 1px solid rgba(155, 177, 255, 0.14);
+  background: linear-gradient(120deg, var(--surface-raised), #151b32);
+  color: var(--text-strong);
+}
+.neon-stat > b { font-family: var(--font-display); font-size: var(--text-xl); line-height: 1.1; }
+.neon-stat > span { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #a1b0d0; }
+.neon-stat--boost { border-color: rgba(155, 124, 255, 0.45); }
+
+/* ---------- Family goal ---------- */
+.neon-goal {
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border-radius: 19px;
+  border: 1px solid rgba(247, 199, 107, 0.3);
+  background: linear-gradient(120deg, var(--surface-raised), #151b32);
+  color: var(--text-strong);
+}
+.neon-goal.is-reached { border-color: rgba(79, 224, 164, 0.5); }
+.neon-goal__count { font-weight: 850; color: var(--gold); }
+.neon-goal__note { margin: var(--space-2) 0 0; display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 700; }
+
+/* ---------- XP boost ---------- */
+.neon-boost {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px dashed rgba(155, 124, 255, 0.55);
+  background: rgba(155, 124, 255, 0.1);
+  color: var(--text-strong);
+  margin-bottom: var(--space-4);
+}
+.neon-boost.is-armed { border-style: solid; border-color: var(--purple); box-shadow: 0 0 14px rgba(155, 124, 255, 0.35); }
+.neon-boost { position: relative; overflow: hidden; transition: border-color 200ms, box-shadow 300ms var(--ease-out); }
+/* Arming: one band of charge runs through the strip and the bolt kicks. */
+.neon-boost.is-charging::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(214, 200, 255, 0.45) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: boost-charge 650ms var(--ease-out) forwards;
+}
+.neon-boost.is-charging > .icon { animation: boost-kick 500ms var(--ease-out); }
+@keyframes boost-charge { to { transform: translateX(100%); } }
+@keyframes boost-kick {
+  40% { transform: scale(1.35) rotate(-12deg); filter: drop-shadow(0 0 10px rgba(155, 124, 255, 0.9)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .neon-boost.is-charging::after, .neon-boost.is-charging > .icon { animation: none; }
+  .neon-boost.is-charging::after { display: none; }
+}
+.neon-boost__text { flex: 1; min-width: 0; display: grid; gap: 2px; font-size: var(--text-sm); }
+.neon-boost__text > span { color: #a1b0d0; font-size: 0.78rem; font-weight: 650; }
+.neon-boost__text > span[role='alert'] { color: var(--red); }
+.neon-boost-tag {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: rgba(155, 124, 255, 0.25);
+  color: #d9ccff;
+  font-weight: 900;
+}
+/* On the approval celebration the tag sits under the XP figure, not wrapped beside it. */
+.celebration__stats .neon-boost-tag { display: block; width: max-content; margin: 4px auto 0; font-size: 0.6em; }
+
+/* ===================================================================
+ * Tile motion: entrance, tilt (useTileTilt in design/NeonSky.tsx), and
+ * idle signals that mean something - a reward you can afford, a badge
+ * you earned, a boost waiting to be spent.
+ * =================================================================== */
+.neon-stat, .neon-achievement { position: relative; }
+.neon-reward, .neon-achievement, .neon-stat {
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 420ms var(--ease-out), border-color 220ms, box-shadow 220ms;
+}
+.neon-reward[data-tilt], .neon-achievement[data-tilt], .neon-stat[data-tilt] {
+  transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
+  transition-duration: 90ms, 220ms, 220ms;
+}
+.neon-reward[data-tilt]::before, .neon-achievement[data-tilt]::before, .neon-stat[data-tilt]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), rgba(255, 255, 255, 0.16), transparent 55%);
+}
+
+/* Idle sheen: a band of light crosses the tile now and then. */
+.neon-reward.is-ready::after, .neon-achievement.is-earned::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, var(--sheen) 50%, transparent 65%);
+  transform: translateX(-130%);
+}
+.neon-reward.is-ready { --sheen: rgba(214, 190, 255, 0.2); }
+.neon-achievement.is-earned { --sheen: rgba(255, 228, 152, 0.2); }
+
+/* A boost to spend: the tile breathes. */
+.neon-stat--boost.is-live::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 18px rgba(155, 124, 255, 0.55);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .neon-stats > *, .neon-rewards > *, .neon-achievements > * { animation: tile-in 560ms var(--ease-out) both; }
+  :is(.neon-stats, .neon-rewards, .neon-achievements) > :nth-child(2) { animation-delay: 50ms; }
+  :is(.neon-stats, .neon-rewards, .neon-achievements) > :nth-child(3) { animation-delay: 100ms; }
+  :is(.neon-stats, .neon-rewards, .neon-achievements) > :nth-child(4) { animation-delay: 150ms; }
+  :is(.neon-stats, .neon-rewards, .neon-achievements) > :nth-child(5) { animation-delay: 200ms; }
+  :is(.neon-stats, .neon-rewards, .neon-achievements) > :nth-child(n + 6) { animation-delay: 250ms; }
+
+  .neon-reward.is-ready::after, .neon-achievement.is-earned::after { animation: tile-sheen 7s var(--ease-out) 1.2s infinite; }
+  :is(.neon-rewards, .neon-achievements) > :nth-child(3n + 2)::after { animation-delay: 3.4s; }
+  :is(.neon-rewards, .neon-achievements) > :nth-child(3n + 3)::after { animation-delay: 5.6s; }
+
+  .neon-stat--boost.is-live::after { animation: boost-breathe 2.8s ease-in-out infinite; }
+}
+
+@keyframes tile-in { from { opacity: 0; translate: 0 16px; scale: 0.95; } }
+@keyframes tile-sheen { 0%, 72% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
+@keyframes boost-breathe { 50% { opacity: 1; } }

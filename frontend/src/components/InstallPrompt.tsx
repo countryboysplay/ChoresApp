@@ -67,13 +67,13 @@ export function InstallPrompt() {
   return (
     <section className="card stack stack--tight">
       <div className="row" style={{ gap: 'var(--space-2)' }}>
-        <Icon name="star" size={18} style={{ color: 'var(--gold)' }} />
+        <Icon name="download" size={18} />
         <strong>Add to your home screen</strong>
       </div>
       <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
         Opens straight into Chore Quest, without the browser around it.
       </p>
-      <Button tone="primary" block disabled={busy} onClick={() => void install()}>
+      <Button tone="primary" block icon="download" disabled={busy} onClick={() => void install()}>
         Add Chore Quest
       </Button>
     </section>

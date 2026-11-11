@@ -31,6 +31,7 @@ import { householdToday } from '../time.js';
  * declared to cascade. The order is the dependency order read backwards.
  */
 const ACTIVITY_TABLES = [
+  'boosts',
   'child_achievements',
   'cash_out_requests',
   'child_reward_preferences',

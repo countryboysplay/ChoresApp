@@ -1,0 +1,295 @@
+/*
+ * NEON, parent edition: the pack's calmer variant. Same family, no gaming
+ * intensity - steel-cyan does the work, bright cyan only marks focus and the
+ * one important control, glow kept at 8px or less.
+ *
+ * Everything in the first half is scoped to .parent-layout so kid screens are
+ * untouched. The second half is plain classes for the system screens
+ * (offline, 404, health, camera, push states) that render outside it.
+ */
+
+.parent-layout {
+  --font-display: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --surface: #151b30;
+  --surface-raised: #1b243a;
+  --outline: #33445f;
+  --outline-strong: #33445f;
+  --text-strong: #f0f4ff;
+  --text: #f0f4ff;
+  --text-muted: #a8b7ce;
+  --steel: #7899b6;
+  --focus: #40e4ff;
+  /* Icons paint with --grad-brand by default; steel instead of cyan-violet. */
+  --grad-brand: linear-gradient(135deg, #9db8d0, #7899b6);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.28);
+  --shadow-raised: 0 4px 12px rgba(0, 0, 0, 0.32);
+  --shadow-glow: 0 0 0 2px rgba(64, 228, 255, 0.55);
+  --glow-cyan: 0 0 6px rgba(64, 228, 255, 0.22);
+  --glow-violet: none;
+  --glow-gold: none;
+  /* Parent surfaces, named so light mode can swap them in one place. */
+  --p-bg: #090c19;
+  --p-surface: #151b30;
+  --p-raised: #1b243a;
+  --p-rim: #33445f;
+  --p-chrome: rgba(9, 12, 25, 0.92);
+  --p-nav: rgba(21, 27, 48, 0.96);
+  --p-sidebar: #0d1122;
+  --p-on-accent: #090c19;
+  background: var(--p-bg);
+  min-height: 100dvh;
+  color: var(--text);
+}
+
+.parent-layout :focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Cards: flat surfaces, 16px radius, 1px rim, restrained shadow. */
+.parent-layout .card,
+.parent-layout .stat-row {
+  background: var(--p-surface);
+  border: 1px solid var(--p-rim);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.parent-layout .card--status { border-left-width: 4px; }
+
+.parent-layout .card--interactive:hover {
+  transform: none;
+  border-color: var(--steel);
+  box-shadow: var(--shadow-raised);
+}
+
+.parent-layout .panel { background: var(--p-raised); box-shadow: var(--shadow-card); }
+
+.parent-layout .tile-icon {
+  background: var(--p-raised);
+  border-color: var(--p-rim);
+  --icon-paint: var(--grad-brand);
+}
+
+/* Buttons: bright cyan only for the primary control; no neon halos. */
+.parent-layout .btn { box-shadow: none; }
+.parent-layout .btn--lg { padding: 0 var(--space-3); }
+.parent-layout .btn--primary { background: var(--focus); color: var(--p-on-accent); }
+.parent-layout .btn--purple {
+  background: var(--p-raised);
+  border: 1px solid var(--steel);
+  color: var(--text-strong);
+}
+.parent-layout .btn--quiet { border-width: 1px; border-color: var(--steel); }
+
+.parent-layout .segment { --seg-paint: var(--steel); --seg-glow: none; }
+.parent-layout .segment__item[aria-selected='true'] {
+  background: var(--steel);
+  color: var(--p-on-accent);
+  box-shadow: none;
+}
+
+.parent-layout .iconbtn { background: var(--p-raised); border-color: var(--p-rim); }
+
+.parent-layout .eyebrow { color: var(--steel); }
+
+/* Chrome. */
+.parent-layout .topbar,
+.parent-layout .brandbar { background: var(--p-chrome); border-bottom-color: var(--p-rim); }
+
+.parent-layout .navbar { background: var(--p-nav); border-color: var(--p-rim); box-shadow: var(--shadow-raised); }
+.parent-layout .navbar__item.is-active {
+  color: var(--text-strong);
+  background: rgba(120, 153, 182, 0.18);
+  --icon-paint: var(--focus);
+}
+.parent-layout .navbar__item.is-active .icon { filter: none; animation: none; }
+
+@media (min-width: 1000px) {
+  .parent-layout .sidebar { background: var(--p-sidebar); border-right-color: var(--p-rim); }
+  .parent-layout .sidebar__item.is-active {
+    background: rgba(120, 153, 182, 0.16);
+    box-shadow: inset 3px 0 0 var(--focus);
+    --icon-paint: var(--focus);
+  }
+  .parent-layout .sidebar__signout {
+    margin-top: auto;
+    border: none;
+    background: none;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+  }
+  .parent-layout .sidebar__signout:hover { color: var(--text-strong); }
+}
+
+/* Empty cards carry the parent-empty-card mark as a quiet corner decoration. */
+.parent-layout .empty {
+  position: relative;
+  background: var(--p-surface) url('/neon/ui/parent-empty-card.svg') no-repeat right 12px top 12px / 36px;
+  border: 1px dashed var(--p-rim);
+  border-radius: 16px;
+}
+.parent-layout .empty img { width: 120px !important; }
+
+/* Dashboard header. */
+.parent-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  padding-right: 88px;
+  border-radius: 16px;
+  border: 1px solid var(--p-rim);
+  background:
+    url('/neon/ui/parent-header-accent.svg') no-repeat right 12px center / 64px,
+    linear-gradient(120deg, var(--p-raised), var(--p-surface));
+}
+.parent-hero h2 { margin: 0; }
+.parent-hero p { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+
+/* Reward / chore art beside a list row. */
+.parent-art {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--p-raised);
+  border: 1px solid var(--p-rim);
+  padding: 2px;
+}
+
+/* ---------- Parent light mode (toggle in ParentShell; kid screens stay dark) ----------
+ * Text colours below were picked for at least 4.5:1 on the white surface. */
+.parent-layout[data-theme='light'] {
+  color-scheme: light;
+  --p-bg: #eef2f8;
+  --p-surface: #ffffff;
+  --p-raised: #f3f6fb;
+  --p-rim: #c9d4e3;
+  --p-chrome: rgba(255, 255, 255, 0.94);
+  --p-nav: rgba(255, 255, 255, 0.97);
+  --p-sidebar: #e3e9f2;
+  --p-on-accent: #ffffff;
+  --surface: #ffffff;
+  --surface-raised: #f3f6fb;
+  --surface-sunken: #f5f7fb;
+  --outline: #c9d4e3;
+  --outline-strong: #9fb0c8;
+  --text-strong: #0d1526;
+  --text: #1c2740;
+  --text-muted: #4a5a74;
+  --steel: #3d6283;
+  --focus: #0a7ea4;
+  --grad-brand: linear-gradient(135deg, #3d6283, #2a4a68);
+  --shadow-card: 0 1px 3px rgba(13, 21, 38, 0.08), 0 2px 8px rgba(13, 21, 38, 0.06);
+  --shadow-raised: 0 4px 14px rgba(13, 21, 38, 0.12);
+  --shadow-glow: 0 0 0 2px rgba(10, 126, 164, 0.45);
+  --glow-cyan: none;
+}
+
+.parent-layout[data-theme='light'] .logo { filter: none; }
+.parent-layout[data-theme='light'] .navbar__item { color: var(--text-muted); }
+.parent-layout[data-theme='light'] .navbar__item.is-active { color: var(--text-strong); background: rgba(61, 98, 131, 0.12); }
+.parent-layout[data-theme='light'] .sidebar__item { color: var(--text-muted); }
+.parent-layout[data-theme='light'] .sidebar__item.is-active { color: var(--text-strong); background: rgba(61, 98, 131, 0.12); }
+.parent-layout[data-theme='light'] .sidebar__item:hover { color: var(--text-strong); }
+
+.parent-layout[data-theme='light'] .segment__item[aria-selected='true'] { color: #fff; }
+.parent-layout[data-theme='light'] .chip[aria-pressed='true'] { background: var(--steel); color: #fff; }
+.parent-layout[data-theme='light'] .chip[aria-pressed='true'] { --icon-paint: #fff; }
+.parent-layout[data-theme='light'] .btn--primary { color: #fff; }
+.parent-layout[data-theme='light'] .btn--stop { background: #c22a4c; color: #fff; }
+.parent-layout[data-theme='light'] .btn--go { background: #0f7a4f; color: #fff; }
+.parent-layout[data-theme='light'] .iconbtn { color: var(--text); }
+.parent-layout[data-theme='light'] .rowbtn:hover { background: rgba(13, 21, 38, 0.05); }
+
+.parent-layout[data-theme='light'] .badge--done { background: #e3f6ee; color: #0b6b44; border-color: #8fd4b6; }
+.parent-layout[data-theme='light'] .badge--waiting { background: #fdf2dc; color: #7a5200; border-color: #e6c27a; }
+.parent-layout[data-theme='light'] .badge--late { background: #fde7ec; color: #a71d3c; border-color: #eea3b4; }
+.parent-layout[data-theme='light'] .badge--info { background: #e2f3fa; color: #075f80; border-color: #8cc9e0; }
+.parent-layout[data-theme='light'] .badge--bonus { background: #eeeafe; color: #4b32a8; border-color: #bcaef2; }
+.parent-layout[data-theme='light'] .badge--soon { background: #fdeee6; color: #933c15; border-color: #efb293; }
+.parent-layout[data-theme='light'] .badge--neutral { background: #f0f3f8; }
+.parent-layout[data-theme='light'] .points-pill { background: #fdf2dc; color: #6b4700; border-color: #e6c27a; }
+
+.parent-layout[data-theme='light'] .check { background: var(--surface-sunken); }
+.parent-layout[data-theme='light'] .check[aria-pressed='true'] { background: #e3f6ee; border-color: #8fd4b6; }
+.parent-layout[data-theme='light'] .tile { background: var(--surface-sunken); border-color: var(--outline); }
+.parent-layout[data-theme='light'] .input::placeholder,
+.parent-layout[data-theme='light'] .textarea::placeholder { color: #5f6e86; }
+.parent-layout[data-theme='light'] .sheet-backdrop { background: rgba(13, 21, 38, 0.45); }
+.parent-layout[data-theme='light'] .sheet { background: var(--surface); }
+.parent-layout[data-theme='light'] .meter__fill { box-shadow: none; }
+
+/* Theme toggle: corner of the phone brand bar, foot of the desktop sidebar. */
+.parent-layout .brandbar { position: relative; }
+.theme-toggle {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+}
+@media (min-width: 1000px) {
+  .parent-layout .sidebar__theme {
+    margin-top: auto;
+    border: none;
+    background: none;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+  }
+  .parent-layout .sidebar__theme + .sidebar__signout { margin-top: 0; }
+}
+
+/* ---------- System screens (rendered outside the parent layout) ---------- */
+
+/* Full-page state: art, heading, words, action. */
+.state-page {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+}
+.state-page__art { width: min(60vw, 220px); height: auto; }
+
+/* State art inside a card (camera blocked, notifications off). */
+.state-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.state-inline > img { width: 72px; height: 72px; flex-shrink: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .parent-layout *,
+  .state-page * { animation: none !important; transition: none !important; }
+}
+
+/* ---------- List tools (search / filter / sort above parent lists) ---------- */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.toolfield { position: relative; display: block; min-width: 0; flex: 1 1 200px; }
+.toolbar > .toolfield:first-child:has(input) { flex-grow: 2; }
+.toolfield > .icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  --icon-paint: currentColor;
+  pointer-events: none;
+}
+.toolfield .input,
+.toolfield .select { padding-left: 40px; }
+.toolfield .select { appearance: auto; }
+.toolfield .select option { background: var(--surface); color: var(--text-strong); }

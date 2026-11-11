@@ -18,13 +18,21 @@ export interface AchievementStats {
   lifetimePoints: number;
   rewardsRedeemed: number;
   streakDays: number;
+  /** Household weeks with a core chore on all seven days, every one approved. */
+  perfectWeeks: number;
+  /** Approved chores sent in at least two hours before the evening reminder. */
+  speedRuns: number;
+  /** Days with two or more core chores, all sent in on time and approved. */
+  cleanSweeps: number;
+  /** Weeks (this one or last) the family hit its XP goal with this child's help. */
+  teamGoalWeeks: number;
 }
 
 export interface AchievementDefinition {
   code: string;
   name: string;
   description: string;
-  category: 'Chores' | 'Streaks' | 'On time' | 'Bonus chores' | 'Points' | 'Rewards';
+  category: 'Chores' | 'Streaks' | 'On time' | 'Bonus chores' | 'Points' | 'Rewards' | 'Team';
   icon: string;
   /** What counts towards it, from the stats above. */
   measure: (stats: AchievementStats) => number;
@@ -196,5 +204,42 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     icon: 'gift',
     measure: (s) => s.rewardsRedeemed,
     target: 5,
+  },
+
+  {
+    code: 'perfect-week',
+    name: 'Perfect Week',
+    description: 'Get every core chore approved, every day from Monday to Sunday.',
+    category: 'Streaks',
+    icon: 'calendar-check',
+    measure: (s) => s.perfectWeeks,
+    target: 1,
+  },
+  {
+    code: 'speed-run',
+    name: 'Speed Run',
+    description: 'Send in ten chores at least two hours before the evening reminder.',
+    category: 'On time',
+    icon: 'timer',
+    measure: (s) => s.speedRuns,
+    target: 10,
+  },
+  {
+    code: 'clean-sweep',
+    name: 'Clean Sweep',
+    description: 'Five days with two or more chores, every one sent in on time and approved.',
+    category: 'Chores',
+    icon: 'cleaning',
+    measure: (s) => s.cleanSweeps,
+    target: 5,
+  },
+  {
+    code: 'team-player',
+    name: 'Team Player',
+    description: 'Help the family hit its weekly XP goal.',
+    category: 'Team',
+    icon: 'leaderboard',
+    measure: (s) => s.teamGoalWeeks,
+    target: 1,
   },
 ];

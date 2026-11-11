@@ -123,10 +123,16 @@ export function ApprovalReview() {
         )}
 
         <section style={{ marginTop: 'var(--space-5)' }}>
-          <h2 className="subtitle">Photo proof</h2>
+          <h2 className="subtitle row" style={{ gap: 'var(--space-2)' }}>
+            <Icon name="photo" size={20} />
+            Photo proof
+          </h2>
           <div className="stack stack--tight">
             {submission.photos.length === 0 && (
-              <p className="muted" style={{ margin: 0 }}>No photo was attached.</p>
+              <p className="muted row" style={{ margin: 0, gap: 'var(--space-2)' }}>
+                <Icon name="eye-off" size={18} />
+                No photo was attached.
+              </p>
             )}
             {submission.photos.map((photo) => (
               <button
@@ -170,17 +176,18 @@ export function ApprovalReview() {
 
         {decided ? (
           <div className="card card--status is-info" style={{ marginTop: 'var(--space-5)' }}>
-            <p style={{ margin: 0, fontWeight: 700 }}>
+            <p className="row" style={{ margin: 0, fontWeight: 700, gap: 'var(--space-2)' }}>
+              <Icon name={submission.status === 'approved' ? 'approve' : 'reject'} size={20} />
               {submission.status === 'approved' ? 'Already approved.' : 'Already sent back.'}
             </p>
           </div>
         ) : (
           <div className="row" style={{ gap: 'var(--space-3)', marginTop: 'var(--space-5)' }}>
-            <Button tone="stop" size="lg" block disabled={working} onClick={() => setRejecting(true)}>
+            <Button tone="stop" size="lg" block icon="reject" disabled={working} onClick={() => setRejecting(true)}>
               Send back
             </Button>
-            <Button tone="go" size="lg" block disabled={working} onClick={() => void approve()}>
-              {working ? 'Saving…' : `Approve · ${total} GP`}
+            <Button tone="go" size="lg" block icon="approve" disabled={working} onClick={() => void approve()}>
+              {working ? 'Saving…' : `Approve · ${total} coins`}
             </Button>
           </div>
         )}
@@ -218,6 +225,7 @@ export function ApprovalReview() {
               <Button
                 tone="stop"
                 block
+                icon="reject"
                 disabled={note.trim().length === 0 || working}
                 onClick={() => void reject()}
               >

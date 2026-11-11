@@ -1,10 +1,7 @@
-@import '@fontsource/cinzel/500.css';
-@import '@fontsource/cinzel/600.css';
-@import '@fontsource/cinzel/700.css';
-@import '@fontsource/crimson-pro/400.css';
-@import '@fontsource/crimson-pro/600.css';
-@import '@fontsource/crimson-pro/700.css';
-@import '@fontsource/crimson-pro/800.css';
+@import '@fontsource-variable/inter/wght.css';
+@import '@fontsource/chakra-petch/latin-500.css';
+@import '@fontsource/chakra-petch/latin-600.css';
+@import '@fontsource/chakra-petch/latin-700.css';
 @import './tokens.css';
 
 *,
@@ -25,11 +22,9 @@ body {
   line-height: 1.5;
   color: var(--text);
   background:
-    linear-gradient(180deg, rgba(15, 17, 19, 0.94) 0%, rgba(15, 17, 19, 0.98) 100%),
-    var(--texture-metal);
-  background-size: auto, 320px 320px;
-  background-repeat: no-repeat, repeat;
-  background-color: var(--navy-900);
+    linear-gradient(180deg, rgba(9, 12, 25, 0.1) 0%, rgba(9, 12, 25, 0.75) 70%),
+    url('/neon/backgrounds/nebula.svg') center top / cover no-repeat,
+    var(--navy-900);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   /* viewport-fit=cover + black-translucent draw under the status bar and
@@ -43,20 +38,17 @@ body::before {
   position: fixed;
   inset: 0 0 auto 0;
   height: env(safe-area-inset-top, 0px);
-  background: #08090a;
+  background: var(--navy-950);
   z-index: 45;
   pointer-events: none;
 }
 
-/* Pre-login screens: graphite depth with a faint topo-map watermark, in
-   place of the board's earlier bright sky treatment. */
+/* Pre-login screens: deep space with the pack's nebula art. */
 body.is-sky {
   background:
-    radial-gradient(900px 640px at 50% -10%, rgba(176, 141, 87, 0.14), transparent 62%),
-    linear-gradient(180deg, var(--sky-light) 0%, var(--sky) 55%, var(--sky-deep) 100%),
-    var(--texture-topo);
-  background-size: auto, auto, 480px 480px;
-  background-repeat: no-repeat, no-repeat, repeat;
+    linear-gradient(180deg, rgba(9, 12, 25, 0.2), rgba(9, 12, 25, 0.85)),
+    url('/neon/backgrounds/orbits.svg') center top / cover no-repeat,
+    linear-gradient(180deg, var(--sky-light) 0%, var(--sky) 55%, var(--sky-deep) 100%);
   background-attachment: fixed;
 }
 
@@ -64,7 +56,8 @@ h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--text-strong);
   line-height: 1.15;
   margin: 0 0 var(--space-3);
@@ -77,7 +70,7 @@ button {
 }
 
 :focus-visible {
-  outline: 3px solid var(--gold);
+  outline: 3px solid var(--blue);
   outline-offset: 3px;
   border-radius: var(--radius-sm);
 }

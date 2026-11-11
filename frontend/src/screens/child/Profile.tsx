@@ -1,13 +1,34 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { ChildProfileResponse } from '@chore-quest/shared';
-import { Avatar, BACKGROUNDS, DEFAULT_AVATAR, HAIR_COLORS, SHIRT_COLORS, SKIN_TONES, type AvatarConfig } from '../../design/Avatar';
-import { Icon } from '../../design/icons';
+import {
+  Avatar,
+  BACKGROUNDS,
+  BANNERS,
+  DEFAULT_AVATAR,
+  FRAMES,
+  HAIR_COLORS,
+  SHIRT_COLORS,
+  SKIN_TONES,
+  type AvatarConfig,
+} from '../../design/Avatar';
+import { BadgeArt, levelTier, NeonArt } from '../../design/neon';
+import { Icon, type IconName } from '../../design/icons';
 import { Button, Meter, PointsPill, Tile } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { InstallPrompt } from '../../components/InstallPrompt';
-import { levelForLifetimePoints } from '../../config/levels';
+import { levelForLifetimePoints, rankForLevel } from '../../config/levels';
 import { api, ApiRequestError } from '../../lib/api';
 import { playSound } from '../../design/sound';
+import '../../design/neon-polish.css';
+
+/** Level milestone badges in the pack; legend is max level. */
+const MILESTONES = [
+  { code: 'level-5', level: 5, label: 'Level 5' },
+  { code: 'level-10', level: 10, label: 'Level 10' },
+  { code: 'level-20', level: 20, label: 'Level 20' },
+  { code: 'legend', level: 50, label: 'Legend' },
+];
 
 /**
  * A child's own screen.
@@ -18,6 +39,7 @@ import { playSound } from '../../design/sound';
  * never saved - now writes what it builds.
  */
 export function Profile() {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<ChildProfileResponse | null>(null);
   const [config, setConfig] = useState<AvatarConfig>(DEFAULT_AVATAR);
   const [editing, setEditing] = useState(false);
@@ -78,6 +100,14 @@ export function Profile() {
 
   const me = profile.me;
   const level = levelForLifetimePoints(me.lifetimePoints);
+  const rank = rankForLevel(level.level);
+  const toggleEditing = () => (editing ? void stopEditing() : setEditing(true));
+  const menu: { label: string; icon: IconName; onClick: () => void }[] = [
+    { label: 'Notifications', icon: 'bell', onClick: () => navigate('/child/notifications') },
+    { label: 'Wallet', icon: 'wallet', onClick: () => navigate('/child/wallet') },
+    { label: 'Achievements', icon: 'achievements', onClick: () => navigate('/child/achievements') },
+    { label: 'Switch player', icon: 'logout', onClick: () => navigate('/profiles') },
+  ];
   const goal = profile.primaryGoal;
 
   return (
@@ -94,10 +124,18 @@ export function Profile() {
           <InstallPrompt />
         </div>
 
-        <section className="panel panel--navy" style={{ display: 'grid', justifyItems: 'center', gap: 'var(--space-3)' }}>
+        <section
+          className="panel panel--navy id-banner"
+          style={{ display: 'grid', justifyItems: 'center', gap: 'var(--space-3)', paddingTop: 'var(--space-6)' }}
+        >
+          <NeonArt group="avatars" name={config.banner ?? 'banner-nebula'} className="id-banner__art id-hero__art" />
           <Avatar config={config} size={132} label={`${me.displayName} avatar`} />
           <h2 className="title" style={{ margin: 0 }}>{me.displayName}</h2>
-          <PointsPill value={`Level ${level.level}`} />
+          <span className="row" style={{ gap: 'var(--space-2)' }}>
+            <NeonArt group="achievements" name={levelTier(level.level)} size={36} alt={`${rank} rank emblem`} />
+            <PointsPill value={`Level ${level.level}`} />
+            <span className="polish-rank">{rank} rank</span>
+          </span>
           <div style={{ width: '100%' }}>
             <Meter
               value={level.pointsIntoLevel}
@@ -106,12 +144,27 @@ export function Profile() {
               right={level.levelSpan ? `${level.pointsIntoLevel} / ${level.levelSpan}` : 'Max level'}
             />
           </div>
+          <ul className="id-milestones" aria-label="Level milestones" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {MILESTONES.map((milestone) => {
+              const earned = level.level >= milestone.level;
+              return (
+                <li key={milestone.code} className={`id-milestone ${earned ? '' : 'is-locked'}`}>
+                  <BadgeArt code={milestone.code} earned={earned} size={52} />
+                  <span>{milestone.label}</span>
+                  <span className="row" style={{ gap: 2 }}>
+                    {earned ? <Icon name="check" size={12} /> : <Icon name="lock" size={12} />}
+                    {earned ? 'Earned' : 'Locked'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
           <Button
             tone="quiet"
             block
             icon="user"
             disabled={saving}
-            onClick={() => (editing ? void stopEditing() : setEditing(true))}
+            onClick={toggleEditing}
           >
             {saving ? 'Saving...' : editing ? 'Done editing' : 'Edit avatar'}
           </Button>
@@ -148,12 +201,29 @@ export function Profile() {
               onPick={(value) => set('accessory', value)}
             />
             <Swatches label="Background" colors={BACKGROUNDS} value={config.background} onPick={(value) => set('background', value)} />
+            <Unlockables
+              label="Frame"
+              items={FRAMES}
+              level={level.level}
+              value={config.frame ?? 'frame-basic'}
+              onPick={(value) => set('frame', value)}
+              art={(name) => <NeonArt group="avatars" name={name} size={48} className="id-option__art" />}
+            />
+            <Unlockables
+              label="Banner"
+              wide
+              items={BANNERS}
+              level={level.level}
+              value={config.banner ?? 'banner-nebula'}
+              onPick={(value) => set('banner', value)}
+              art={(name) => <NeonArt group="avatars" name={name} className="id-option__art id-option__banner" />}
+            />
           </section>
         )}
 
         <div className="grid-2" style={{ marginTop: 'var(--space-4)' }}>
-          <Tile value={profile.spendablePoints} label="Spendable points" />
-          <Tile value={me.lifetimePoints} label="Lifetime points" />
+          <Tile value={profile.spendablePoints} label="Coins" />
+          <Tile value={me.lifetimePoints} label="Total XP" />
           <Tile
             value={
               <span className="row" style={{ justifyContent: 'center', gap: 4 }}>
@@ -178,6 +248,18 @@ export function Profile() {
             <PointsPill value={goal.pointCost} small />
           </section>
         )}
+
+        <nav aria-label="Profile shortcuts" className="stack stack--tight" style={{ marginTop: 'var(--space-4)' }}>
+          {menu.map((item) => (
+            <button key={item.label} type="button" className="card card--interactive row" onClick={item.onClick}>
+              <span className="tile-icon tile-icon--sm tile-icon--blue">
+                <Icon name={item.icon} size={20} />
+              </span>
+              <span style={{ fontWeight: 700, flex: 1, textAlign: 'left' }}>{item.label}</span>
+              <Icon name="chevron-right" size={18} />
+            </button>
+          ))}
+        </nav>
       </main>
     </>
   );
@@ -246,6 +328,57 @@ function Options<T extends string>({
             {option}
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** Frames and banners: every one is shown, locked ones dimmed with the level that unlocks them. */
+function Unlockables<T extends string>({
+  label,
+  items,
+  level,
+  value,
+  onPick,
+  art,
+  wide,
+}: {
+  label: string;
+  items: { name: T; label: string; level: number }[];
+  level: number;
+  value: T;
+  onPick: (name: T) => void;
+  art: (name: T) => JSX.Element;
+  wide?: boolean;
+}) {
+  return (
+    <div className="field">
+      <span className="field__label">{label}</span>
+      <div className={`id-picker ${wide ? 'id-picker--wide' : ''}`}>
+        {items.map((item) => {
+          const locked = level < item.level;
+          return (
+            <button
+              key={item.name}
+              type="button"
+              className="id-option"
+              aria-pressed={value === item.name}
+              aria-label={locked ? `${item.label} ${label.toLowerCase()}, locked until level ${item.level}` : `${item.label} ${label.toLowerCase()}`}
+              disabled={locked}
+              onClick={() => onPick(item.name)}
+            >
+              {art(item.name)}
+              {locked ? (
+                <span className="id-option__lock">
+                  <Icon name="lock" size={12} />
+                  Level {item.level}
+                </span>
+              ) : (
+                <span>{item.label}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

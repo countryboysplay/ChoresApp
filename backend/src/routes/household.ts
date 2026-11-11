@@ -36,6 +36,9 @@ const SettingsBody = z.object({
   // typo in a settings field should read as "that is not a time", not a crash.
   reminderTime: z.string().regex(CLOCK_TIME).optional(),
   escalationTime: z.string().regex(CLOCK_TIME).optional(),
+  /** Null clears the family goal, and the kids' bar disappears with it. */
+  weeklyXpGoal: z.number().int().positive().max(1_000_000).nullable().optional(),
+  weeklyGoalReward: z.string().trim().max(60).nullable().optional(),
 });
 
 /**
@@ -204,7 +207,7 @@ export async function householdRoutes(app: FastifyInstance, opts: { env: Env }):
               minimum_cash_out_points, weekly_cash_out_cap_cents,
               to_char(reminder_time, 'HH24:MI') AS reminder_time,
               to_char(escalation_time, 'HH24:MI') AS escalation_time,
-              timezone
+              timezone, weekly_xp_goal, weekly_goal_reward
          FROM household_settings`,
     );
     const row = rows[0];
@@ -221,6 +224,8 @@ export async function householdRoutes(app: FastifyInstance, opts: { env: Env }):
         reminderTime: row.reminder_time,
         escalationTime: row.escalation_time,
         timezone: row.timezone,
+        weeklyXpGoal: row.weekly_xp_goal,
+        weeklyGoalReward: row.weekly_goal_reward,
         cashOutConfigured:
           row.points_per_dollar !== null && row.minimum_cash_out_points !== null,
       },
@@ -257,7 +262,9 @@ export async function householdRoutes(app: FastifyInstance, opts: { env: Env }):
               points_per_dollar = CASE WHEN $3::boolean THEN $4::numeric ELSE points_per_dollar END,
               minimum_cash_out_points = CASE WHEN $3::boolean THEN $5::integer ELSE minimum_cash_out_points END,
               reminder_time = coalesce($6::time, reminder_time),
-              escalation_time = coalesce($7::time, escalation_time)`,
+              escalation_time = coalesce($7::time, escalation_time),
+              weekly_xp_goal = CASE WHEN $8::boolean THEN $9::integer ELSE weekly_xp_goal END,
+              weekly_goal_reward = CASE WHEN $10::boolean THEN $11::text ELSE weekly_goal_reward END`,
       [
         input.corePointValue ?? null,
         input.punctualityBonusPoints ?? null,
@@ -266,6 +273,11 @@ export async function householdRoutes(app: FastifyInstance, opts: { env: Env }):
         input.minimumCashOutPoints ?? null,
         input.reminderTime ?? null,
         input.escalationTime ?? null,
+        input.weeklyXpGoal !== undefined,
+        input.weeklyXpGoal ?? null,
+        input.weeklyGoalReward !== undefined,
+        // An empty label is no label.
+        input.weeklyGoalReward || null,
       ],
     );
 

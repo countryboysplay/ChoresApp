@@ -1,0 +1,16 @@
+/* Small kid-screen additions from the polish pass (rank label). */
+
+.polish-rank {
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Filter chips keep one line and scroll sideways rather than wrapping. */
+.chip-row .chip { flex-shrink: 0; white-space: nowrap; }
+
+/* Four-way segment (achievements) still fits one line on a phone. */
+.polish-seg4 .segment__item { white-space: nowrap; padding: 0 4px; font-size: var(--text-xs); }
+@media (min-width: 420px) { .polish-seg4 .segment__item { font-size: var(--text-sm); } }

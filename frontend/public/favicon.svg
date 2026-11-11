@@ -1,17 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1b1f23"/>
-      <stop offset="1" stop-color="#0f1113"/>
+      <stop offset="0" stop-color="#121c44"/>
+      <stop offset="1" stop-color="#05070f"/>
     </linearGradient>
-    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#cba871"/>
-      <stop offset="1" stop-color="#b08d57"/>
+    <radialGradient id="halo" cx="0.5" cy="0.45" r="0.55">
+      <stop offset="0" stop-color="#40e4ff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#40e4ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#40e4ff"/>
+      <stop offset="1" stop-color="#aa69ff"/>
     </linearGradient>
+    <linearGradient id="gem" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7cf0ff"/>
+      <stop offset="0.55" stop-color="#40c8ff"/>
+      <stop offset="1" stop-color="#aa69ff"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe498"/>
+      <stop offset="1" stop-color="#f2a33c"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-  <g transform="translate(10.240000000000002 10.240000000000002) scale(0.4352)">
-    <path d="M50 6 60 40 94 50 60 60 50 94 40 60 6 50 40 40Z" fill="url(#mark)" stroke="#6b5530" stroke-width="2.5" stroke-linejoin="round"/>
-    <circle cx="50" cy="50" r="6" fill="#e7e1d6"/>
+  <rect width="64" height="64" rx="14" fill="url(#halo)"/>
+  <g transform="translate(2.5599999999999987 2.5599999999999987) scale(0.5888)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M24 6H94V76L76 94H6V24Z" fill="#0b1230" fill-opacity="0.85" stroke="url(#rim)" stroke-width="4.5"/>
+    <path d="M77 14h9v9M14 77v9h9" fill="none" stroke="url(#gold)" stroke-width="4"/>
+    <path d="M50 17 83 50 50 83 17 50Z" fill="#40e4ff" opacity="0.55" filter="url(#glow)"/>
+    <path d="M50 17 83 50 50 83 17 50Z" fill="url(#gem)" stroke="#d9fbff" stroke-width="1.5"/>
+    <path d="M35 51l10 10 20-21" fill="none" stroke="#0a0f24" stroke-width="9"/>
   </g>
 </svg>

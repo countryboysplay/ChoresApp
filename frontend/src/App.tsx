@@ -28,9 +28,12 @@ import { Settings } from './screens/parent/Settings';
 import { SystemStatus } from './screens/parent/SystemStatus';
 import { NotFound } from './pages/NotFound';
 import { Health } from './pages/Health';
+import { NeonSky } from './design/NeonSky';
 
 export function App() {
   return (
+    <>
+    <NeonSky />
     <Routes>
       <Route path="/" element={<Splash />} />
       <Route path="/profiles" element={<ProfileSelect />} />
@@ -77,5 +80,6 @@ export function App() {
 
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </>
   );
 }

@@ -38,9 +38,11 @@ function renderScreen(path: string, routes: ReactNode) {
 }
 
 describe('routing', () => {
-  it('opens on the splash screen', () => {
+  it('opens on the splash screen', async () => {
     renderAt('/');
-    expect(screen.getByRole('button', { name: /let's go/i })).toBeInTheDocument();
+    // No sign-in buttons until auth has settled: a remembered kid must go straight to Today.
+    expect(screen.queryByRole('button', { name: /let's go/i })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /let's go/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /select profile/i })).toBeInTheDocument();
   });
 

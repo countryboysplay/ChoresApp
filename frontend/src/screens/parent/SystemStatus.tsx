@@ -5,7 +5,8 @@ import type {
   HealthResponse,
   PushStatusResponse,
 } from '@chore-quest/shared';
-import { Icon } from '../../design/icons';
+import { Icon, type IconName } from '../../design/icons';
+import { NeonArt } from '../../design/neon';
 import { Badge, Button } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { api, ApiRequestError } from '../../lib/api';
@@ -145,31 +146,35 @@ export function SystemStatus() {
 
   const database = health ? DATABASE_LABEL[health.database] : { value: 'Checking…', tone: 'neutral' as Tone };
 
-  const rows: { label: string; value: string; tone: Tone }[] = [
+  const rows: { label: string; value: string; tone: Tone; icon: IconName }[] = [
     // If this screen rendered at all the server answered, so "Online" is not a
     // guess - but it is only worth saying alongside how long it has been up,
     // which is what tells a parent whether it has been restarting all evening.
     {
       label: 'Backend',
+      icon: 'server',
       value: health ? `Online, up ${uptime(health.uptimeSeconds)}` : 'Not answering',
       tone: health ? 'done' : 'late',
     },
-    { label: 'Database', value: database.value, tone: database.tone },
-    { label: 'Push notifications', value: pushState.value, tone: pushState.tone },
-    { label: 'Last successful backup', value: backupState.value, tone: backupState.tone },
-    { label: 'Certificate', value: certState.value, tone: certState.tone },
+    { label: 'Database', value: database.value, tone: database.tone, icon: 'server' },
+    { label: 'Push notifications', value: pushState.value, tone: pushState.tone, icon: pushState.tone === 'done' ? 'bell' : 'bell-off' },
+    { label: 'Last successful backup', value: backupState.value, tone: backupState.tone, icon: 'cloud-check' },
+    { label: 'Certificate', value: certState.value, tone: certState.tone, icon: 'shield' },
     {
       label: 'App version',
+      icon: 'download',
       value: health ? `${health.version} (${health.environment})` : 'Unknown',
       tone: 'neutral',
     },
     {
       label: 'Household timezone',
+      icon: 'clock',
       value: health?.household.timezone ?? 'Unknown',
       tone: 'neutral',
     },
     {
       label: 'Household date',
+      icon: 'calendar',
       value: health ? `${health.household.choreDate}, ${health.household.localTime.slice(11, 16)}` : 'Unknown',
       tone: 'neutral',
     },
@@ -177,7 +182,15 @@ export function SystemStatus() {
 
   return (
     <>
-      <ScreenTop title="System status" back="/parent/settings" />
+      <ScreenTop
+        title="System status"
+        back="/parent/settings"
+        trailing={
+          <button type="button" className="iconbtn" aria-label="Check again" onClick={() => void load()}>
+            <Icon name="refresh" size={20} />
+          </button>
+        }
+      />
       <main className="screen">
         {/*
           Above everything else, because a parent who came here to work out why
@@ -187,7 +200,7 @@ export function SystemStatus() {
           <section className="card stack stack--tight" style={{ marginBottom: 'var(--space-4)' }}>
             <div className="row row--between">
               <span className="row" style={{ gap: 'var(--space-2)' }}>
-                <Icon name="alert" size={18} />
+                <NeonArt group="states" name="update-ready" size={56} />
                 <strong>A new version is ready</strong>
               </span>
               <Badge tone="info">Waiting</Badge>
@@ -197,7 +210,7 @@ export function SystemStatus() {
               mean never. This takes it now and reloads. Only this phone is affected — nobody
               else is interrupted.
             </p>
-            <Button tone="go" block icon="check" onClick={() => installWaitingUpdate()}>
+            <Button tone="go" block icon="refresh" onClick={() => installWaitingUpdate()}>
               Install it now
             </Button>
           </section>
@@ -205,9 +218,10 @@ export function SystemStatus() {
 
         <div className="stack stack--tight">
           {rows.map((row) => (
-            <div key={row.label} className="card row">
+            <div key={row.label} className="card row" style={{ gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+              <Icon name={row.icon} size={20} />
               <span style={{ flex: 1 }}>{row.label}</span>
-              <Badge tone={row.tone} icon={row.tone === 'done' ? 'check' : row.tone === 'waiting' ? 'clock' : undefined}>
+              <Badge tone={row.tone} icon={row.tone === 'done' ? 'check' : row.tone === 'waiting' ? 'clock' : row.tone === 'late' ? 'alert' : undefined}>
                 {row.value}
               </Badge>
             </div>
@@ -241,11 +255,11 @@ export function SystemStatus() {
         <section className="card stack stack--tight" style={{ marginTop: 'var(--space-5)' }}>
           <div className="row row--between">
             <span className="row" style={{ gap: 'var(--space-2)' }}>
-              <Icon name="lock" size={18} />
+              <Icon name="cloud-check" size={18} />
               <strong>Backups</strong>
             </span>
             {backups && (
-              <Badge tone={backups.mirrorConnected ? 'done' : 'waiting'}>
+              <Badge tone={backups.mirrorConnected ? 'done' : 'waiting'} icon={backups.mirrorConnected ? 'check' : 'alert'}>
                 {backups.mirrorConnected
                   ? 'Drive connected'
                   : backups.mirrorConfigured
@@ -285,9 +299,22 @@ export function SystemStatus() {
             </p>
           )}
 
-          <Button tone="quiet" block icon="lock" disabled={working} onClick={() => void backUpNow()}>
+          <Button tone="quiet" block icon="upload" disabled={working} onClick={() => void backUpNow()}>
             {working ? 'Backing up…' : 'Back up now'}
           </Button>
+
+          {backups && backups.backups.length === 0 && (
+
+            <div className="state-inline">
+
+              <NeonArt group="states" name="no-history" />
+
+              <p className="muted" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>No backups have been taken yet.</p>
+
+            </div>
+
+          )}
+
 
           {backups && backups.backups.length > 0 && (
             <div className="stack stack--tight" style={{ marginTop: 'var(--space-2)' }}>
@@ -310,7 +337,10 @@ export function SystemStatus() {
         </section>
 
         <section className="card stack stack--tight" style={{ marginTop: 'var(--space-4)' }}>
-          <strong>Restoring</strong>
+          <strong className="row" style={{ gap: 'var(--space-2)' }}>
+            <Icon name="download" size={18} />
+            Restoring
+          </strong>
           {/* Not a button. Replacing every chore, point, and photo with an older
               copy is the one action in the app with no undo, so it lives where
               an argument, a mis-tap, or a child on an unlocked phone cannot

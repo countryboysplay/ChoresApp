@@ -41,8 +41,7 @@ export async function authRoutes(app: FastifyInstance, opts: { env: Env }): Prom
       `SELECT u.id, u.role, u.display_name, u.avatar,
               (u.pin_hash IS NOT NULL) AS has_pin,
               CASE WHEN u.role = 'child' THEN (
-                SELECT coalesce(sum(delta) FILTER (WHERE delta > 0), 0)::int
-                  FROM points_ledger WHERE child_id = u.id
+                SELECT coalesce(sum(xp), 0)::int FROM xp_ledger WHERE child_id = u.id
               ) END AS lifetime_points
          FROM users u
         WHERE u.is_active

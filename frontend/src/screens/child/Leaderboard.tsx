@@ -3,12 +3,13 @@ import type { StandingEntry } from '@chore-quest/shared';
 import type { AvatarConfig } from '../../design/Avatar';
 import { Avatar, DEFAULT_AVATAR } from '../../design/Avatar';
 import { Icon } from '../../design/icons';
-import { EmptyState, PointsPill, Segmented, Tile } from '../../design/primitives';
+import { EmptyState, Segmented } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { levelForLifetimePoints } from '../../config/levels';
 import { api, ApiRequestError } from '../../lib/api';
+import { TierEmblem } from './choreStatus';
 
-const RANGE = ['This week', 'All time'] as const;
+const RANGE = ['This week', 'This month', 'All time'] as const;
 
 /** The API hands back `unknown`; every child has one whether or not they set it. */
 function avatarOf(entry: StandingEntry): AvatarConfig {
@@ -52,7 +53,7 @@ export function Leaderboard() {
   }, [load]);
 
   const points = (entry: StandingEntry) =>
-    range === 'This week' ? entry.weekPoints : entry.lifetimePoints;
+    range === 'This week' ? entry.weekPoints : range === 'This month' ? entry.monthPoints : entry.lifetimePoints;
 
   const ranked = [...entries].sort(
     (a, b) =>
@@ -60,7 +61,7 @@ export function Leaderboard() {
       b.streakDays - a.streakDays ||
       a.displayName.localeCompare(b.displayName),
   );
-  const [first, second] = ranked;
+  const [first, second, third] = ranked;
 
   if (loading) {
     return (
@@ -97,85 +98,56 @@ export function Leaderboard() {
           </div>
         ) : (
           <>
-            <section className="panel panel--navy" style={{ marginTop: 'var(--space-4)' }}>
-              <div
-                className="row"
-                style={{ alignItems: 'flex-end', justifyContent: 'center', gap: 'var(--space-5)' }}
-              >
-                {second && <Podium entry={second} place={2} />}
-                {first && <Podium entry={first} place={1} />}
+            <section className="panel panel--navy" style={{ marginTop: 'var(--space-4)', paddingBottom: 0 }}>
+              <div className="row" style={{ gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+                <Icon name="podium" size={22} />
+                <span className="eyebrow">{range === 'This week' ? 'Top of the week' : range === 'This month' ? 'Top of the month' : 'All-time legends'}</span>
+              </div>
+              {/* Second, first, third: the winner stands in the middle. */}
+              <div className="neon-podium">
+                {second ? <Podium entry={second} place={2} score={points(second)} /> : <span />}
+                {first && <Podium entry={first} place={1} score={points(first)} />}
+                {third ? <Podium entry={third} place={3} score={points(third)} /> : <span />}
               </div>
             </section>
 
-            <div className="stack" style={{ marginTop: 'var(--space-4)' }}>
+            <div className="stack stack--tight" style={{ marginTop: 'var(--space-4)' }}>
               {ranked.map((entry, index) => {
                 const level = levelForLifetimePoints(entry.lifetimePoints);
                 const isMe = entry.id === meId;
                 return (
-                  <article
-                    key={entry.id}
-                    className="card stack stack--tight"
-                    style={
-                      isMe
-                        ? { borderColor: 'var(--outline-strong)', borderWidth: 2, borderStyle: 'solid' }
-                        : undefined
-                    }
-                  >
-                    <div className="row" style={{ gap: 'var(--space-3)' }}>
-                      <span
-                        className="numeric"
-                        style={{
-                          width: 34,
-                          height: 34,
-                          flexShrink: 0,
-                          display: 'grid',
-                          placeItems: 'center',
-                          borderRadius: '50%',
-                          fontFamily: 'var(--font-display)',
-                          fontWeight: 700,
-                          color: index === 0 ? 'var(--text-on-gold)' : 'var(--text-strong)',
-                          background:
-                            index === 0
-                              ? 'linear-gradient(180deg, #cba871, var(--gold))'
-                              : index === 1
-                                ? 'linear-gradient(180deg, #c7c2b8, #8f8a7c)'
-                                : 'var(--surface-raised)',
-                        }}
-                      >
-                        {index + 1}
-                      </span>
-                      <Avatar
-                        config={avatarOf(entry)}
-                        size={48}
-                        label={`${entry.displayName} avatar`}
-                      />
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <strong style={{ display: 'block' }}>
-                          {entry.displayName}
-                          {/* Said in words, not by the border alone. */}
-                          {isMe && <span className="muted"> · you</span>}
-                        </strong>
-                        <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-                          Level {level.level}
+                  <article key={entry.id} className={`neon-rank${isMe ? ' is-me' : ''}`}>
+                    <span className="neon-rank__number">
+                      {index === 0 ? <Icon name="crown" size={18} className="neon-podium__crown" /> : null}#{index + 1}
+                    </span>
+                    <Avatar config={avatarOf(entry)} size={40} label={`${entry.displayName} avatar`} />
+                    <span className="neon-rank__who">
+                      <strong>
+                        {entry.displayName}
+                        {/* Said in words, not by the border alone. */}
+                        {isMe && <span className="muted"> · you</span>}
+                      </strong>
+                      <span className="neon-rank__meta">
+                        <span>
+                          <Icon name="medal" size={14} />
+                          Lvl {level.level}
+                        </span>
+                        <span>
+                          <Icon name="flame" size={14} />
+                          {entry.streakDays}d<span className="visually-hidden"> streak</span>
+                        </span>
+                        <span>
+                          <Icon name="check" size={14} />
+                          {entry.choresApproved} {entry.choresApproved === 1 ? 'chore' : 'chores'}
                         </span>
                       </span>
-                      <PointsPill value={points(entry)} small />
-                    </div>
-
-                    <div className="grid-2">
-                      <Tile value={entry.weekPoints} label="Points this week" />
-                      <Tile value={entry.lifetimePoints} label="Points all time" />
-                      <Tile
-                        value={
-                          <span className="row" style={{ justifyContent: 'center', gap: 4 }}>
-                            <Icon name="flame" size={18} />
-                            {entry.streakDays}
-                          </span>
-                        }
-                        label="Day streak"
-                      />
-                      <Tile value={entry.choresApproved} label="Chores done" />
-                    </div>
+                    </span>
+                    <span className="neon-rank__score">
+                      <b>{points(entry).toLocaleString('en-US')}</b>
+                      <span className="row" style={{ gap: 3 }}>
+                        <Icon name="xp" size={13} /> XP
+                      </span>
+                    </span>
                   </article>
                 );
               })}
@@ -187,34 +159,18 @@ export function Leaderboard() {
   );
 }
 
-function Podium({ entry, place }: { entry: StandingEntry; place: 1 | 2 }) {
-  const height = place === 1 ? 92 : 64;
+function Podium({ entry, place, score }: { entry: StandingEntry; place: 1 | 2 | 3; score: number }) {
+  const size = place === 1 ? 76 : 60;
+  const level = levelForLifetimePoints(entry.lifetimePoints).level;
   return (
-    <div style={{ display: 'grid', justifyItems: 'center', gap: 'var(--space-2)' }}>
-      <Avatar
-        config={avatarOf(entry)}
-        size={place === 1 ? 76 : 60}
-        label={`${entry.displayName} avatar`}
-      />
+    <div className="neon-podium__slot">
+      {/* Avatar draws the player's own equipped frame. */}
+      <Avatar config={avatarOf(entry)} size={size} label={`${entry.displayName} avatar`} />
       <strong>{entry.displayName}</strong>
-      <div
-        style={{
-          width: 90,
-          height,
-          borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
-          background:
-            place === 1
-              ? 'linear-gradient(180deg, var(--gold), var(--orange))'
-              : 'linear-gradient(180deg, #c7c2b8, #8f8a7c)',
-          display: 'grid',
-          placeItems: 'center',
-          color: 'var(--text-on-gold)',
-          fontFamily: 'var(--font-display)',
-          fontSize: 'var(--text-2xl)',
-          fontWeight: 800,
-        }}
-      >
-        {place}
+      <TierEmblem level={level} size={34} />
+      <div className={`neon-podium__block neon-podium__block--${place}`}>
+        <b>{place}</b>
+        <span className="numeric">{score.toLocaleString('en-US')} XP</span>
       </div>
     </div>
   );

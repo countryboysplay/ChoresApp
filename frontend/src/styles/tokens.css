@@ -1,67 +1,63 @@
 /*
- * Chore Quest design tokens - "Guild Ledger" board.
+ * Chore Quest design tokens - "NEON" theme (2026-11-10).
  * Screens must use these variables; never hardcode a brand color in a
- * component. Token *names* are kept stable across the re-theme wherever a
- * clean mapping exists, so system.css rules and inline var(--x) usages in
- * screens keep working without being touched.
+ * component. Token *names* are kept stable across re-themes, so system.css
+ * rules and inline var(--x) usages in screens keep working untouched.
  */
 :root {
-  /* Approved core palette (Guild Ledger board) */
-  --blue: #3d6f78; /* was #4d7cfe - now Teal */
-  --purple: #6b5a8f; /* muted plum, desaturated to sit with the board */
-  --green: #5c7f5a; /* was #00c853 - now Moss */
-  --gold: #b08d57; /* was #ffc107 - now Brass */
-  --red: #8b3e33; /* was #ff5252 - now Rust */
-  --dark: #0f1113; /* was #1e1e2f - now Graphite */
-  --light: #e7e1d6; /* was #f5f7fa - now Parchment */
+  /* Core palette, from the NEON asset pack */
+  --blue: #40c8ff; /* cyan - primary accent */
+  --purple: #9b7cff; /* violet */
+  --green: #4fe0a4; /* mint - done */
+  --gold: #f7c76b; /* coins / waiting */
+  --red: #ff5c7a; /* late / reject */
+  --orange: #ff8c5f; /* streak flame */
+  --dark: #090c19;
+  --light: #f7f8ff;
 
-  /* App shell - graphite/slate, from the board */
-  --navy-950: #08090a;
-  --navy-900: #0f1113;
-  --navy-800: #1b1f23;
-  --surface: #1b1f23;
-  --surface-raised: #262b30;
-  --surface-sunken: rgba(0, 0, 0, 0.35);
-  --outline: rgba(176, 141, 87, 0.28);
-  --outline-strong: rgba(176, 141, 87, 0.5);
+  /* Brand gradients - the same stops the SVG art uses */
+  --grad-brand: linear-gradient(135deg, #40e4ff 0%, #aa69ff 100%);
+  --grad-gold: linear-gradient(135deg, #ffe498 0%, #f2a33c 100%);
+  --grad-mint: linear-gradient(135deg, #66efad 0%, #15aaa5 100%);
+  --grad-flame: linear-gradient(135deg, #ff8c5f 0%, #f155a7 100%);
 
-  /* Pre-login screens - retired the bright sky gradient for a graphite one
-     with a topo-map watermark (see global.css body.is-sky). */
-  --sky-light: #1b1f23;
-  --sky: #0f1113;
-  --sky-deep: #08090a;
+  /* App shell */
+  --navy-950: #05070f;
+  --navy-900: #090c19;
+  --navy-800: #10152a;
+  --surface: #131a30;
+  --surface-raised: #1b2442;
+  --surface-sunken: rgba(3, 6, 18, 0.45);
+  --outline: rgba(130, 160, 255, 0.14);
+  --outline-strong: rgba(130, 180, 255, 0.32);
 
-  /* Feature panel gradient (the featured "quest" card from the board) */
-  --panel-blue: #8a6f45;
-  --panel-blue-deep: #5c4a2e;
+  /* Pre-login screens */
+  --sky-light: #121a36;
+  --sky: #090c19;
+  --sky-deep: #05070f;
+
+  /* Featured panel gradient */
+  --panel-blue: #2a6fd6;
+  --panel-blue-deep: #4b2fa8;
 
   /* Text */
-  --text-strong: #e7e1d6;
-  --text: #c9c2b4;
-  --text-muted: #8f8a7c;
+  --text-strong: #f7f8ff;
+  --text: #d3dbef;
+  --text-muted: #8e9bbd;
   --text-on-light: var(--dark);
-  --text-on-gold: #14110b;
-  --text-on-green: #101a15;
+  --text-on-gold: #1d1405;
+  --text-on-green: #04170f;
 
   /* Status - always paired with an icon and a text label */
   --status-done: var(--green);
   --status-waiting: var(--gold);
   --status-late: var(--red);
   --status-info: var(--blue);
-  --orange: #c17817;
-
-  /* Materials - generated tileable textures, applied as low-opacity
-     background-image layers, never as the sole background (a dark scrim
-     always sits between a texture and any text on top of it). */
-  --texture-metal: url('../assets/textures/metal.webp');
-  --texture-brass: url('../assets/textures/brass.webp');
-  --texture-paper: url('../assets/textures/paper.webp');
-  --texture-topo: url('../assets/textures/topo.webp');
-  --texture-leather: url('../assets/textures/leather.webp');
 
   /* Type */
-  --font-display: 'Cinzel', 'Georgia', 'Times New Roman', serif;
-  --font-body: 'Crimson Pro', 'Georgia', 'Times New Roman', serif;
+  /* Kid screens speak in a game display face; the parent shell resets this to Inter. */
+  --font-display: 'Chakra Petch', 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --text-xs: 0.8125rem;
   --text-sm: 0.9375rem;
@@ -71,18 +67,20 @@
   --text-2xl: 2rem;
   --text-3xl: 2.75rem;
 
-  /* Shape - the board reads as bordered/engraved, not soft-rounded. Pills
-     (buttons, badges, chips) keep their full radius; card corners tighten. */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 16px;
+  /* Shape */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
   --radius-pill: 999px;
 
-  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.55);
-  --shadow-raised: 0 10px 28px rgba(0, 0, 0, 0.6);
-  --shadow-press: inset 0 3px 8px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 0 3px rgba(176, 141, 87, 0.4);
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-raised: 0 16px 40px rgba(0, 0, 0, 0.45);
+  --shadow-press: inset 0 3px 8px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 0 0 3px rgba(64, 200, 255, 0.35);
+  --glow-cyan: 0 0 22px rgba(64, 228, 255, 0.35);
+  --glow-violet: 0 0 22px rgba(170, 105, 255, 0.35);
+  --glow-gold: 0 0 22px rgba(247, 199, 107, 0.35);
 
   /* Spacing */
   --space-1: 4px;
@@ -95,8 +93,10 @@
 
   --touch-min: 48px;
 
-  --transition-fast: 120ms ease-out;
-  --transition-base: 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* confident arrival, no overshoot */
+  --transition-fast: 140ms ease-out;
+  --transition-base: 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {

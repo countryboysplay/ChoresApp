@@ -1,10 +1,23 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AchievementItem, StreakDay } from '@chore-quest/shared';
-import { Icon, type IconName } from '../../design/icons';
-import { Badge, Button, Meter, Sheet } from '../../design/primitives';
+import { Icon } from '../../design/icons';
+import { BadgeArt } from '../../design/neon';
+import { Badge, Button, Meter, Segmented, Sheet, EmptyState } from '../../design/primitives';
 import { ScreenTop } from '../../components/ScreenTop';
 import { api, ApiRequestError } from '../../lib/api';
 import { playSound } from '../../design/sound';
+import { useAuth } from '../../lib/auth';
+import { badgeMoments, CelebrationQueue } from './celebrations';
+import '../../design/neon-polish.css';
+
+const TABS = ['All', 'In progress', 'Locked', 'Earned'] as const;
+export type AchievementTab = (typeof TABS)[number];
+
+/** In progress is started but unearned; Locked is not started yet. */
+export function achievementTab(badge: AchievementItem): Exclude<AchievementTab, 'All'> {
+  if (badge.earnedAt) return 'Earned';
+  return badge.progress > 0 ? 'In progress' : 'Locked';
+}
 
 /**
  * Badges, and the four weeks behind them.
@@ -21,6 +34,7 @@ export function Achievements() {
   const [items, setItems] = useState<AchievementItem[]>([]);
   const [calendar, setCalendar] = useState<StreakDay[]>([]);
   const [reveal, setReveal] = useState<AchievementItem | null>(null);
+  const [tab, setTab] = useState<AchievementTab>('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,8 +57,14 @@ export function Achievements() {
     void load();
   }, [load]);
 
+  const { mode, user } = useAuth();
+  const userId = mode === 'live' ? user?.id : undefined;
+  // Same keys as Home, so a badge earned is celebrated once wherever it is seen first.
+  const moments = useMemo(() => (userId && items.length ? badgeMoments(userId, items) : []), [userId, items]);
+
   const earned = items.filter((badge) => badge.earnedAt).length;
-  const categories = [...new Set(items.map((badge) => badge.category))];
+  const shown = tab === 'All' ? items : items.filter((badge) => achievementTab(badge) === tab);
+  const categories = [...new Set(shown.map((badge) => badge.category))];
 
   if (loading) {
     return (
@@ -66,14 +86,27 @@ export function Achievements() {
         trailing={<Badge tone="info">{earned} of {items.length}</Badge>}
       />
       <main className="screen">
+        <CelebrationQueue moments={moments} />
         {error && (
           <p role="alert" className="badge badge--late" style={{ padding: 'var(--space-3)' }}>
             {error}
           </p>
         )}
 
+        {earned === 0 && items.length > 0 && (
+          <section className="card" style={{ marginBottom: 'var(--space-4)' }}>
+            <EmptyState
+              art="no-badges-yet"
+              title="No badges yet"
+              message="Get your first chore approved and the first one drops."
+            />
+          </section>
+        )}
+
         <section className="card">
-          <h2 className="subtitle">Streak calendar</h2>
+          <h2 className="subtitle row" style={{ gap: 'var(--space-2)' }}>
+            <Icon name="flame" size={22} /> Streak calendar
+          </h2>
           <p className="muted" style={{ marginTop: 0, fontSize: 'var(--text-sm)' }}>
             The last four weeks. A day with no chore on it never breaks a streak.
           </p>
@@ -118,48 +151,56 @@ export function Achievements() {
           </div>
         </section>
 
+        <div className="polish-seg4" style={{ marginTop: 'var(--space-5)' }}>
+          <Segmented options={TABS} value={tab} onChange={setTab} label="Filter badges" />
+        </div>
+
+        {shown.length === 0 && items.length > 0 && (
+          <p className="muted" style={{ textAlign: 'center', marginTop: 'var(--space-5)' }}>
+            {tab === 'Earned'
+              ? 'Nothing earned yet. Your first approved chore starts it.'
+              : tab === 'In progress'
+                ? 'Nothing started yet.'
+                : 'Nothing locked. Every badge is underway.'}
+          </p>
+        )}
+
         {categories.map((category) => {
-          const list = items.filter((badge) => badge.category === category);
+          const list = shown.filter((badge) => badge.category === category);
           return (
             <section key={category} style={{ marginTop: 'var(--space-5)' }}>
               <h2 className="subtitle">{category}</h2>
-              <div className="stack stack--tight">
+              <div className="neon-achievements">
                 {list.map((badge) => {
                   const isEarned = Boolean(badge.earnedAt);
                   return (
                     <button
                       key={badge.code}
                       type="button"
-                      className="card card--interactive stack stack--tight"
+                      className={`neon-achievement${isEarned ? ' is-earned' : ''}`}
                       onClick={() => {
                         if (isEarned) playSound('achievement');
                         setReveal(badge);
                       }}
                     >
-                      <div className="row" style={{ gap: 'var(--space-3)' }}>
-                        <span
-                          className={`tile-icon ${isEarned ? 'tile-icon--gold' : 'tile-icon--slate'}`}
-                        >
-                          <Icon name={(isEarned ? badge.icon : 'lock') as IconName} size={24} />
-                        </span>
-                        <span style={{ flex: 1, minWidth: 0 }}>
-                          <strong style={{ display: 'block' }}>{badge.name}</strong>
-                          <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-                            {badge.description}
-                          </span>
-                        </span>
-                        {isEarned ? <Badge tone="done" icon="check">Completed</Badge> : null}
-                      </div>
+                      <BadgeArt code={badge.code} earned={isEarned} size={72} />
+                      <strong>{badge.name}</strong>
+                      <small>{badge.description}</small>
                       {/* Only where there is something to watch. A meter on a
                           one-shot badge is a bar that reads nought or one. */}
                       {!isEarned && badge.target > 1 ? (
-                        <Meter
-                          value={badge.progress}
-                          max={badge.target}
-                          right={`${badge.progress} / ${badge.target}`}
-                          tone="gold"
-                        />
+                        <div className="neon-meter">
+                          <Meter value={badge.progress} max={badge.target} tone="gold" />
+                        </div>
                       ) : null}
+                      <span className="neon-achievement__state">
+                        <Icon name={isEarned ? 'check' : 'lock'} size={14} />
+                        {isEarned
+                          ? 'Unlocked'
+                          : badge.target > 1
+                            ? `${badge.progress} / ${badge.target}`
+                            : 'Locked'}
+                      </span>
                     </button>
                   );
                 })}
@@ -187,17 +228,7 @@ export function Achievements() {
             className="celebrate"
             style={{ display: 'grid', justifyItems: 'center', gap: 'var(--space-3)' }}
           >
-            <span
-              className="iconbtn"
-              style={{
-                width: 110,
-                height: 110,
-                color: reveal.earnedAt ? 'var(--gold)' : 'var(--text-muted)',
-                background: reveal.earnedAt ? 'rgba(255,193,7,0.14)' : undefined,
-              }}
-            >
-              <Icon name={(reveal.earnedAt ? reveal.icon : 'lock') as IconName} size={52} />
-            </span>
+            <BadgeArt code={reveal.code} earned={Boolean(reveal.earnedAt)} size={140} />
             <strong style={{ fontSize: 'var(--text-xl)' }}>{reveal.name}</strong>
             <p className="muted" style={{ margin: 0, textAlign: 'center' }}>
               {reveal.description}

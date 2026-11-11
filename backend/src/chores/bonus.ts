@@ -1,4 +1,5 @@
 import type pg from 'pg';
+import { releaseBoosts } from './boosts.js';
 
 /**
  * Bonus chores: posted by a parent, claimed by whoever gets there first.
@@ -64,6 +65,7 @@ export async function releaseExpiredClaims(db: pg.Pool, now = new Date()): Promi
           WHERE chore_instance_id = ANY($1::uuid[])`,
         [rows.map((row) => row.id)],
       );
+      await releaseBoosts(client, rows.map((row) => row.id));
     }
 
     await client.query('COMMIT');
@@ -201,6 +203,7 @@ export async function releaseBonus(
         WHERE chore_instance_id = $1`,
       [instanceId],
     );
+    await releaseBoosts(client, [instanceId]);
 
     await client.query('COMMIT');
   } catch (error) {

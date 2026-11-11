@@ -11,10 +11,10 @@ import { relativeTime } from '../config/format';
 import { api, ApiRequestError } from '../lib/api';
 
 const ICON_FOR: Record<InboxNotification['tone'], IconName> = {
-  done: 'check',
-  waiting: 'clock',
+  done: 'approve',
+  waiting: 'hourglass',
   late: 'alert',
-  info: 'inbox',
+  info: 'info',
 };
 
 const COLOR_FOR: Record<InboxNotification['tone'], string> = {
@@ -114,7 +114,7 @@ export function Inbox({ back }: { back?: string } = {}) {
             {unread > 0 && (
               <div className="row row--between" style={{ marginBottom: 'var(--space-3)' }}>
                 <Badge tone="info">{unread} unread</Badge>
-                <Button tone="quiet" size="sm" onClick={() => void markAll()}>
+                <Button tone="quiet" size="sm" icon="approve" onClick={() => void markAll()}>
                   Mark all read
                 </Button>
               </div>

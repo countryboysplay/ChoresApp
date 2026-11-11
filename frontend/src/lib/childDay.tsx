@@ -41,6 +41,7 @@ function previewDay(): ChildDayResponse {
     rejectionNote: chore.rejectionNote ?? null,
     expiresAt: null,
     claimed: true,
+    boosted: false,
     subtasks: chore.subtasks.map((task, index) => ({
       id: task.id,
       position: index,
@@ -60,6 +61,8 @@ function previewDay(): ChildDayResponse {
       lifetimePoints: me?.lifetimePoints ?? 0,
       streakDays: me?.streakDays ?? 0,
       recentWin: win ? { label: win.label, delta: win.delta, at: new Date(0).toISOString() } : null,
+      boosts: 0,
+      familyGoal: null,
     },
     core: coreChores.map(toChore),
     bonus: bonusChores.filter((chore) => chore.claimedBy).map(toChore),

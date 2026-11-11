@@ -1,7 +1,14 @@
 /**
  * Layered SVG avatar. Renders deterministically from a stored configuration
  * object - no raster upload, no generated images, identical on every device.
+ * The equipped NEON frame is drawn around the face wherever an avatar appears.
  */
+import type { AvatarBanner, AvatarFrame } from '@chore-quest/shared';
+import { NeonArt } from './neon';
+import './neon-identity.css';
+
+export type { AvatarBanner, AvatarFrame };
+
 export interface AvatarConfig {
   skin: string;
   face: 'round' | 'square' | 'oval';
@@ -11,7 +18,31 @@ export interface AvatarConfig {
   shirt: string;
   accessory: 'none' | 'glasses' | 'headband' | 'cap';
   background: string;
+  /** Absent on avatars saved before frames existed: they wear frame-basic / banner-nebula. */
+  frame?: AvatarFrame;
+  banner?: AvatarBanner;
 }
+
+/** Level unlock ladders, lowest first. */
+export const FRAMES: { name: AvatarFrame; label: string; level: number }[] = [
+  { name: 'frame-basic', label: 'Basic', level: 1 },
+  { name: 'frame-cyan', label: 'Cyan', level: 3 },
+  { name: 'frame-violet', label: 'Violet', level: 5 },
+  { name: 'frame-gold', label: 'Gold', level: 10 },
+  { name: 'frame-flame', label: 'Flame', level: 15 },
+  { name: 'frame-lightning', label: 'Lightning', level: 20 },
+  { name: 'frame-crown', label: 'Crown', level: 30 },
+  { name: 'frame-diamond', label: 'Diamond', level: 40 },
+];
+
+export const BANNERS: { name: AvatarBanner; label: string; level: number }[] = [
+  { name: 'banner-nebula', label: 'Nebula', level: 1 },
+  { name: 'banner-grid', label: 'Grid', level: 2 },
+  { name: 'banner-waves', label: 'Waves', level: 4 },
+  { name: 'banner-circuit', label: 'Circuit', level: 8 },
+  { name: 'banner-city', label: 'City', level: 12 },
+  { name: 'banner-aurora', label: 'Aurora', level: 25 },
+];
 
 // Real human variety - never tied to the theme, left untouched by the re-theme.
 export const SKIN_TONES = ['#f2c8a2', '#e0a878', '#c1804f', '#8d5524', '#5c3317', '#ffdbb4'];
@@ -81,45 +112,53 @@ interface AvatarProps {
 
 export function Avatar({ config = DEFAULT_AVATAR, size = 64, label }: AvatarProps) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      role={label ? 'img' : undefined}
-      aria-hidden={label ? undefined : true}
-      style={{ display: 'block', borderRadius: '50%', flexShrink: 0 }}
-    >
-      {label ? <title>{label}</title> : null}
-      <circle cx="50" cy="50" r="50" fill={config.background} />
-      <circle cx="50" cy="50" r="44" fill="rgba(0,0,0,0.18)" />
+    <span style={{ position: 'relative', display: 'block', width: size, height: size, flexShrink: 0 }}>
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 100 100"
+        role={label ? 'img' : undefined}
+        aria-hidden={label ? undefined : true}
+        style={{ display: 'block', borderRadius: '50%', flexShrink: 0 }}
+      >
+        {label ? <title>{label}</title> : null}
+        <circle cx="50" cy="50" r="50" fill={config.background} />
+        <circle cx="50" cy="50" r="44" fill="rgba(0,0,0,0.18)" />
 
-      {/* Shoulders */}
-      <path d="M22 100c0-16 12-24 28-24s28 8 28 24Z" fill={config.shirt} />
-      <path d="M50 76c-5 0-9 1-12 3l12 9 12-9c-3-2-7-3-12-3Z" fill="rgba(255,255,255,0.22)" />
+        {/* Shoulders */}
+        <path d="M22 100c0-16 12-24 28-24s28 8 28 24Z" fill={config.shirt} />
+        <path d="M50 76c-5 0-9 1-12 3l12 9 12-9c-3-2-7-3-12-3Z" fill="rgba(255,255,255,0.22)" />
 
-      {/* Head */}
-      <path d={FACE_SHAPE[config.face]} fill={config.skin} />
-      <path d={HAIR_SHAPE[config.hair]} fill={config.hairColor} />
+        {/* Head */}
+        <path d={FACE_SHAPE[config.face]} fill={config.skin} />
+        <path d={HAIR_SHAPE[config.hair]} fill={config.hairColor} />
 
-      {EYE_SHAPE[config.eyes]}
-      <path d="M45 58c3 2.5 7 2.5 10 0" stroke="#0f1113" strokeWidth={3} strokeLinecap="round" fill="none" />
+        {EYE_SHAPE[config.eyes]}
+        <path d="M45 58c3 2.5 7 2.5 10 0" stroke="#0f1113" strokeWidth={3} strokeLinecap="round" fill="none" />
 
-      {config.accessory === 'glasses' && (
-        <g stroke="#0f1113" strokeWidth={2.5} fill="rgba(255,255,255,0.24)">
-          <rect x="36" y="42" width="13" height="10" rx="5" />
-          <rect x="51" y="42" width="13" height="10" rx="5" />
-          <path d="M49 47h2" />
-        </g>
-      )}
-      {config.accessory === 'headband' && (
-        <path d="M29 42c6-4 36-4 42 0v5c-6-4-36-4-42 0Z" fill="var(--red)" />
-      )}
-      {config.accessory === 'cap' && (
-        <g>
-          <path d="M28 42c0-13 10-20 22-20s22 7 22 20Z" fill="var(--red)" />
-          <path d="M28 42h34c8 0 12 3 13 6H28Z" fill="#6e2c23" />
-        </g>
-      )}
-    </svg>
+        {config.accessory === 'glasses' && (
+          <g stroke="#0f1113" strokeWidth={2.5} fill="rgba(255,255,255,0.24)">
+            <rect x="36" y="42" width="13" height="10" rx="5" />
+            <rect x="51" y="42" width="13" height="10" rx="5" />
+            <path d="M49 47h2" />
+          </g>
+        )}
+        {config.accessory === 'headband' && (
+          <path d="M29 42c6-4 36-4 42 0v5c-6-4-36-4-42 0Z" fill="var(--red)" />
+        )}
+        {config.accessory === 'cap' && (
+          <g>
+            <path d="M28 42c0-13 10-20 22-20s22 7 22 20Z" fill="var(--red)" />
+            <path d="M28 42h34c8 0 12 3 13 6H28Z" fill="#6e2c23" />
+          </g>
+        )}
+      </svg>
+      {/* The ring sits on the face's edge and overhangs it, so callers' layout keeps its size. */}
+      <NeonArt
+        group="avatars"
+        name={config.frame ?? 'frame-basic'}
+        style={{ position: 'absolute', left: '-11%', top: '-11%', width: '122%', height: '122%', maxWidth: 'none', pointerEvents: 'none' }}
+      />
+    </span>
   );
 }

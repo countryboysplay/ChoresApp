@@ -1,0 +1,118 @@
+/* NEON identity art: profile banners, frame/banner pickers, cropped brand logos. */
+
+/* A banner behind a card. The pack's banners are faint, so they are boosted. */
+.id-banner {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.id-banner__art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(2.2) saturate(1.8) contrast(1.1);
+}
+.id-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(64, 228, 255, 0.18), transparent 60%),
+    linear-gradient(180deg, rgba(8, 12, 28, 0.05) 0%, rgba(8, 12, 28, 0.55) 100%);
+  pointer-events: none;
+}
+/* The profile header: banner across the top, solid surface below. */
+.id-hero__art {
+  height: 150px;
+  bottom: auto;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
+  mask-image: linear-gradient(180deg, #000 55%, transparent);
+}
+
+/* Frame / banner pickers */
+.id-picker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.id-picker--wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.id-option {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: var(--space-2) 4px;
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--outline);
+  background: rgba(12, 18, 35, 0.6);
+  color: var(--text);
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 700;
+}
+.id-option[aria-pressed='true'] {
+  border-color: var(--cyan, #40e4ff);
+  box-shadow: 0 0 14px rgba(64, 228, 255, 0.45);
+  color: var(--text-strong);
+}
+.id-option:disabled { cursor: not-allowed; }
+.id-option:disabled .id-option__art { filter: grayscale(1); opacity: 0.35; }
+.id-option__banner {
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  object-fit: cover;
+  border-radius: 8px;
+  filter: brightness(2.2) saturate(1.8);
+}
+.id-option__lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-muted);
+}
+
+/* Level milestone badges */
+.id-milestones {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  width: 100%;
+}
+.id-milestone {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 700;
+  text-align: center;
+}
+.id-milestone.is-locked { color: var(--text-muted); }
+
+/*
+ * The brand SVGs have empty canvas around their art, so each is cropped to it.
+ * Percentage margins resolve against the box's width, which keeps the crop
+ * exact at any size.
+ */
+.id-crop { overflow: hidden; margin-inline: auto; }
+.id-crop > img { display: block; max-width: none; height: auto; }
+.id-crop--splash { aspect-ratio: 500 / 185; }
+.id-crop--splash > img { width: 240%; margin-left: -18%; margin-top: -7%; }
+.id-crop--wordmark { aspect-ratio: 362 / 70; }
+.id-crop--wordmark > img { width: 143.65%; margin-left: -4.42%; margin-top: -2.21%; }
+
+/* Splash: buttons sit straight on the pack background - no plinth strip. */
+.id-deck {
+  padding: var(--space-4) var(--space-4) max(var(--space-5), env(safe-area-inset-bottom));
+}
+
+.id-lockout { width: min(46vw, 170px); height: auto; }
+@media (prefers-reduced-motion: no-preference) {
+  .id-lockout { animation: id-pulse 2.4s ease-in-out infinite; }
+}
+@keyframes id-pulse {
+  50% { filter: drop-shadow(0 0 18px rgba(241, 85, 167, 0.55)); }
+}

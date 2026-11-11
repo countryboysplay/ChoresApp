@@ -10,6 +10,9 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     exclude: ['dist/**', 'node_modules/**'],
 
+    // Keeps the app under test off backend/.env's (household) database.
+    setupFiles: ['src/test/setup-env.ts'],
+
     // One file at a time. Every suite here talks to the same Postgres database,
     // and some of what they exercise is household-wide by design: there is a
     // single household_settings row, and the reminder sweep deliberately tells

@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import type { AvatarConfig } from '../../design/Avatar';
 import { Avatar, DEFAULT_AVATAR } from '../../design/Avatar';
 import { Icon } from '../../design/icons';
+import { levelTier, NeonArt } from '../../design/neon';
 import { Button } from '../../design/primitives';
 import { levelForLifetimePoints } from '../../config/levels';
 import { useAuth } from '../../lib/auth';
@@ -53,19 +54,21 @@ export function ProfileSelect() {
       <div className="stack">
         {childProfiles.map((child) => {
           const level = levelForLifetimePoints(child.lifetimePoints ?? 0);
+          const avatar = (child.avatar as AvatarConfig | null) ?? DEFAULT_AVATAR;
           return (
             <button
               key={child.id}
               type="button"
-              className="panel panel--purple card--interactive row"
-              style={{ gap: 'var(--space-4)' }}
+              className="panel panel--purple card--interactive row id-banner"
+              style={{ gap: 'var(--space-4)', paddingLeft: 'var(--space-5)' }}
               onClick={() => {
                 playSound('tap');
                 navigate(`/pin/${child.id}`);
               }}
             >
+              <NeonArt group="avatars" name={avatar.banner ?? 'banner-nebula'} className="id-banner__art" />
               <Avatar
-                config={(child.avatar as AvatarConfig | null) ?? DEFAULT_AVATAR}
+                config={avatar}
                 size={84}
                 label={`${child.displayName} avatar`}
               />
@@ -76,9 +79,13 @@ export function ProfileSelect() {
                 >
                   {child.displayName}
                 </span>
-                <span style={{ display: 'block', fontWeight: 700, marginTop: 4 }}>Level {level.level}</span>
-                <span className="numeric" style={{ display: 'block', fontWeight: 700 }}>
-                  {(child.lifetimePoints ?? 0).toLocaleString('en-US')} Guild Points
+                <span className="row" style={{ justifyContent: 'center', gap: 'var(--space-2)', fontWeight: 700, marginTop: 4 }}>
+                  <NeonArt group="achievements" name={levelTier(level.level)} size={26} />
+                  Level {level.level}
+                </span>
+                <span className="numeric row" style={{ justifyContent: 'center', gap: 4, fontWeight: 700 }}>
+                  <Icon name="xp" size={16} />
+                  {(child.lifetimePoints ?? 0).toLocaleString('en-US')} XP
                 </span>
               </span>
             </button>
@@ -86,7 +93,7 @@ export function ProfileSelect() {
         })}
       </div>
 
-      <Button tone="dark" size="lg" block icon="plus" style={{ marginTop: 'var(--space-5)' }}>
+      <Button tone="dark" size="lg" block icon="user-plus" style={{ marginTop: 'var(--space-5)' }}>
         Add profile
       </Button>
 
@@ -101,7 +108,7 @@ export function ProfileSelect() {
             onClick={() => navigate(`/pin/${parent.id}`)}
           >
             <span className="iconbtn">
-              <Icon name="user" size={22} />
+              <Icon name="shield" size={22} />
             </span>
             <span style={{ fontWeight: 700, flex: 1 }}>{parent.displayName}</span>
             <span className="badge badge--info">Parent</span>

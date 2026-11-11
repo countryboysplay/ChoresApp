@@ -4,6 +4,7 @@ import { AUTH_ERROR, type InvalidPinDetails, type PinLockedDetails } from '@chor
 import type { AvatarConfig } from '../../design/Avatar';
 import { Avatar } from '../../design/Avatar';
 import { Icon } from '../../design/icons';
+import { NeonArt } from '../../design/neon';
 import { useSkyBackground } from '../../hooks/useSkyBackground';
 import { playSound } from '../../design/sound';
 import { ApiRequestError } from '../../lib/api';
@@ -112,15 +113,18 @@ export function PinEntry() {
   return (
     <main className="screen screen--sky" style={{ paddingTop: 'var(--space-6)', maxWidth: 400 }}>
       <div style={{ display: 'grid', justifyItems: 'center', gap: 'var(--space-3)' }}>
-        {profile && profile.role === 'child' && profile.avatar ? (
+        {locked ? (
+          <NeonArt group="states" name="locked-out" className="id-lockout" />
+        ) : profile && profile.role === 'child' && profile.avatar ? (
           <Avatar config={profile.avatar as AvatarConfig} size={76} label={`${name} avatar`} />
         ) : (
           <span className="iconbtn" style={{ width: 76, height: 76 }}>
-            <Icon name="user" size={32} />
+            <Icon name={isParent ? 'shield' : 'user'} size={32} />
           </span>
         )}
-        <h1 className="title" style={{ fontSize: 'var(--text-xl)' }}>
-          Enter your PIN
+        <h1 className="title row" style={{ fontSize: 'var(--text-xl)', gap: 'var(--space-2)' }}>
+          <Icon name={locked ? 'lock' : 'key'} size={24} />
+          {locked ? 'Locked for now' : 'Enter your PIN'}
         </h1>
 
         <div className="row" style={{ gap: 'var(--space-4)', margin: 'var(--space-3) 0 var(--space-5)' }}>
@@ -158,12 +162,12 @@ export function PinEntry() {
               key={key}
               type="button"
               className="btn btn--dark"
-              style={{ minHeight: 62, fontSize: 'var(--text-xl)', borderRadius: 'var(--radius-md)' }}
+              style={{ minHeight: 62, fontSize: 'var(--text-xl)' }}
               onClick={() => press(key)}
               disabled={busy || locked}
               aria-label={key === 'back' ? 'Delete last digit' : key}
             >
-              {key === 'back' ? <Icon name="close" size={20} /> : key}
+              {key === 'back' ? <Icon name="back" size={20} /> : key}
             </button>
           ) : (
             <span key={`gap-${index}`} />
@@ -178,6 +182,7 @@ export function PinEntry() {
           style={{ borderColor: 'rgba(231,225,214,0.5)', color: 'var(--text-strong)' }}
           onClick={() => navigate('/profiles')}
         >
+          <Icon name="help" size={16} />
           Forgot PIN?
         </button>
       </div>

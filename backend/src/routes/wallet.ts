@@ -30,7 +30,7 @@ export async function walletRoutes(app: FastifyInstance, opts: { env: Env }): Pr
 
     const { rows: totals } = await db.query<{ spendable: number; lifetime: number; spent: number }>(
       `SELECT coalesce(sum(delta), 0)::int AS spendable,
-              coalesce(sum(delta) FILTER (WHERE delta > 0), 0)::int AS lifetime,
+              (SELECT coalesce(sum(xp), 0)::int FROM xp_ledger WHERE child_id = $1) AS lifetime,
               coalesce(-sum(delta) FILTER (WHERE delta < 0), 0)::int AS spent
          FROM points_ledger WHERE child_id = $1`,
       [childId],
@@ -42,10 +42,15 @@ export async function walletRoutes(app: FastifyInstance, opts: { env: Env }): Pr
       reason: string;
       label: string;
       created_at: Date;
+      boosted: boolean;
     }>(
-      `SELECT id, delta, reason, label, created_at
-         FROM points_ledger WHERE child_id = $1
-        ORDER BY created_at DESC LIMIT 100`,
+      // `boosted` marks a chore row whose XP a boost doubled. The coins on the
+      // row are still exactly `delta`.
+      `SELECT p.id, p.delta, p.reason, p.label, p.created_at,
+              (p.delta > 0 AND EXISTS (SELECT 1 FROM boosts b
+                 WHERE b.chore_instance_id = p.chore_instance_id AND b.child_id = p.child_id)) AS boosted
+         FROM points_ledger p WHERE p.child_id = $1
+        ORDER BY p.created_at DESC LIMIT 100`,
       [childId],
     );
 
@@ -80,6 +85,7 @@ export async function walletRoutes(app: FastifyInstance, opts: { env: Env }): Pr
         reason: row.reason,
         label: row.label,
         at: row.created_at.toISOString(),
+        boostXp: row.boosted ? row.delta : 0,
       })),
       cashOut: {
         // Both values must be set before any of this means anything, so the
