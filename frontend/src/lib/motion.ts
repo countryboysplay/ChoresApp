@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { deviceMemory } from '../components/Celebration';
+import { deviceMemory } from './deviceMemory';
 
 export function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
@@ -42,12 +42,18 @@ export function useTween<T extends number | undefined>(target: T, ms = 900): T {
  * The value this device last showed under `key`, moving to `value` once `hold`
  * is off - so a gain earned while the player was away plays out in front of
  * them. With no record yet (first visit, no storage) it is just `value`.
+ *
+ * `scope` (a date, a week) is stored with the value: a record from another scope
+ * counts as no record, so a per-day number reuses one key instead of one per day.
  */
-export function useCatchUp<T extends number | undefined>(key: string, value: T, hold: boolean): T {
+export function useCatchUp<T extends number | undefined>(key: string, value: T, hold: boolean, scope = ''): T {
   const storeKey = `cq-seen:${key}`;
   const [seen] = useState(() => {
     const raw = deviceMemory.get(storeKey);
-    const parsed = raw == null ? NaN : Number(raw);
+    if (!raw) return undefined;
+    const cut = raw.lastIndexOf('|');
+    if ((cut === -1 ? '' : raw.slice(0, cut)) !== scope) return undefined;
+    const parsed = Number(raw.slice(cut + 1));
     return Number.isFinite(parsed) ? parsed : undefined;
   });
   const [released, setReleased] = useState(false);
@@ -55,8 +61,8 @@ export function useCatchUp<T extends number | undefined>(key: string, value: T, 
   useEffect(() => {
     if (hold || value === undefined) return;
     setReleased(true);
-    deviceMemory.set(storeKey, String(value));
-  }, [storeKey, value, hold]);
+    deviceMemory.set(storeKey, scope ? `${scope}|${value}` : String(value));
+  }, [storeKey, value, hold, scope]);
 
   if (value === undefined) return value;
   return (released || seen === undefined ? value : seen) as T;

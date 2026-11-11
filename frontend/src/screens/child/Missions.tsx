@@ -7,7 +7,7 @@ import { ScreenTop } from '../../components/ScreenTop';
 import { countdown } from '../../config/format';
 import { api, ApiRequestError } from '../../lib/api';
 import { useChildDay } from '../../lib/childDay';
-import { Loot, StatusBadge, statusAccent } from './choreStatus';
+import { isFinished, Loot, StatusBadge, statusAccent } from './choreStatus';
 
 const RANGE = ['Today', 'This week'] as const;
 const SORTS = ['Highest points', 'Newest', 'Expiring soon'] as const;
@@ -16,7 +16,7 @@ export type QuestTab = (typeof QUEST_TABS)[number];
 
 /** Sent in counts as in progress (waiting on a parent); sent back is to do again. */
 export function questTab(status: ChoreStatus): QuestTab {
-  if (status === 'approved' || status === 'excused') return 'Done';
+  if (isFinished(status)) return 'Done';
   if (status === 'in_progress' || status === 'submitted') return 'In progress';
   return 'To do';
 }
@@ -205,7 +205,7 @@ export function Missions() {
 
           {range === 'Today' &&
             required.length > 0 &&
-            required.every((chore) => ['approved', 'excused'].includes(chore.status)) && (
+            required.every((chore) => isFinished(chore.status)) && (
               <EmptyState art="all-done-today" title="All done today" message="Every quest approved. Nice run." />
             )}
 

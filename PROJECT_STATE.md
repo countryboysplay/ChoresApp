@@ -16,7 +16,41 @@ _Last updated: 2026-11-10_
 | Test status | 263 in CI (232 backend, 31 frontend). On the laptop 179 skip by design - tests may not touch the household database |
 | Last known good commit | `69cea4f` — Stage 17 running for real; CI green. GitHub `main` is at `4da4f2f` (2026-08-30); nothing since `69cea4f` touches app code or screens |
 
-## 2026-11-10 — Motion and the Arcade HUD redesign (kid side, uncommitted)
+## 2026-11-10 (evening) — Review fixes, Motion, React Bits, new icon
+
+Branch `neon-redesign`. Everything below this entry was committed as `82c604b`;
+this entry's fixes follow it. Not deployed.
+
+- **Added:** Motion (MIT) for kid screen transitions (`ChildShell`) and the coin
+  flight on redeem (`Rewards`). React Bits DecryptedText (MIT + Commons Clause,
+  notice in `design/DecryptedText.tsx`) decodes kid screen titles (`ScreenTop`,
+  `/child` routes only) and the level-up title. New code-drawn icon in the HUD
+  style (`npm run icons`). Pre-login screens and Not Found wear the HUD skin.
+- **Opening:** a remembered kid goes straight to Today (Splash shows only the sky
+  while auth loads) and returns to Today after 5 minutes in the background.
+- **Fixed from review:** boosts handed back when a bonus chore is released;
+  milestone not paid twice on a late first-day approval; refunds/returned
+  cash-outs are not XP (`xp_ledger` view; migration edited in place, it was
+  never deployed - re-run `migrate:redo` on any laptop DB that has it); Quests
+  opens on the first non-empty tab; count-ups wait for celebrations (Home works
+  out the hold itself); meters named for screen readers; celebration returns
+  focus, cancels its second confetti wave, and is portalled to `<body>`; white
+  inset focus ring; reduced motion stops the bar sweeps; no backdrop blur over the
+  animated sky; tilt measures once per tile; approvals re-check other children
+  only when the family goal is crossed; boost pick uses `SKIP LOCKED`; Settings
+  saves reset only their own section, goal capped at 1,000,000.
+- **Removed:** dead CSS (old Home stat/goal tiles, LevelBar, Ring, `.panel--pale`,
+  `.card--flush`, `.grid-parent`, sidebar art) and declarations in `system.css`
+  that a later rule always overrode; `chore-submitted` celebration kind.
+  `lib/deviceMemory.ts` holds the celebration memory (breaks an import cycle).
+- **Left as is:** approval celebration keys are one per approval (ids are not
+  ordered, so they cannot be collapsed to a high-water mark); frame/banner level
+  locks stay UI-only (already a documented `shortcut:` in `standings.ts`).
+- **Tests:** backend 236 pass (13 backup tests skip without `pg_dump`); frontend
+  50 pass. The first test in a backend file can time out at 5 s on a cold start;
+  rerun alone and it passes.
+
+## 2026-11-10 — Motion and the Arcade HUD redesign (kid side)
 
 Built with the `/impeccable animate` skill, then redesigned at the owner's
 request ("go crazy"). **Not committed and not deployed.** Typecheck clean; 49

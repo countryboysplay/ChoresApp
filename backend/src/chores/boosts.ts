@@ -83,7 +83,9 @@ export async function armBoost(
          WHERE b.child_id = $1 AND (b.chore_instance_id IS NULL OR ci.status IN ${DEAD})
          ORDER BY b.earned_at
          LIMIT 1
-         FOR UPDATE OF b
+         -- SKIP LOCKED: two chores armed at once each take a different free boost,
+         -- instead of the second waiting on the first and then finding none.
+         FOR UPDATE OF b SKIP LOCKED
       )`,
     [childId, instanceId],
   );

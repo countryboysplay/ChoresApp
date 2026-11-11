@@ -12,7 +12,7 @@ import { api } from '../../lib/api';
 import { useCatchUp, useTween } from '../../lib/motion';
 import { useAuth } from '../../lib/auth';
 import { useChildDay } from '../../lib/childDay';
-import { BoostToggle, Loot, StatusBadge, statusAccent } from './choreStatus';
+import { BoostToggle, isFinished, Loot, StatusBadge, statusAccent } from './choreStatus';
 import {
   approvalMoments,
   badgeMoments,
@@ -23,8 +23,8 @@ import {
   streakMoments,
   type Moment,
 } from './celebrations';
+import { celebrated } from '../../lib/deviceMemory';
 
-const FINISHED = ['approved', 'excused'];
 
 export function ChildHome() {
   const navigate = useNavigate();
@@ -35,14 +35,20 @@ export function ChildHome() {
   // Gains made while away play out once they can be seen: after the moments
   // have loaded and no celebration is covering the screen.
   const [momentsLoaded, setMomentsLoaded] = useState(!userId);
+  // The queue's idle report arrives a render late, so Home also checks for itself
+  // whether any moment is still waiting, and whether this day's level and streak
+  // moments have been added yet. onIdle stays as the re-render after a close.
   const [celebrationIdle, setCelebrationIdle] = useState(true);
-  const hold = !momentsLoaded || !celebrationIdle || !day;
+  const [checkedDay, setCheckedDay] = useState<typeof day>(null);
+  const pending = moments.some((moment) => !celebrated.has(moment.key));
+  const hold = !momentsLoaded || !day || checkedDay !== day || pending || !celebrationIdle;
   const seenKey = userId ?? 'preview';
   const coins = useTween(useCatchUp(`${seenKey}:coins`, day?.summary.spendablePoints, hold));
   const xp = useTween(useCatchUp(`${seenKey}:xp`, day?.summary.lifetimePoints, hold));
 
   // Level and streak come with the day.
   useEffect(() => {
+    setCheckedDay(day);
     if (!userId || !day) return;
     setMoments((list) =>
       mergeMoments(list, [
@@ -97,10 +103,10 @@ export function ChildHome() {
   const { summary } = day;
   const level = levelForLifetimePoints(xp ?? summary.lifetimePoints);
   const coinsShown = coins ?? summary.spendablePoints;
-  const allDone = day.core.length > 0 && day.core.every((entry) => FINISHED.includes(entry.status));
+  const allDone = day.core.length > 0 && day.core.every((entry) => isFinished(entry.status));
   // The required chore is the first core one still outstanding. Once the whole
   // day is approved the card gives way to the all-clear.
-  const chore = day.core.find((entry) => !FINISHED.includes(entry.status)) ?? null;
+  const chore = day.core.find((entry) => !isFinished(entry.status)) ?? null;
   const doneCount = chore ? chore.subtasks.filter((task) => task.done).length : 0;
   const totalCount = chore ? chore.subtasks.length : 0;
 
@@ -209,7 +215,8 @@ export function ChildHome() {
         done={dayDone}
         total={dayTotal}
         allDone={allDone}
-        seenKey={`${seenKey}:steps:${day.today}`}
+        seenKey={`${seenKey}:steps`}
+        seenScope={day.today}
         hold={hold}
         onOpen={() => navigate('/child/missions')}
       />
@@ -374,6 +381,7 @@ function DayRun({
   total,
   allDone,
   seenKey,
+  seenScope,
   hold,
   onOpen,
 }: {
@@ -383,15 +391,16 @@ function DayRun({
   total: number;
   allDone: boolean;
   seenKey: string;
+  seenScope: string;
   hold: boolean;
   onOpen: () => void;
 }) {
-  const seen = useCatchUp(seenKey, done, hold);
+  const seen = useCatchUp(seenKey, done, hold, seenScope);
   const shown = useTween(seen);
   const pct = total > 0 ? Math.min(100, (seen / total) * 100) : 0;
 
   const stateOf = (chore: RunChore) =>
-    FINISHED.includes(chore.status)
+    isFinished(chore.status)
       ? 'is-done'
       : chore.id === current
         ? 'is-current'
@@ -422,7 +431,7 @@ function DayRun({
         </span>
         {chores.map((chore) => (
           <span key={chore.id} className={`run__node ${stateOf(chore)}`} title={chore.name}>
-            <Icon name={(FINISHED.includes(chore.status) ? 'check' : chore.icon) as IconName} size={18} />
+            <Icon name={(isFinished(chore.status) ? 'check' : chore.icon) as IconName} size={18} />
           </span>
         ))}
         <span className={`run__node run__node--chest${allDone ? ' is-open' : ''}`} title="Day reward">
@@ -438,7 +447,7 @@ function DayRun({
  * moves from where this device last saw it, so siblings' progress shows as progress.
  */
 function FamilyGoalBar({ goal, seenKey, hold }: { goal: FamilyGoal; seenKey: string; hold: boolean }) {
-  const seen = useCatchUp(`${seenKey}:goal:${goal.weekStart}`, goal.xp, hold);
+  const seen = useCatchUp(`${seenKey}:goal`, goal.xp, hold, goal.weekStart);
   const xp = useTween(seen);
   const reached = xp >= goal.target;
   const pct = goal.target > 0 ? Math.min(100, (seen / goal.target) * 100) : 0;

@@ -25,3 +25,13 @@ test('an unknown value stays unknown and is not stored', () => {
   expect(result.current).toBeUndefined();
   expect(localStorage.getItem('cq-seen:k')).toBeNull();
 });
+
+test('a record from another day counts as none, and the key is reused', () => {
+  localStorage.setItem('cq-seen:k', '2026-11-09|7');
+  const { result, rerender } = renderHook(({ hold }) => useCatchUp('k', 3, hold, '2026-11-10'), {
+    initialProps: { hold: true },
+  });
+  expect(result.current).toBe(3);
+  rerender({ hold: false });
+  expect(localStorage.getItem('cq-seen:k')).toBe('2026-11-10|3');
+});

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { LedgerEntry } from '@chore-quest/shared';
-import { celebrated } from '../components/Celebration';
+import { celebrated } from '../lib/deviceMemory';
 import { approvalMoments, levelMoments, streakMoments } from '../screens/child/celebrations';
 
 const paid = (id: string, delta: number, boostXp = 0): LedgerEntry => ({

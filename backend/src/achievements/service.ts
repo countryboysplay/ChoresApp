@@ -150,8 +150,9 @@ export async function achievementStats(
 
   // This week and last, so a goal hit on Sunday night is still awarded to a
   // child who next opens the app on Monday.
-  // shortcut: older weeks are not looked at; the approval hook syncs every
-  // child, so only a server outage spanning a whole week could miss one.
+  // shortcut: older weeks are not looked at. The approval that crosses the goal
+  // syncs every child, and each child is synced again whenever their badges are
+  // read, so only a goal reached and unseen for over a week could be missed.
   let teamGoalWeeks = 0;
   const goal = rows[0]?.goal ?? null;
   if (goal !== null) {

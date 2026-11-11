@@ -247,6 +247,7 @@ export function Rewards() {
                         value={Math.min(spendable, reward.cost)}
                         max={reward.cost}
                         tone="gold"
+                        name={`Progress towards ${reward.name}`}
                       />
                       <span>
                         {spendable.toLocaleString('en-US')} / {reward.cost.toLocaleString('en-US')}

@@ -502,7 +502,8 @@ body.kid .mission .cta::after {
 }
 
 @keyframes hud-spin { to { rotate: 360deg; } }
-@keyframes hud-breathe { 50% { scale: 1.08; filter: brightness(1.25); } }
+/* Scale only: animating filter repaints on Safari every frame. */
+@keyframes hud-breathe { 50% { scale: 1.08; } }
 @keyframes hud-sheen { 0%, 70% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
 @keyframes hud-ping { from { opacity: 0.9; scale: 1; } to { opacity: 0; scale: 1.6; } }
 @keyframes hud-lvl-in { from { opacity: 0; translate: -50% 8px; } }
@@ -599,8 +600,7 @@ body.kid .neon-achievement > strong {
   text-transform: uppercase;
 }
 body.kid .neon-reward,
-body.kid .neon-achievement,
-body.kid .neon-stat {
+body.kid .neon-achievement {
   border-radius: 0;
   clip-path: polygon(var(--cut-lg) 0, 100% 0, 100% calc(100% - var(--cut-lg)), calc(100% - var(--cut-lg)) 100%, 0 100%, 0 var(--cut-lg));
 }
@@ -634,5 +634,12 @@ body.kid .chip { border-radius: 0; clip-path: polygon(7px 0, 100% 0, calc(100% -
 /* Celebration: the title in the display face, the button a slab. */
 body.kid .celebration__title { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; }
 
-/* clip-path cuts off anything outside the box, so kid focus rings sit inside it. */
-body.kid :focus-visible { outline-offset: -3px; }
+/* clip-path cuts off anything outside the box, so kid focus rings sit inside it,
+   in white so they still show on the cyan end of the brand gradient. */
+body.kid :focus-visible { outline-offset: -3px; outline-color: #fff; }
+
+/* The catch-up numbers land instantly under reduced motion; so do their bars. */
+@media (prefers-reduced-motion: reduce) {
+  .run__line > i,
+  .squad__bar > i { transition: none; }
+}

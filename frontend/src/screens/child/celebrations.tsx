@@ -6,13 +6,8 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AchievementItem, LedgerEntry, Redemption } from '@chore-quest/shared';
 import { Icon } from '../../design/icons';
 import { BadgeArt, NeonArt, rewardArt } from '../../design/neon';
-import {
-  Celebration,
-  CelebrationStats,
-  celebrated,
-  deviceMemory,
-  type CelebrationKind,
-} from '../../components/Celebration';
+import { Celebration, CelebrationStats, type CelebrationKind } from '../../components/Celebration';
+import { celebrated, deviceMemory } from '../../lib/deviceMemory';
 import { levelForLifetimePoints } from '../../config/levels';
 import { TierEmblem } from './choreStatus';
 

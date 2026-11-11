@@ -39,7 +39,7 @@ export function useSkyMood(clear: boolean): void {
   }, [clear]);
 }
 
-const TILT_TILES = '.neon-reward, .neon-achievement, .neon-stat';
+const TILT_TILES = '.neon-reward, .neon-achievement';
 
 /**
  * Kid tiles lean toward the pointer (or the finger, while pressed) with a glare
@@ -49,11 +49,15 @@ export function useTileTilt(): void {
   useEffect(() => {
     if (prefersReducedMotion()) return;
     let current: HTMLElement | null = null;
+    // Measured once per tile, untilted: re-reading it every move forces a style
+    // flush and returns the already-tilted box, so the lean drifts off-centre.
+    let box: DOMRect | null = null;
 
     const release = () => {
       if (!current) return;
       current.removeAttribute('data-tilt');
       current = null;
+      box = null;
     };
 
     const track = (event: PointerEvent) => {
@@ -62,7 +66,7 @@ export function useTileTilt(): void {
       if (tile !== current) release();
       // Touch tilts only while the finger is down.
       if (!tile || (event.pointerType !== 'mouse' && event.buttons === 0)) return;
-      const box = tile.getBoundingClientRect();
+      if (tile !== current || !box) box = tile.getBoundingClientRect();
       const x = (event.clientX - box.left) / box.width - 0.5;
       const y = (event.clientY - box.top) / box.height - 0.5;
       tile.style.setProperty('--rx', `${(-y * 12).toFixed(2)}deg`);
@@ -82,6 +86,7 @@ export function useTileTilt(): void {
     document.addEventListener('pointerup', end);
     document.addEventListener('pointercancel', release);
     document.documentElement.addEventListener('pointerleave', release);
+    window.addEventListener('scroll', release, { passive: true, capture: true });
     return () => {
       release();
       document.removeEventListener('pointerdown', track);
@@ -89,6 +94,7 @@ export function useTileTilt(): void {
       document.removeEventListener('pointerup', end);
       document.removeEventListener('pointercancel', release);
       document.documentElement.removeEventListener('pointerleave', release);
+      window.removeEventListener('scroll', release, { capture: true });
     };
   }, []);
 }

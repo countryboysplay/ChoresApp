@@ -85,15 +85,6 @@
   gap: var(--space-3);
 }
 
-@media (min-width: 900px) {
-  .grid-parent {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-4);
-    align-items: start;
-  }
-}
-
 /* ---------- Type ---------- */
 .title {
   font-family: var(--font-display);
@@ -127,62 +118,34 @@
 
 /* ---------- Surfaces ---------- */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--outline);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
   padding: var(--space-4);
   color: var(--text);
 }
-
-.card--flush { padding: 0; overflow: hidden; }
 
 .card--interactive {
   text-align: left;
   width: 100%;
   color: inherit;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.card--interactive:hover { transform: translateY(-2px); box-shadow: var(--shadow-raised), 0 0 0 1px var(--outline-strong); }
 .card--interactive:active { transform: translateY(1px); box-shadow: var(--shadow-press); }
 
 /* Hero panels from the board */
 .panel {
-  border-radius: var(--radius-xl);
   padding: var(--space-5);
   box-shadow: var(--shadow-raised);
-  border: 1px solid rgba(255, 255, 255, 0.14);
   color: #fff;
   position: relative;
   overflow: hidden;
 }
 
-.panel--sky {
-  background:
-    radial-gradient(420px 220px at 100% 0%, rgba(64, 228, 255, 0.35), transparent 70%),
-    linear-gradient(150deg, var(--panel-blue) 0%, var(--panel-blue-deep) 100%);
-  box-shadow: var(--shadow-raised), var(--glow-violet);
-}
-
-.panel--purple {
-  background:
-    radial-gradient(380px 200px at 0% 0%, rgba(241, 85, 167, 0.3), transparent 70%),
-    linear-gradient(150deg, #7a5cff 0%, #3b1f8f 100%);
-}
-
-.panel--pale {
-  background: linear-gradient(150deg, rgba(79, 224, 164, 0.16), rgba(64, 200, 255, 0.08));
-  border-color: rgba(79, 224, 164, 0.35);
-  color: var(--text);
-}
+.panel--sky { box-shadow: var(--shadow-raised), var(--glow-violet); }
 
 .panel--navy {
   background: linear-gradient(180deg, var(--surface-raised), var(--surface));
 }
 
 /* Status accent stripe - always paired with an icon and text label */
-.card--status { border-left: 6px solid var(--outline-strong); }
 .card--status.is-done { border-left-color: var(--status-done); }
 .card--status.is-waiting { border-left-color: var(--status-waiting); }
 .card--status.is-late { border-left-color: var(--status-late); }
@@ -388,35 +351,6 @@
   margin-bottom: 4px;
 }
 
-/* XP level bar with the circular level badge */
-.levelbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 5px 14px 5px 5px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-sunken);
-  border: 1px solid var(--outline);
-}
-
-.levelbar__badge {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 0;
-  background: center / contain no-repeat;
-  filter: drop-shadow(0 0 8px rgba(64, 228, 255, 0.35));
-  font-family: var(--font-display);
-  font-weight: 900;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
-  color: var(--text-strong);
-}
-
 /* ---------- Stat rows and tiles ---------- */
 .stat-row {
   display: flex;
@@ -425,9 +359,6 @@
   width: 100%;
   text-align: left;
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  border: 1px solid var(--outline);
   color: var(--text);
   min-height: 68px;
 }
@@ -449,9 +380,6 @@
 }
 
 .tile {
-  background: var(--surface-sunken);
-  border: 1px solid var(--outline);
-  border-radius: var(--radius-md);
   padding: var(--space-3);
   text-align: center;
 }
@@ -476,16 +404,9 @@
   width: 100%;
   text-align: left;
   padding: var(--space-3);
-  border-radius: var(--radius-md);
   border: 1px solid var(--outline);
-  background: var(--surface-sunken);
   color: var(--text);
   min-height: var(--touch-min);
-}
-
-.check[aria-pressed='true'] {
-  border-color: rgba(79, 224, 164, 0.45);
-  background: rgba(79, 224, 164, 0.1);
 }
 
 .check__box {
@@ -544,18 +465,10 @@
 /* ---------- Navigation ---------- */
 .navbar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
   z-index: 40;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 2px;
-  padding: var(--space-2) var(--space-2) calc(var(--space-2) + env(safe-area-inset-bottom));
-  background: rgba(9, 12, 25, 0.82);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  border-top: 1px solid var(--outline);
 }
 
 .navbar__item {
@@ -565,7 +478,6 @@
   padding: var(--space-2) 0;
   border: none;
   background: none;
-  border-radius: var(--radius-md);
   color: var(--text-muted);
   font-family: var(--font-display);
   font-size: 11px;
@@ -576,7 +488,6 @@
 }
 
 .navbar__item.is-active {
-  color: var(--text-strong);
   background: rgba(64, 200, 255, 0.1);
   --icon-paint: var(--grad-brand);
 }
@@ -864,11 +775,6 @@
     url('/neon/backgrounds/orbits.svg') right center / cover;
 }
 
-.panel--pale {
-  background: linear-gradient(130deg, #213457, #17233d);
-  color: var(--text-strong);
-}
-
 /* Floating glass nav bar, as in the pack. */
 .navbar {
   left: var(--space-3);
@@ -879,8 +785,6 @@
   background: rgba(12, 18, 35, 0.9);
   border: 1px solid rgba(170, 194, 255, 0.17);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
 }
 
 .navbar__item { border-radius: 18px; }
@@ -891,14 +795,6 @@
 .check { background: rgba(12, 17, 35, 0.68); border-radius: 16px; }
 .check[aria-pressed='true'] { background: rgba(80, 228, 177, 0.08); border-color: rgba(80, 228, 177, 0.38); }
 
-/* Parent sidebar on the grid art. */
-@media (min-width: 1000px) {
-  .sidebar {
-    background:
-      linear-gradient(180deg, rgba(9, 12, 25, 0.75), rgba(9, 12, 25, 0.92)),
-      url('/neon/backgrounds/grid.svg') center / cover;
-  }
-}
 
 /* ---------- Celebration overlay (components/Celebration.tsx) ---------- */
 .celebration {
@@ -911,9 +807,8 @@
   gap: var(--space-3);
   padding: calc(var(--space-5) + env(safe-area-inset-top, 0px)) var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
   text-align: center;
+  /* No backdrop blur: at 92-94% opacity it is invisible, and the sky below animates. */
   background: radial-gradient(circle at 50% 35%, rgba(56, 34, 99, 0.92), rgba(2, 5, 17, 0.94) 65%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   animation: fade-in 240ms ease-out both;
 }
 
@@ -997,25 +892,9 @@
 }
 .segment[data-ready] .segment__item[aria-selected='true'] { background: none; box-shadow: none; }
 
-/* Day ring: a catch-up sweep, decelerating into place. */
-.ring__value { transition: stroke-dashoffset 900ms var(--ease-out); }
-
-/* The XP bar is counted by JS; a CSS transition on top would lag and rewind on a level-up. */
-.meter__fill--driven { transition: none; }
-
-/* Level badge ticks over when the count crosses a level. */
-.levelbar__badge--up { animation: level-tick 600ms var(--ease-out); }
-@keyframes level-tick {
-  0% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(64, 228, 255, 0.35)); }
-  35% { transform: scale(1.28); filter: drop-shadow(0 0 18px rgba(247, 199, 107, 0.9)); }
-  100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(64, 228, 255, 0.35)); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .segment[data-ready]::before,
-  .ring__value,
   .meter__fill { transition: none; }
-  .levelbar__badge--up { animation: none; }
 }
 
 /* ===================================================================

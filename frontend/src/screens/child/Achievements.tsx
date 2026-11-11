@@ -190,7 +190,7 @@ export function Achievements() {
                           one-shot badge is a bar that reads nought or one. */}
                       {!isEarned && badge.target > 1 ? (
                         <div className="neon-meter">
-                          <Meter value={badge.progress} max={badge.target} tone="gold" />
+                          <Meter value={badge.progress} max={badge.target} tone="gold" name={`Progress towards ${badge.name}`} />
                         </div>
                       ) : null}
                       <span className="neon-achievement__state">

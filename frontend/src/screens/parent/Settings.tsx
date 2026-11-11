@@ -14,6 +14,9 @@ import { api, ApiRequestError } from '../../lib/api';
  * the app has always refused to invent. They are set here, together, and setting
  * them is what turns the wallet's cash-out panel on.
  */
+/** The server's cap on the weekly XP goal (household.ts). */
+const GOAL_MAX = 1_000_000;
+
 export function Settings() {
   const switchUser = useSwitchUser();
   const [settings, setSettings] = useState<HouseholdSettings | null>(null);
@@ -31,18 +34,25 @@ export function Settings() {
   const [goal, setGoal] = useState('');
   const [goalReward, setGoalReward] = useState('');
 
-  const load = useCallback(async () => {
+  // After a save only that section's fields are reset, so unsaved edits elsewhere survive.
+  const load = useCallback(async (only?: 'points' | 'cash' | 'goal') => {
     try {
       const { settings: loaded } = await api.household.settings();
       setSettings(loaded);
-      setCorePoints(String(loaded.corePointValue));
-      setBonusPoints(String(loaded.punctualityBonusPoints));
-      setReminder(loaded.reminderTime);
-      setEscalation(loaded.escalationTime);
-      setRate(loaded.pointsPerDollar === null ? '' : String(loaded.pointsPerDollar));
-      setMinimum(loaded.minimumCashOutPoints === null ? '' : String(loaded.minimumCashOutPoints));
-      setGoal(loaded.weeklyXpGoal === null ? '' : String(loaded.weeklyXpGoal));
-      setGoalReward(loaded.weeklyGoalReward ?? '');
+      if (!only || only === 'points') {
+        setCorePoints(String(loaded.corePointValue));
+        setBonusPoints(String(loaded.punctualityBonusPoints));
+        setReminder(loaded.reminderTime);
+        setEscalation(loaded.escalationTime);
+      }
+      if (!only || only === 'cash') {
+        setRate(loaded.pointsPerDollar === null ? '' : String(loaded.pointsPerDollar));
+        setMinimum(loaded.minimumCashOutPoints === null ? '' : String(loaded.minimumCashOutPoints));
+      }
+      if (!only || only === 'goal') {
+        setGoal(loaded.weeklyXpGoal === null ? '' : String(loaded.weeklyXpGoal));
+        setGoalReward(loaded.weeklyGoalReward ?? '');
+      }
       setError(null);
     } catch (caught) {
       setError(caught instanceof ApiRequestError ? caught.message : 'Could not load settings.');
@@ -66,7 +76,7 @@ export function Settings() {
         escalationTime: escalation,
       });
       setNotice('Saved.');
-      await load();
+      await load('points');
     } catch (caught) {
       setError(caught instanceof ApiRequestError ? caught.message : 'That did not save.');
     } finally {
@@ -84,7 +94,7 @@ export function Settings() {
           : { weeklyXpGoal: Number(goal), weeklyGoalReward: goalReward.trim() || null },
       );
       setNotice(clear ? 'Family goal removed.' : 'Family goal saved.');
-      await load();
+      await load('goal');
     } catch (caught) {
       setError(caught instanceof ApiRequestError ? caught.message : 'That did not save.');
     } finally {
@@ -102,7 +112,7 @@ export function Settings() {
           : { pointsPerDollar: Number(rate), minimumCashOutPoints: Number(minimum) },
       );
       setNotice(turnOff ? 'Cash out turned off.' : 'Cash out is on.');
-      await load();
+      await load('cash');
     } catch (caught) {
       setError(caught instanceof ApiRequestError ? caught.message : 'That did not save.');
     } finally {
@@ -287,6 +297,7 @@ export function Settings() {
                 className="input numeric"
                 type="number"
                 min={1}
+                max={GOAL_MAX}
                 value={goal}
                 onChange={(event) => setGoal(event.target.value)}
                 placeholder="No goal"
@@ -314,7 +325,7 @@ export function Settings() {
               tone="go"
               block
               icon="check"
-              disabled={working || !(Number.isInteger(Number(goal)) && Number(goal) > 0)}
+              disabled={working || !(Number.isInteger(Number(goal)) && Number(goal) > 0 && Number(goal) <= GOAL_MAX)}
               onClick={() => void saveGoal()}
             >
               Save goal

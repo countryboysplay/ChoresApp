@@ -6,9 +6,9 @@ import { Icon, type IconName } from '../design/icons';
 import { Sheet } from '../design/primitives';
 import { useSkyMood, useTileTilt } from '../design/NeonSky';
 import { useChildDay } from '../lib/childDay';
+import { isFinished } from '../screens/child/choreStatus';
 import '../design/neon-hud.css';
 
-const FINISHED = ['approved', 'excused'];
 /** Away longer than this (a real break, not a quick app switch) reopens on Today. */
 const AWAY_MS = 5 * 60_000;
 
@@ -34,7 +34,7 @@ export function ChildShell() {
   const outlet = useOutlet();
   const { day } = useChildDay();
   // Every required chore approved: the sky turns mint and gold for the rest of the day.
-  useSkyMood(Boolean(day && day.core.length > 0 && day.core.every((chore) => FINISHED.includes(chore.status))));
+  useSkyMood(Boolean(day && day.core.length > 0 && day.core.every((chore) => isFinished(chore.status))));
   useTileTilt();
   // An iPhone keeps the installed app alive in the background and resumes on the last
   // screen. Coming back after a real break should start on Today, like a fresh launch.

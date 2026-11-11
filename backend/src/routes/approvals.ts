@@ -5,7 +5,7 @@ import { getPool } from '../db.js';
 import { householdToday } from '../time.js';
 import { notify } from '../notifications/service.js';
 import { syncAchievements } from '../achievements/service.js';
-import { syncBoosts } from '../chores/boosts.js';
+import { familyGoal, syncBoosts } from '../chores/boosts.js';
 import { streakRun } from '../chores/queries.js';
 
 const RejectBody = z.object({
@@ -265,11 +265,18 @@ export async function approvalRoutes(app: FastifyInstance, opts: { env: Env }): 
         const today = householdToday(env.HOUSEHOLD_TZ);
         // This approval may have extended a streak to a boost milestone.
         await syncBoosts(db, chore.child_id, await streakRun(db, chore.child_id, today));
-        // Every child, not just this one: this XP may have hit the family goal,
-        // which earns Team Player for everybody who helped.
-        const { rows: children } = await db.query<{ id: string }>(
-          `SELECT id FROM users WHERE role = 'child' AND is_active`,
+        // Team Player is the one badge that depends on other children. Only when
+        // this approval is what pushed the family goal over is everybody re-checked;
+        // otherwise just this child (approve-all would re-check every child per item).
+        const goal = await familyGoal(db, today);
+        const { rows: gained } = await db.query<{ xp: number }>(
+          `SELECT coalesce(sum(xp), 0)::int AS xp FROM xp_ledger WHERE chore_instance_id = $1`,
+          [chore.id],
         );
+        const crossed = goal !== null && goal.xp >= goal.target && goal.xp - (gained[0]?.xp ?? 0) < goal.target;
+        const { rows: children } = crossed
+          ? await db.query<{ id: string }>(`SELECT id FROM users WHERE role = 'child' AND is_active`)
+          : { rows: [{ id: chore.child_id }] };
         for (const child of children) {
           const { newlyEarned } = await syncAchievements(db, child.id, today);
           for (const badge of newlyEarned) {

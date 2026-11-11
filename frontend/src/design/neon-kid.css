@@ -180,55 +180,12 @@
 .neon-tx__amount.is-plus { color: var(--green); }
 .neon-tx__amount.is-minus { color: var(--text-muted); }
 
-/* ---------- Accents ---------- */
-.neon-sparkle { position: absolute; pointer-events: none; }
-@media (prefers-reduced-motion: no-preference) {
-  .neon-sparkle { animation: neon-twinkle 3.2s ease-in-out infinite; }
-}
-@keyframes neon-twinkle {
-  0%, 100% { opacity: 0.35; transform: scale(0.85) rotate(0deg); }
-  50% { opacity: 1; transform: scale(1) rotate(20deg); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .neon-chore, .neon-achievement { transition: none; }
   .neon-chore:hover, .neon-achievement:hover { transform: none; }
 }
 .neon-chore__main > .badge { justify-self: start; }
 
-/* ---------- Home stat tiles: coins, level, boosts ---------- */
-.neon-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-}
-.neon-stat {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  padding: 10px 6px;
-  border-radius: 16px;
-  border: 1px solid rgba(155, 177, 255, 0.14);
-  background: linear-gradient(120deg, var(--surface-raised), #151b32);
-  color: var(--text-strong);
-}
-.neon-stat > b { font-family: var(--font-display); font-size: var(--text-xl); line-height: 1.1; }
-.neon-stat > span { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #a1b0d0; }
-.neon-stat--boost { border-color: rgba(155, 124, 255, 0.45); }
-
-/* ---------- Family goal ---------- */
-.neon-goal {
-  margin-bottom: var(--space-4);
-  padding: var(--space-4);
-  border-radius: 19px;
-  border: 1px solid rgba(247, 199, 107, 0.3);
-  background: linear-gradient(120deg, var(--surface-raised), #151b32);
-  color: var(--text-strong);
-}
-.neon-goal.is-reached { border-color: rgba(79, 224, 164, 0.5); }
-.neon-goal__count { font-weight: 850; color: var(--gold); }
-.neon-goal__note { margin: var(--space-2) 0 0; display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 700; }
 
 /* ---------- XP boost ---------- */
 .neon-boost {
@@ -282,17 +239,17 @@
  * idle signals that mean something - a reward you can afford, a badge
  * you earned, a boost waiting to be spent.
  * =================================================================== */
-.neon-stat, .neon-achievement { position: relative; }
-.neon-reward, .neon-achievement, .neon-stat {
+.neon-achievement { position: relative; }
+.neon-reward, .neon-achievement {
   overflow: hidden;
   isolation: isolate;
   transition: transform 420ms var(--ease-out), border-color 220ms, box-shadow 220ms;
 }
-.neon-reward[data-tilt], .neon-achievement[data-tilt], .neon-stat[data-tilt] {
+.neon-reward[data-tilt], .neon-achievement[data-tilt] {
   transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
   transition-duration: 90ms, 220ms, 220ms;
 }
-.neon-reward[data-tilt]::before, .neon-achievement[data-tilt]::before, .neon-stat[data-tilt]::before {
+.neon-reward[data-tilt]::before, .neon-achievement[data-tilt]::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -316,32 +273,19 @@
 .neon-reward.is-ready { --sheen: rgba(214, 190, 255, 0.2); }
 .neon-achievement.is-earned { --sheen: rgba(255, 228, 152, 0.2); }
 
-/* A boost to spend: the tile breathes. */
-.neon-stat--boost.is-live::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  box-shadow: inset 0 0 18px rgba(155, 124, 255, 0.55);
-  opacity: 0;
-}
 
 @media (prefers-reduced-motion: no-preference) {
-  .neon-stats > *, .neon-rewards > *, .neon-achievements > * { animation: tile-in 560ms var(--ease-out) both; }
-  :is(.neon-stats, .neon-rewards, .neon-achievements) > :nth-child(2) { animation-delay: 50ms; }
-  :is(.neon-stats, .neon-rewards, .neon-achievements) > :nth-child(3) { animation-delay: 100ms; }
-  :is(.neon-stats, .neon-rewards, .neon-achievements) > :nth-child(4) { animation-delay: 150ms; }
-  :is(.neon-stats, .neon-rewards, .neon-achievements) > :nth-child(5) { animation-delay: 200ms; }
-  :is(.neon-stats, .neon-rewards, .neon-achievements) > :nth-child(n + 6) { animation-delay: 250ms; }
+  .neon-rewards > *, .neon-achievements > * { animation: tile-in 560ms var(--ease-out) both; }
+  :is(.neon-rewards, .neon-achievements) > :nth-child(2) { animation-delay: 50ms; }
+  :is(.neon-rewards, .neon-achievements) > :nth-child(3) { animation-delay: 100ms; }
+  :is(.neon-rewards, .neon-achievements) > :nth-child(4) { animation-delay: 150ms; }
+  :is(.neon-rewards, .neon-achievements) > :nth-child(5) { animation-delay: 200ms; }
+  :is(.neon-rewards, .neon-achievements) > :nth-child(n + 6) { animation-delay: 250ms; }
 
   .neon-reward.is-ready::after, .neon-achievement.is-earned::after { animation: tile-sheen 7s var(--ease-out) 1.2s infinite; }
   :is(.neon-rewards, .neon-achievements) > :nth-child(3n + 2)::after { animation-delay: 3.4s; }
   :is(.neon-rewards, .neon-achievements) > :nth-child(3n + 3)::after { animation-delay: 5.6s; }
-
-  .neon-stat--boost.is-live::after { animation: boost-breathe 2.8s ease-in-out infinite; }
 }
 
 @keyframes tile-in { from { opacity: 0; translate: 0 16px; scale: 0.95; } }
 @keyframes tile-sheen { 0%, 72% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
-@keyframes boost-breathe { 50% { opacity: 1; } }

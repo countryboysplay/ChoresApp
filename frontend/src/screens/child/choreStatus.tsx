@@ -19,6 +19,11 @@ const STATUS: Record<ChoreStatus, { label: string; tone: BadgeTone; icon: IconNa
   missed: { label: 'Missed', tone: 'late', icon: 'close' },
 };
 
+/** Approved or excused: nothing left for the child to do. */
+export function isFinished(status: string): boolean {
+  return status === 'approved' || status === 'excused';
+}
+
 export function StatusBadge({ status }: { status: ChoreStatus }) {
   const config = STATUS[status];
   return (

@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Icon, type IconName } from './icons';
-import { levelTier, NeonArt, neonUrl } from './neon';
+import { NeonArt } from './neon';
 
 /** Empty-state illustration for each icon the callers already pass. */
 const emptyArt: Partial<Record<IconName, string>> = {
@@ -87,12 +87,15 @@ export function Meter({
   value,
   max,
   label,
+  name,
   right,
   tone,
 }: {
   value: number;
   max: number;
   label?: string;
+  /** What the bar measures, for screen readers only (when there is no visible label). */
+  name?: string;
   right?: string;
   tone?: 'gold' | 'green';
 }) {
@@ -111,83 +114,9 @@ export function Meter({
         aria-valuenow={value}
         aria-valuemin={0}
         aria-valuemax={max}
-        aria-label={label ?? 'Progress'}
+        aria-label={label ?? name ?? 'Progress'}
       >
         <div className={`meter__fill ${tone ? `meter__fill--${tone}` : ''}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Circular progress ---------- */
-export function Ring({
-  value,
-  max,
-  size = 108,
-  stroke = 10,
-  label,
-  children,
-}: {
-  value: number;
-  max: number;
-  size?: number;
-  stroke?: number;
-  label: string;
-  children?: ReactNode;
-}) {
-  const pct = max <= 0 ? 0 : Math.min(1, value / max);
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-
-  return (
-    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      <svg
-        width={size}
-        height={size}
-        role="progressbar"
-        aria-valuenow={Math.round(pct * 100)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={label}
-      >
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="rgba(0,0,0,0.35)"
-          strokeWidth={stroke}
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="url(#ring-gradient)"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - pct)}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          className="ring__value"
-        />
-        <defs>
-          <linearGradient id="ring-gradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="var(--gold)" />
-            <stop offset="100%" stopColor="var(--green)" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'grid',
-          placeItems: 'center',
-          textAlign: 'center',
-        }}
-      >
-        {children}
       </div>
     </div>
   );
@@ -338,51 +267,6 @@ export function PointsPill({ value, small }: { value: number | string; small?: b
       </span>
       {label}
     </span>
-  );
-}
-
-/* ---------- XP level bar ---------- */
-export function LevelBar({
-  level,
-  into,
-  span,
-}: {
-  level: number;
-  into: number;
-  span: number | null;
-}) {
-  const pct = span ? Math.min(100, Math.round((into / span) * 100)) : 100;
-  // The badge ticks only when the level changes in front of the player, not on arrival.
-  const firstLevel = useRef(level);
-  return (
-    <div className="levelbar">
-      <span
-        key={level}
-        className={`levelbar__badge${level !== firstLevel.current ? ' levelbar__badge--up' : ''}`}
-        style={{ backgroundImage: `url("${neonUrl('achievements', levelTier(level))}")` }}>
-        {level}
-      </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          className="numeric"
-          style={{ fontSize: 'var(--text-xs)', fontWeight: 800, marginBottom: 3 }}
-        >
-          {span ? `${into.toLocaleString('en-US')} / ${span.toLocaleString('en-US')} XP` : 'Max level'}
-        </div>
-        <div
-          className="meter"
-          style={{ height: 10 }}
-          role="progressbar"
-          aria-valuenow={pct}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`Level ${level} progress`}
-        >
-          {/* Driven frame by frame by the caller's count, so it wraps cleanly on a level-up. */}
-          <div className="meter__fill meter__fill--gold meter__fill--driven" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
-    </div>
   );
 }
 
